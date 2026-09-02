@@ -10,6 +10,7 @@ pub fn run() {
             storage::scan_vault,
             storage::read_file,
             storage::write_file,
+            storage::create_note,
             session::get_session,
             session::save_session,
         ])

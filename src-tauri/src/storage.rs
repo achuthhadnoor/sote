@@ -187,9 +187,62 @@ pub fn write_file(
     Ok(())
 }
 
+/// Tauri command to create a new untitled markdown note on disk.
+#[tauri::command]
+pub fn create_note(vault_path: String) -> Result<String, String> {
+    let path = PathBuf::from(&vault_path);
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
+
+    if !canonical.is_dir() {
+        return Err(format!("Vault path is not a directory: {:?}", canonical));
+    }
+
+    let candidate = if !canonical.join("Untitled.md").exists() {
+        canonical.join("Untitled.md")
+    } else {
+        let mut idx = 1;
+        loop {
+            let candidate_path = canonical.join(format!("Untitled {}.md", idx));
+            if !candidate_path.exists() {
+                break candidate_path;
+            }
+            idx += 1;
+        }
+    };
+
+    fs::write(&candidate, "")
+        .map_err(|e| format!("Failed to create new note file: {}", e))?;
+
+    Ok(candidate.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_create_note_increments_numbers() {
+        let temp_dir = std::env::temp_dir().join(format!("snipnote_create_note_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        let path_str = temp_dir.to_string_lossy().to_string();
+
+        let n1 = create_note(path_str.clone()).unwrap();
+        assert!(n1.ends_with("Untitled.md"));
+        assert!(Path::new(&n1).is_file());
+
+        let n2 = create_note(path_str.clone()).unwrap();
+        assert!(n2.ends_with("Untitled 1.md"));
+        assert!(Path::new(&n2).is_file());
+
+        let n3 = create_note(path_str.clone()).unwrap();
+        assert!(n3.ends_with("Untitled 2.md"));
+        assert!(Path::new(&n3).is_file());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 
     #[test]
     fn test_parse_note_envelope_with_frontmatter() {

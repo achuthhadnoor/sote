@@ -52,9 +52,28 @@ function App() {
     });
   }, [vaultPath, activePath]);
 
-  const handleNewNote = () => {
-    selectNote("Untitled.md", "Untitled.md");
+  const createNote = useVaultStore((state) => state.createNote);
+
+  const handleNewNote = async () => {
+    const newPath = await createNote();
+    if (newPath) {
+      const fileName = newPath.split("/").pop() || "Untitled.md";
+      selectNote(newPath, fileName);
+    }
   };
+
+  // Keyboard shortcut for Cmd+N / Ctrl+N
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        handleNewNote();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [createNote, selectNote]);
 
   return (
     <div className="app-shell">

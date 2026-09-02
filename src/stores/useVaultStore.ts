@@ -10,10 +10,11 @@ interface VaultState {
   error: string | null;
   openVaultDialog: () => Promise<void>;
   loadVault: (path: string) => Promise<void>;
+  createNote: () => Promise<string | null>;
   clearVault: () => void;
 }
 
-export const useVaultStore = create<VaultState>((set) => ({
+export const useVaultStore = create<VaultState>((set, get) => ({
   vaultPath: null,
   tree: [],
   isLoading: false,
@@ -45,6 +46,26 @@ export const useVaultStore = create<VaultState>((set) => ({
         error: err?.message || String(err),
         isLoading: false,
       });
+    }
+  },
+
+  createNote: async () => {
+    let currentPath = get().vaultPath;
+    if (!currentPath) {
+      await get().openVaultDialog();
+      currentPath = get().vaultPath;
+      if (!currentPath) return null;
+    }
+
+    try {
+      const newPath = await invoke<string>("create_note", {
+        vaultPath: currentPath,
+      });
+      await get().loadVault(currentPath);
+      return newPath;
+    } catch (err: any) {
+      set({ error: err?.message || String(err) });
+      return null;
     }
   },
 
