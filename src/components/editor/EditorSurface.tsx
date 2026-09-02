@@ -17,6 +17,7 @@ export const EditorSurface: React.FC = () => {
   const saveNow = useEditorStore((state) => state.saveNow);
   const isLoading = useEditorStore((state) => state.isLoading);
   const error = useEditorStore((state) => state.error);
+  const reloadCount = useEditorStore((state) => state.reloadCount);
 
   const activePathRef = useRef<string | null>(activePath);
   activePathRef.current = activePath;
@@ -115,7 +116,7 @@ export const EditorSurface: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [activePath, editor, loadNote, saveNow]);
+  }, [activePath, reloadCount, editor, loadNote, saveNow]);
 
   if (!vaultPath) {
     return (

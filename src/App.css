@@ -506,5 +506,80 @@ html, body, #root {
   padding: 12px;
 }
 
+/* Conflict Banner (UX-DR8) */
+.conflict-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 24px 0 24px;
+  padding: 8px 14px;
+  background-color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--fg);
+  animation: fadeIn 0.15s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.conflict-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.conflict-icon {
+  font-size: 14px;
+}
+
+.conflict-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-conflict-reload {
+  background-color: var(--fg);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.1s ease;
+}
+
+.btn-conflict-reload:hover {
+  opacity: 0.9;
+}
+
+.btn-conflict-keep {
+  background-color: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.btn-conflict-keep:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+
 
 

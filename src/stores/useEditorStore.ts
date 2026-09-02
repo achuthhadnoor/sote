@@ -10,11 +10,16 @@ interface EditorState {
   isSaving: boolean;
   isLoading: boolean;
   error: string | null;
+  hasConflict: boolean;
+  reloadCount: number;
   loadNote: (path: string) => Promise<string>;
   updateBody: (body: string) => void;
   saveNow: (filePath: string) => Promise<void>;
   setSaved: () => void;
   clearNote: () => void;
+  setConflict: (val: boolean) => void;
+  resolveConflictReload: (path: string) => Promise<string>;
+  resolveConflictKeepMine: () => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -25,6 +30,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isSaving: false,
   isLoading: false,
   error: null,
+  hasConflict: false,
+  reloadCount: 0,
 
   loadNote: async (path: string) => {
     set({ isLoading: true, error: null });
@@ -40,6 +47,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         isDirty: false,
         isLoading: false,
         error: null,
+        hasConflict: false,
       });
 
       return envelope.body;
@@ -113,6 +121,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       isSaving: false,
       isLoading: false,
       error: null,
+      hasConflict: false,
     });
+  },
+
+  setConflict: (val: boolean) => {
+    set({ hasConflict: val });
+  },
+
+  resolveConflictReload: async (path: string) => {
+    const body = await get().loadNote(path);
+    set((state) => ({
+      hasConflict: false,
+      reloadCount: state.reloadCount + 1,
+    }));
+    return body;
+  },
+
+  resolveConflictKeepMine: () => {
+    set({ hasConflict: false });
   },
 }));

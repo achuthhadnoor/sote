@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import { TabBar } from "./components/editor/TabBar";
+import { ConflictBanner } from "./components/editor/ConflictBanner";
 import { EditorSurface } from "./components/editor/EditorSurface";
 import { StatusBar } from "./components/editor/StatusBar";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useTabStore } from "./stores/useTabStore";
+import { useEditorStore } from "./stores/useEditorStore";
 import { SessionState } from "./types/session";
 import "./App.css";
 
@@ -52,6 +55,48 @@ function App() {
     });
   }, [vaultPath, activePath]);
 
+  // Listen for native filesystem changes emitted by Rust file watcher (AD-4)
+  useEffect(() => {
+    let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const unlistenPromise = listen<{ path: string; kind: string }>(
+      "vault-changed",
+      (event) => {
+        const changedPath = event.payload.path;
+        const currentVault = useVaultStore.getState().vaultPath;
+        const currentActive = useTabStore.getState().activePath;
+        const isDirty = useEditorStore.getState().isDirty;
+
+        // If the external change affects the currently active note
+        if (
+          currentActive &&
+          (changedPath === currentActive || changedPath.endsWith(currentActive))
+        ) {
+          if (!isDirty) {
+            // Clean buffer: automatically reload from disk
+            useEditorStore.getState().resolveConflictReload(currentActive);
+          } else {
+            // Dirty buffer: display non-blocking conflict banner
+            useEditorStore.getState().setConflict(true);
+          }
+        }
+
+        // Debounce refreshing the sidebar file tree within 500ms
+        if (currentVault) {
+          if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
+          treeRefreshTimer = setTimeout(() => {
+            useVaultStore.getState().loadVault(currentVault);
+          }, 500);
+        }
+      }
+    );
+
+    return () => {
+      if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
   const createNote = useVaultStore((state) => state.createNote);
 
   const handleNewNote = async () => {
@@ -80,6 +125,7 @@ function App() {
       <Sidebar />
       <main className="main-container">
         <TabBar onNewNote={handleNewNote} />
+        <ConflictBanner />
         <EditorSurface />
         <StatusBar wordCount={0} charCount={0} paragraphCount={0} />
       </main>
