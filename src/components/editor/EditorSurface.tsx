@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import { Markdown } from "@tiptap/markdown";
+import { CustomCodeBlock } from "./extensions/CustomCodeBlock";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
@@ -25,10 +26,12 @@ export const EditorSurface: React.FC = () => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        codeBlock: false,
         heading: {
           levels: [1, 2, 3, 4],
         },
       }),
+      CustomCodeBlock,
       Link.configure({
         openOnClick: false,
       }),
