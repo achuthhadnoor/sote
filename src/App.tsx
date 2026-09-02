@@ -140,7 +140,7 @@ function App() {
         <TabBar onNewNote={handleNewNote} />
         <ConflictBanner />
         <EditorSurface />
-        <StatusBar wordCount={0} charCount={0} paragraphCount={0} />
+        <StatusBar />
       </main>
       <CommandPalette
         isOpen={isPaletteOpen}
