@@ -8,6 +8,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             storage::scan_vault,
+            storage::read_file,
+            storage::write_file,
             session::get_session,
             session::save_session,
         ])

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -10,6 +11,69 @@ pub struct VaultNode {
     pub is_directory: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<VaultNode>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteEnvelope {
+    pub frontmatter: Option<String>,
+    pub body: String,
+}
+
+/// Parses raw file content into a NoteEnvelope, separating YAML frontmatter from body.
+pub fn parse_note_envelope(raw_content: &str) -> NoteEnvelope {
+    if !raw_content.starts_with("---") {
+        return NoteEnvelope {
+            frontmatter: None,
+            body: raw_content.to_string(),
+        };
+    }
+
+    // Check delimiter on line 1
+    let rest = &raw_content[3..];
+    if !rest.starts_with('\n') && !rest.starts_with("\r\n") {
+        return NoteEnvelope {
+            frontmatter: None,
+            body: raw_content.to_string(),
+        };
+    }
+
+    let search_start = if rest.starts_with("\r\n") { 5 } else { 4 };
+    let content_after_first_line = &raw_content[search_start..];
+
+    // Look for closing delimiter `\n---` or `\r\n---`
+    if let Some(pos) = content_after_first_line.find("\n---") {
+        let frontmatter = content_after_first_line[..pos].trim_end_matches('\r').to_string();
+        let after_closing_delimiter = &content_after_first_line[pos + 4..];
+
+        // Consume remaining characters on delimiter line and trailing newlines
+        let body = if let Some(newline_pos) = after_closing_delimiter.find('\n') {
+            let b = &after_closing_delimiter[newline_pos + 1..];
+            b.strip_prefix("\r\n").or_else(|| b.strip_prefix('\n')).unwrap_or(b)
+        } else {
+            ""
+        };
+
+        NoteEnvelope {
+            frontmatter: Some(frontmatter),
+            body: body.to_string(),
+        }
+    } else {
+        NoteEnvelope {
+            frontmatter: None,
+            body: raw_content.to_string(),
+        }
+    }
+}
+
+/// Reassembles frontmatter and markdown body into raw file content.
+pub fn reassemble_envelope(body: &str, frontmatter: Option<&str>) -> String {
+    match frontmatter {
+        Some(fm) if !fm.trim().is_empty() => {
+            format!("---\n{}\n---\n\n{}", fm.trim_matches('\n'), body)
+        }
+        _ => body.to_string(),
+    }
 }
 
 /// Recursively scans a directory, returning a sorted tree of directories and markdown files.
@@ -76,11 +140,106 @@ pub fn scan_vault(vault_path: String) -> Result<Vec<VaultNode>, String> {
     scan_directory(&canonical)
 }
 
+/// Tauri command to read a markdown file and return its NoteEnvelope.
+#[tauri::command]
+pub fn read_file(file_path: String) -> Result<NoteEnvelope, String> {
+    let path = PathBuf::from(&file_path);
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
+
+    if !canonical.is_file() {
+        return Err(format!("Path is not a file: {:?}", canonical));
+    }
+
+    let contents = fs::read_to_string(&canonical)
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+
+    Ok(parse_note_envelope(&contents))
+}
+
+/// Tauri command to write a markdown file atomically using NoteEnvelope.
+#[tauri::command]
+pub fn write_file(
+    file_path: String,
+    body: String,
+    frontmatter: Option<String>,
+) -> Result<(), String> {
+    let dest_path = PathBuf::from(&file_path);
+    let temp_path = dest_path.with_extension("snipnote.tmp");
+
+    let full_content = reassemble_envelope(&body, frontmatter.as_deref());
+
+    // Write to temp file and sync
+    let mut file = File::create(&temp_path)
+        .map_err(|e| format!("Failed to create temporary write file: {}", e))?;
+
+    file.write_all(full_content.as_bytes())
+        .map_err(|e| format!("Failed to write content to temporary file: {}", e))?;
+
+    file.sync_all()
+        .map_err(|e| format!("Failed to sync temporary file to disk: {}", e))?;
+
+    // Atomic rename
+    fs::rename(&temp_path, &dest_path)
+        .map_err(|e| format!("Failed to atomically replace destination file: {}", e))?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::File;
-    use std::io::Write;
+
+    #[test]
+    fn test_parse_note_envelope_with_frontmatter() {
+        let raw = "---\ntitle: My Note\nstatus: draft\n---\n\n# Heading\nThis is the body.";
+        let envelope = parse_note_envelope(raw);
+        assert_eq!(
+            envelope.frontmatter,
+            Some("title: My Note\nstatus: draft".to_string())
+        );
+        assert_eq!(envelope.body, "# Heading\nThis is the body.");
+    }
+
+    #[test]
+    fn test_parse_note_envelope_without_frontmatter() {
+        let raw = "# Just Markdown\nLine 2";
+        let envelope = parse_note_envelope(raw);
+        assert_eq!(envelope.frontmatter, None);
+        assert_eq!(envelope.body, raw);
+    }
+
+    #[test]
+    fn test_reassemble_envelope_roundtrip() {
+        let body = "# Hello World\nParagraph.";
+        let fm = "title: Test\ntags: [a, b]";
+        let reassembled = reassemble_envelope(body, Some(fm));
+        let parsed = parse_note_envelope(&reassembled);
+        assert_eq!(parsed.frontmatter, Some(fm.to_string()));
+        assert_eq!(parsed.body, body);
+    }
+
+    #[test]
+    fn test_atomic_write_and_read_file() {
+        let temp_dir = std::env::temp_dir().join(format!("snipnote_atomic_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let file_path = temp_dir.join("test_note.md");
+        let path_str = file_path.to_string_lossy().to_string();
+
+        let body = "# Test Content\nBody here.";
+        let frontmatter = Some("author: Tester\nversion: 1".to_string());
+
+        write_file(path_str.clone(), body.to_string(), frontmatter.clone()).unwrap();
+
+        let envelope = read_file(path_str).unwrap();
+        assert_eq!(envelope.frontmatter, frontmatter);
+        assert_eq!(envelope.body, body);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 
     #[test]
     fn test_scan_directory_filters_and_sorts() {

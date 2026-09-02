@@ -179,3 +179,67 @@ So that I never have to re-select my vault or reposition my window when reopenin
 **Then** the Rust setup lifecycle restores window size and position from `$APP_CONFIG_DIR/session.json` before displaying the window (preventing visual flickers).
 **And** the previously opened vault path is automatically re-scanned and rendered without prompt.
 
+## Epic 2: Live Markdown Editor & Document Fidelity
+
+Users can open, view, edit, and create new notes (`+` button) in a centered, clean editing canvas with instant live WYSIWYG rendering for headings, bold, links, lists, code, and Mermaid diagrams. Users can trust that saving maintains pure CommonMark/GFM formatting and preserves YAML frontmatter byte-for-byte on disk without injected HTML.
+
+### Story 2.1: Rust File I/O & Note Envelope Model
+As a user,
+I want the Rust backend to load and save notes using the Note Envelope Model (separating frontmatter from markdown body),
+So that my note frontmatter is preserved byte-for-byte on disk while keeping my editing buffer clean.
+
+**Acceptance Criteria:**
+**Given** a markdown file on disk with YAML frontmatter (`---...---`),
+**When** `read_file(path)` is called via Tauri IPC,
+**Then** the Rust backend parses the note into `{ frontmatter: string | null, body: string }` and returns it without modifying the disk contents.
+**Given** an active note buffer and preserved frontmatter string,
+**When** `write_file(path, body, frontmatter)` is called,
+**Then** the Rust backend reassembles the envelope verbatim (`---\n{frontmatter}\n---\n\n{body}`) and writes it atomically via temporary file rename to prevent data corruption.
+**And** unit tests in Rust verify envelope round-trip preservation and atomic persistence.
+
+### Story 2.2: Tiptap WYSIWYG Markdown Editor Engine
+As a user,
+I want a clean, responsive WYSIWYG markdown editing surface with Inter typography,
+So that reading and writing notes feels effortless and visually polished.
+
+**Acceptance Criteria:**
+**Given** an active markdown note selected in the file tree,
+**When** loaded into the editor surface,
+**Then** the Tiptap headless engine renders headings, bold, italics, lists, blockquotes, and code blocks live in a centered 760px canvas with 24px reading gutters.
+**And** styling adheres strictly to the LocalEditor monochrome design tokens.
+
+### Story 2.3: 500ms Debounced Auto-Save & Flush Lifecycle
+As a user,
+I want my edits automatically saved without interruption,
+So that my work is continuously safely persisted to disk without lag or disk thrashing.
+
+**Acceptance Criteria:**
+**Given** active keystrokes in the editor,
+**When** typing pauses for 500ms,
+**Then** an auto-save triggers via `write_file`.
+**When** the user switches tabs, blurs the window, or closes the app,
+**Then** any pending changes are immediately flushed to disk synchronously before the navigation completes.
+
+### Story 2.4: Instant Disk-First Note Creation
+As a user,
+I want clicking the `+` button to immediately create a new note on disk,
+So that my notes are always grounded in the filesystem without orphaned unsaved scratch buffers.
+
+**Acceptance Criteria:**
+**Given** an opened vault,
+**When** the user clicks the `+` button in the TabBar or presses `⌘N`,
+**Then** Rust command `create_note` generates the next available `Untitled.md` (or `Untitled 1.md`) directly in the vault root.
+**And** the file tree refreshes and the new note is immediately selected and focused in the editor.
+
+### Story 2.5: Interactive Mermaid Diagram Rendering
+As a user,
+I want code blocks marked with `mermaid` to render as live interactive diagrams,
+So that architecture and workflow diagrams are visualized inline directly beside my notes.
+
+**Acceptance Criteria:**
+**Given** a markdown note containing a ` ```mermaid ` code block,
+**When** rendered in the editor,
+**Then** a custom NodeView renders the syntax into an SVG diagram inline.
+**And** syntax errors display a quiet warning box instead of crashing the editor.
+
+
