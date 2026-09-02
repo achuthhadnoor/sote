@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRD: snipnote — Full-Size Markdown Editor for Claude Code</title>
+<style>
+  :root { --bg:#fff; --fg:#1a1a1a; --muted:#6b7280; --border:#e5e7eb; --accent:#0f172a; --accent2:#2563eb; --code:#f3f4f6; --warn:#fef3c7; --success:#ecfdf5; }
+  *{box-sizing:border-box}
+  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; line-height:1.65; color:var(--fg); max-width:860px; margin:0 auto; padding:32px 20px 80px; background:var(--bg)}
+  header{border-bottom:2px solid var(--accent); padding-bottom:18px; margin-bottom:28px}
+  .kicker{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600}
+  h1{font-size:28px; line-height:1.2; margin:8px 0 6px; letter-spacing:-.02em}
+  .subtitle{color:var(--muted); font-size:14px}
+  .meta{display:flex; gap:12px; flex-wrap:wrap; margin-top:14px}
+  .badge{font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:#f9fafb; font-weight:600}
+  .badge.draft{border-color:#f59e0b; background:var(--warn); color:#92400e}
+  .badge.path{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:500}
+  nav{position:sticky; top:0; z-index:10; background:rgba(255,255,255,.9); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin:18px 0 24px; display:flex; gap:8px; flex-wrap:wrap}
+  nav a{font-size:12px; text-decoration:none; color:var(--accent2); padding:4px 8px; border-radius:8px; background:#eff6ff; border:1px solid #dbeafe}
+  nav a:hover{background:#dbeafe}
+  h2{font-size:19px; margin:36px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border); letter-spacing:-.015em}
+  h3{font-size:15px; margin:22px 0 8px; color:var(--accent)}
+  h4{font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:18px 0 6px}
+  p{margin:8px 0}
+  ul,ol{margin:8px 0; padding-left:20px}
+  li{margin:4px 0}
+  .card{border:1px solid var(--border); border-radius:12px; padding:14px 16px; background:#fcfcfd; margin:10px 0}
+  .card.warn{background:var(--warn); border-color:#fcd34d}
+  .card.success{background:var(--success); border-color:#86efac}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; background:var(--code); padding:2px 6px; border-radius:6px}
+  .fr{border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin:12px 0; background:#fff}
+  .fr h4{margin-top:0; color:var(--accent)}
+  .fr .meta{margin:0 0 8px}
+  .pill{font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; padding:3px 8px; border-radius:999px; background:#0f172a; color:#fff}
+  .pill.journey{background:#2563eb}
+  .conseq{border-left:3px solid #2563eb; padding-left:12px; margin:8px 0; background:#f8fafc; border-radius:0 8px 8px 0; padding-top:6px; padding-bottom:6px}
+  .assump{font-size:12px; color:#92400e; background:#fffbeb; border:1px dashed #f59e0b; padding:6px 10px; border-radius:8px; margin:8px 0}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .kpi{border:1px solid var(--border); border-radius:12px; padding:12px; background:#fff}
+  .kpi strong{display:block; font-size:13px; margin-bottom:4px}
+  .footer{margin-top:40px; padding-top:18px; border-top:1px solid var(--border); font-size:12px; color:var(--muted)}
+  a{color:var(--accent2)}
+  table{width:100%; border-collapse:collapse; margin:10px 0; font-size:13px}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left}
+  th{background:#f9fafb; font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">PRD • Draft • 2026-09-02</div>
+  <h1>snipnote — Full-Size Markdown Editor for Claude Code</h1>
+  <div class="subtitle">Working title — confirm. Code name from repo: <code>snipnote / tauri-app</code>. Tauri v2 + React 19 + Tiptap. Local-first, raw Markdown is the DB.</div>
+  <div class="meta">
+    <span class="badge draft">status: draft</span>
+    <span class="badge">v1 → $5 ladder to $19</span>
+    <span class="badge path">_bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md:1</span>
+    <span class="badge path">forge: _bmad-output/forge/tauri-markdown-editor/forged-idea.md:1</span>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <strong>How to read:</strong> Glossary-anchored — terms in §3 reused verbatim. Features grouped with globally numbered <code>FR-1..FR-11</code>. Assumptions inline <code>[ASSUMPTION: …]</code> indexed in §9. Journeys <code>UJ-1..UJ-2</code> referenced by FRs. Build-in-public incremental: v1 ships full-size editor only; Canvas/Terminal/Floating are deferred but architecturally ready.
+  </div>
+</header>
+
+<nav>
+  <a href="#purpose">0. Purpose</a><a href="#vision">1. Vision</a><a href="#user">2. User</a><a href="#glossary">3. Glossary</a><a href="#features">4. Features</a><a href="#nongoals">5. Non-Goals</a><a href="#mvp">6. MVP</a><a href="#metrics">7. Metrics</a><a href="#questions">8. Open Questions</a><a href="#assumptions">9. Assumptions</a><a href="#adapt">Adapt-In</a>
+</nav>
+
+<section id="purpose">
+<h2>0. Document Purpose</h2>
+<p>This PRD is for <strong>Achuth (builder/PM)</strong>, downstream architecture and build workflows, and early design review. It turns the hardened forge idea at <code>_bmad-output/forge/tauri-markdown-editor/forged-idea.md</code> into a shippable v1 scope for build-in-public to first dollar. It is structured Glossary-anchored, features grouped with globally numbered FRs, assumptions tagged inline and indexed in §9, and journeys referenced by ID in FRs. It builds on <code>forge-report.html</code> — it does not duplicate its rejected-options rationale, only locks what ships in v1.</p>
+</section>
+
+<section id="vision">
+<h2>1. Vision</h2>
+<p><strong>snipnote is the full-size, fast, local markdown companion for Claude Code terminal lovers.</strong> It is not a floating panel (Mote), not a heavy IDE (Cursor 3.0), and not a generic Obsidian replacement — it is the editor you leave open beside Ghostty/iTerm while Claude writes.</p>
+<p>Humans edit in a rich WYSIWYG surface (Tiptap) with instant Mermaid/todos/code rendering; Claude reads and writes the same raw Markdown files on disk. The app's job is to <em>never corrupt that shared file</em>, to render what Claude wrote faithfully, and to let the user navigate a local vault in milliseconds — sidebar, Cmd+P, tabs — without context loss.</p>
+<div class="card warn">
+<strong>Why now:</strong> Claude Code moved agentic coding to the terminal. Output (<code>plan.md</code>, <code>spec.md</code>, tasks, Mermaid) is Markdown, but the terminal can't render it and Obsidian is too heavy/generic for side-by-side. Mote proved solo-dev floating markdown at $19 can sell; snipnote bets a full-size, cross-platform Tauri editor optimized for the human-agent file handoff earns the first $5 and grows to $19+ as Canvas/Terminal/Floating land incrementally.
+</div>
+</section>
+
+<section id="user">
+<h2>2. Target User</h2>
+<h3>2.1 Jobs To Be Done</h3>
+<ul>
+  <li><strong>Keep the Claude file open without leaving the terminal workflow.</strong> As a Claude Code user who lives in Ghostty/Terminal, I want my <code>plan.md</code> / <code>Tech Stack Decisions</code> open in a fast full-size pane that stays in sync with Claude's writes, so I don't context-switch to Obsidian/VS Code. <div class="assump">[ASSUMPTION: User uses Claude Code at least weekly and already keeps a local folder of Markdown specs.]</div></li>
+  <li><strong>Navigate a vault at keyboard speed.</strong> I want Cmd+P and file tree to jump between 50–200 Markdown files without lag.</li>
+  <li><strong>Trust the file.</strong> Raw Markdown on disk stays pure so I can <code>git diff</code> without injected HTML or mangled frontmatter.</li>
+  <li><strong>Feel in control, not replaced.</strong> Local-first, no cloud account — Claude's work is reviewable, not hidden.</li>
+  <li><strong>Build in public with a tool I use myself.</strong> Ship a shippable surface in 2–4 weeks, dogfood daily beside Claude, earn first dollar credibly.</li>
+</ul>
+<h3>2.2 Non-Users (v1)</h3>
+<ul>
+  <li>Teams needing real-time collaboration or cloud sync — v1 local-only single-user</li>
+  <li>Mobile users — desktop only</li>
+  <li>Generic note users who never use terminal/AI — better served by Obsidian/Bear/Typora</li>
+  <li>Floating-only capture users — better served by Mote</li>
+</ul>
+<h3>2.3 Key User Journeys</h3>
+
+<div class="card">
+  <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px"><span class="pill journey">UJ-1</span><strong>Alex reviews Claude's Tech Stack Decisions side-by-side</strong></div>
+  <p><strong>Persona:</strong> Alex, solo indie builder, runs <code>claude</code> in Ghostty to scaffold Website Redesign. Vault <code>~/snipnote-vault</code> with <code>Daily Notes</code>, <code>Projects</code>, <code>Website Redesign/</code>.</p>
+  <p><strong>Entry:</strong> Vault already opened; <code>Website Redesign/Tech Stack Decisions.md</code> exists from Claude. App was closed, now launched.</p>
+  <ol>
+    <li>snipnote restores last open file <em>Tech Stack Decisions</em> highlighted in File Tree</li>
+    <li>Alex reads headings/bold/links/bullets correctly rendered</li>
+    <li>Hits Cmd+P, types <code>access</code>, jumps to <code>Accessibility Audit.md</code></li>
+    <li>Meanwhile Claude overwrites <code>Tech Stack Decisions.md</code> on disk — snipnote detects and updates without losing cursor</li>
+  </ol>
+  <p><strong>Climax:</strong> Status Bar shows <code>174 words / 1,209 chars / 10 paragraphs</code> — doc is fully loaded and faithful to disk.</p>
+  <p><strong>Resolution:</strong> Clicks <code>+</code>, new note appears in File Tree under current folder, saved as raw Markdown.</p>
+  <div class="assump"><strong>Edge case:</strong> If Alex was mid-edit when Claude wrote, show non-blocking banner “File changed on disk — Reload / Keep mine” rather than silent overwrite. [ASSUMPTION: Banner pattern; merge is v2.]</div>
+</div>
+
+<div class="card">
+  <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px"><span class="pill journey">UJ-2</span><strong>Priya capture-to-vault in 10 seconds</strong></div>
+  <p><strong>Persona:</strong> Priya, Claude Code power user, just finished planning where Claude generated <code>Tech Stack Decisions.md</code>.</p>
+  <p><strong>Entry:</strong> snipnote open on <code>Daily Notes/</code>.</p>
+  <ol>
+    <li>Hits <code>+</code> → new Untitled note</li>
+    <li>Types <code># Quick take</code> with bold/links</li>
+    <li>Uses Cmd+P to jump back to <code>Tech Stack Decisions</code> to copy a link</li>
+  </ol>
+  <p><strong>Climax:</strong> Formatted content renders live, no preview toggle, file is plain <code>.md</code> that she can <code>git diff</code>.</p>
+  <p><strong>Resolution:</strong> Closes app; on reopen tabs/vault restored.</p>
+</div>
+</section>
+
+<section id="glossary">
+<h2>3. Glossary</h2>
+<table>
+<tr><th>Term</th><th>Definition</th></tr>
+<tr><td><strong>Vault</strong></td><td>Root local folder picked on first launch. Contains folders and Notes as plain files. 1 vault open at a time in v1. [ASSUMPTION: Single vault v1.]</td></tr>
+<tr><td><strong>Note</strong></td><td>Single <code>.md</code> file on disk, rendered in Editor. Filename = title. Raw Markdown is source of truth.</td></tr>
+<tr><td><strong>File Tree</strong></td><td>Hierarchical view in Sidebar showing folders and Notes. Reflects file system 1:1.</td></tr>
+<tr><td><strong>Sidebar</strong></td><td>Left pane containing Search, File Tree, Library footer.</td></tr>
+<tr><td><strong>Search</strong></td><td>Input at top of Sidebar triggered by Cmd+P. In v1, searches Note filenames. [ASSUMPTION: filename-only.]</td></tr>
+<tr><td><strong>Library</strong></td><td>Footer entry in Sidebar with sort/options. Vault switcher/sort in v1. [ASSUMPTION]</td></tr>
+<tr><td><strong>Editor</strong></td><td>Large right pane — Tiptap. Parses raw Markdown on open, serializes back on save.</td></tr>
+<tr><td><strong>Tab Bar / Breadcrumb Bar</strong></td><td>Top bar in Editor with arrows, active Note name, <code>+</code> to create Note.</td></tr>
+<tr><td><strong>Status Bar</strong></td><td>Footer at bottom of Editor: words, characters, paragraphs.</td></tr>
+<tr><td><strong>Markdown Source</strong></td><td>Raw <code>.md</code> file on disk. Must round-trip without corruption.</td></tr>
+</table>
+</section>
+
+<section id="features">
+<h2>4. Features</h2>
+
+<h3>4.1 Vault &amp; File Management — <span style="font-weight:400; color:var(--muted)">Realizes UJ-1, UJ-2</span></h3>
+<p>Local-first vault as file-system mirror. Pick folder on first launch, persist, restore. Sidebar shows File Tree with expand/collapse and Active File Highlight.</p>
+
+<div class="fr">
+  <h4><span class="pill">FR-1</span> Open local Vault — Realizes UJ-1</h4>
+  <p>User can pick a local folder as Vault via system dialog. App persists and restores on relaunch. [ASSUMPTION: Tauri dialog plugin; single vault.]</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• After picking <code>~/snipnote-vault</code>, relaunch restores same path without re-prompt.<br>• Invalid/missing folder shows error and re-prompts; app does not create vault silently.</div>
+</div>
+<div class="fr">
+  <h4><span class="pill">FR-2</span> Render File Tree 1:1 — Realizes UJ-1</h4>
+  <p>System displays File Tree in Sidebar matching file system: folders and <code>.md</code> only, sorted alphabetically.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• Shows <code>Daily Notes/</code>, <code>Projects/</code>, <code>Website Redesign/</code> and <code>Tech Stack Decisions.md</code> exactly as on disk.<br>• External rename/move (including by Claude) reflected within 2s via watcher.</div>
+</div>
+<div class="fr">
+  <h4><span class="pill">FR-3</span> Active File Highlight and Library footer — Realizes UJ-1</h4>
+  <p>System highlights currently open Note in File Tree and exposes Library entry in Sidebar footer.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• Only one Note highlighted at a time; highlight follows Tab/File Tree.</div>
+  <div class="assump">Ready for Obsidian-compatible folder structure — plain <code>.md</code>, frontmatter preserved as text even if not rendered in v1.</div>
+</div>
+
+<h3>4.2 Quick Navigation &amp; Search — <span style="font-weight:400; color:var(--muted)">Realizes UJ-1 (step 3), UJ-2</span></h3>
+<div class="fr">
+  <h4><span class="pill">FR-4</span> Search via Cmd+P (filename-only) — Realizes UJ-1</h4>
+  <p>User can press Cmd+P (Ctrl+P on Win/Linux [ASSUMPTION]) to focus Search, type substring, see filtered Note filenames, and jump.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• Typing <code>tech</code> → <code>Tech Stack Decisions.md</code>; <code>access</code> → <code>Accessibility Audit.md</code>.<br>• Filename-only in v1; no full-text.</div>
+</div>
+<div class="fr">
+  <h4><span class="pill">FR-5</span> Navigate via File Tree and Tab selection — Realizes UJ-1, UJ-2</h4>
+  <p>User can click a Note in File Tree or its Tab to make it active, with highlight and Tab Bar update.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• Clicking a Note opens it in Editor and highlights it; Tab Bar shows its name.<br>• Back/forward arrows navigate tab history within session. [ASSUMPTION: session history only.]</div>
+</div>
+
+<h3>4.3 Editor Core (Tiptap, Markdown Source) — <span style="font-weight:400; color:var(--muted)">Realizes UJ-1, UJ-2</span></h3>
+<p>Full-size Editor with live WYSIWYG rendering but raw Markdown on disk. Parses MarkdownSource to Tiptap on open, serializes back on save. v1 covers headings, bold, links, bullets from your screenshot + Mermaid/tasks/code as rendered [ASSUMPTION].</p>
+<div class="fr">
+  <h4><span class="pill">FR-6</span> Live Markdown rendering — Realizes UJ-1, UJ-2</h4>
+  <p>Editor renders headings, bold, links, bullets live as user types, no split preview pane.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• <code># Heading</code> → heading; <code>**bold**</code> → bold; <code>[text](url)</code> → clickable link; <code>- item</code> → bullet.</div>
+</div>
+<div class="fr">
+  <h4><span class="pill">FR-7</span> Raw Markdown round-trip fidelity — Realizes UJ-1</h4>
+  <p>System preserves Markdown Source exactly as CommonMark/GFM, no injected HTML. Frontmatter preserved verbatim. [ASSUMPTION: CommonMark + GFM.]</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• Opening a file written by Claude and saving without edits → byte-identical (except line endings).<br>• <code>**x**</code> not rewritten as <code>__x__</code>.</div>
+</div>
+<div class="fr">
+  <h4><span class="pill">FR-8</span> File-watcher with external-change handling — Realizes UJ-1</h4>
+  <p>System watches Markdown Source; when Claude overwrites a Note, Editor handles without silent loss.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• If not dirty → auto-reload, preserve scroll/cursor.<br>• If dirty → banner “File changed on disk — Reload / Keep mine”, never auto-overwrite. [ASSUMPTION: Banner; merge is v2.]</div>
+  <p style="font-size:12px; color:var(--muted)"><strong>Out of Scope:</strong> Three-way merge, conflict files.</p>
+  <div class="assump"><strong>Feature NFR:</strong> ≥50 fixtures (headings, lists, links, code, frontmatter, Mermaid) must pass byte-equality round-trip tests.</div>
+</div>
+
+<h3>4.4 Tabs &amp; Breadcrumb Navigation</h3>
+<div class="fr">
+  <h4><span class="pill">FR-9</span> Tab lifecycle — Realizes UJ-1, UJ-2</h4>
+  <p>User can see active Note name in Tab Bar, navigate history via arrows, create new Note via <code>+</code>.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• <code>+</code> creates <code>Untitled.md</code> / <code>Untitled 2.md</code> in current folder (or Vault root) and opens it, added to File Tree immediately. Created on disk immediately, not only on save. [ASSUMPTION: immediate create.]<br>• Close restores prior tabs/vault on next launch via persisted session.</div>
+</div>
+
+<h3>4.5 Status Bar &amp; Document Insights</h3>
+<div class="fr">
+  <h4><span class="pill">FR-10</span> Live document statistics — Realizes UJ-1</h4>
+  <p>System shows live word count, character count, paragraph count in Status Bar, updating on every keystroke and file load.</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• For <code>Tech Stack Decisions</code> example: <code>174 words | 1,209 characters | 10 paragraphs</code> (paragraph = blank-line block [ASSUMPTION]).</div>
+</div>
+
+<h3>4.6 Window &amp; System Integration</h3>
+<div class="fr">
+  <h4><span class="pill">FR-11</span> Native window controls and persistence — Realizes UJ-1, UJ-2</h4>
+  <p>System shows standard macOS traffic lights and persists window size/position across relaunch. [ASSUMPTION: min 800×600.]</p>
+  <div class="conseq"><strong>Consequences:</strong><br>• Close/minimize per OS; relaunch restores prior size/position and vault.</div>
+</div>
+</section>
+
+<section id="nongoals">
+<h2>5. Non-Goals (Explicit)</h2>
+<ul>
+  <li>Not a floating capture panel in v1 (Mote owns this; deferred to v5)</li>
+  <li>Not a Canvas/whiteboard — Excalidraw is v3</li>
+  <li>Not an embedded terminal/PTY running Claude — v4; Claude stays in Ghostty/iTerm beside editor</li>
+  <li>Not cloud sync, collaboration, or accounts — local-only. Ready for future sync (file abstraction) but no sync logic in v1</li>
+  <li>Not mobile, not web — desktop Tauri only</li>
+  <li>Not a full IDE — no LSP/debugger/git UI</li>
+  <li>Not a generic “second Obsidian” — must win on Claude side-by-side sync</li>
+</ul>
+</section>
+
+<section id="mvp">
+<h2>6. MVP Scope</h2>
+<div class="grid2">
+<div class="card success">
+<h4 style="color:#065f46; margin-top:0">6.1 In Scope</h4>
+<ul>
+  <li>Vault pick/restore (FR-1), File Tree 1:1 (FR-2), Highlight+Library (FR-3)</li>
+  <li>Cmd+P filename search (FR-4), File Tree/Tab nav (FR-5)</li>
+  <li>Tiptap live headings/bold/links/bullets + Mermaid/tasks rendered (FR-6), raw Markdown round-trip (FR-7), file-watcher banner (FR-8)</li>
+  <li>Tab Bar with <code>+</code> (FR-9), Status Bar (FR-10), native window (FR-11)</li>
+  <li>Plain <code>.md</code> files, frontmatter preserved, vault = file system</li>
+</ul>
+</div>
+<div class="card">
+<h4 style="margin-top:0">6.2 Out of Scope for MVP</h4>
+<ul>
+  <li><strong>Canvas/Excalidraw → v3</strong> — major scope, not needed for first dollar</li>
+  <li><strong>Embedded Terminal → v4</strong> — PTY complexity; users keep Ghostty</li>
+  <li><strong>Floating window → v5</strong> — head-on vs Mote, needs multi-window sync</li>
+  <li>Cloud sync / collaboration / accounts — local-first wedge</li>
+  <li>Full-text search, tags, graph, plugins — deferred</li>
+  <li>Obsidian full compat (wikilinks/canvas) — v2 preserves frontmatter only</li>
+  <li>Mobile/web/Linux QA [ASSUMPTION: macOS first, Win/Linux toggle ready but not QA’d]</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="metrics">
+<h2>7. Success Metrics</h2>
+<div class="grid2">
+<div class="kpi"><strong>SM-1 — First dollar (Primary)</strong>10 paying users at $5 within 60 days of public launch. Validates FR-1..FR-11. Via Lemon Squeezy/Gumroad/Stripe [ASSUMPTION].</div>
+<div class="kpi"><strong>SM-2 — Dogfood retention (Primary)</strong>Builder uses snipnote daily beside Claude Code for 30 days without reverting to Obsidian/Typora for same vault. Validates FR-7/FR-8.</div>
+<div class="kpi"><strong>SM-3 — Time-to-first-note (Secondary)</strong>Median &lt;30s from cold launch to editing a Note (pick vault → File Tree → Editor). Validates FR-1..FR-6.</div>
+<div class="kpi"><strong>SM-4 — Sync trust (Secondary)</strong>0 silent overwrites/file-loss bugs in first 30 days where Claude + human edited same file. Validates FR-8.</div>
+</div>
+<div class="grid2" style="margin-top:12px">
+<div class="card warn"><strong>SM-C1 — Vault size (Counter)</strong>Do NOT optimize for 10k-file vaults in v1; optimize for 50–500 files that Claude actually generates. Counterbalances SM-3.</div>
+<div class="card warn"><strong>SM-C2 — Feature count (Counter)</strong>Do NOT add Canvas/Terminal to chase activation before SM-1. Counterbalances scope creep.</div>
+</div>
+</section>
+
+<section id="questions">
+<h2>8. Open Questions</h2>
+<ol>
+  <li>File conflict: Is banner “Reload / Keep mine” sufficient or need <code>.conflict.md</code> side file?</li>
+  <li><code>⌘P</code> scope: filename-only acceptable for v1 or need full-text fallback?</li>
+  <li><code>+</code> creation: unsaved in-memory until keystroke vs immediate disk create as in FR-9?</li>
+  <li>Mermaid/tasks in v1: live Tiptap render or code-block fallback?</li>
+  <li>Platform QA: macOS-only (fast) vs Mac/Win/Linux signed builds Day 1?</li>
+  <li>Vault switcher: does Library footer need vault switcher in v1 or single vault enough?</li>
+  <li>Pricing ladder: confirm $5 → $9 → $19 tied to Canvas/Terminal, lifetime vs subscription?</li>
+</ol>
+</section>
+
+<section id="assumptions">
+<h2>9. Assumptions Index</h2>
+<p>Every <code>[ASSUMPTION]</code> from the doc surfaced for confirmation. Tag count: 14.</p>
+<table>
+<tr><th>#</th><th>Assumption</th><th>Section</th></tr>
+<tr><td>A1</td><td>User uses Claude Code at least weekly, keeps local Markdown vault</td><td>2.1</td></tr>
+<tr><td>A2</td><td>Banner “Reload / Keep mine” pattern; merge is v2</td><td>UJ-1, FR-8</td></tr>
+<tr><td>A3</td><td>Single vault open at a time in v1; Tauri dialog plugin</td><td>3, FR-1</td></tr>
+<tr><td>A4</td><td>Search filename-only; Ctrl+P on Win/Linux</td><td>3, FR-4</td></tr>
+<tr><td>A5</td><td>Library = vault switch + sort</td><td>3</td></tr>
+<tr><td>A6</td><td>Frontmatter preserved verbatim; CommonMark+GFM</td><td>FR-7</td></tr>
+<tr><td>A7</td><td>Session tab history only; immediate Untitled.md create</td><td>FR-5, FR-9</td></tr>
+<tr><td>A8</td><td>v1 also ships Mermaid/tasks/code as rendered via Tiptap extensions</td><td>4.3</td></tr>
+<tr><td>A9</td><td>≥50 round-trip fixtures must pass</td><td>FR-8 NFR</td></tr>
+<tr><td>A10</td><td>Paragraph = blank-line block; native 800×600 window</td><td>FR-10, FR-11</td></tr>
+<tr><td>A11</td><td>Local-first ready-for-future sync; Obsidian plain-file readiness</td><td>5, 6.2</td></tr>
+<tr><td>A12</td><td>macOS first (13+), Win/Linux builds ready but not QA’d — per Open Question 5</td><td>6.2, Adapt</td></tr>
+<tr><td>A13</td><td>Payment via Lemon Squeezy/Gumroad/Stripe; lifetime updates</td><td>7, Adapt</td></tr>
+<tr><td>A14</td><td>Performance budgets: launch &lt;1.5s, open &lt;200ms, search &lt;100ms</td><td>Adapt</td></tr>
+</table>
+</section>
+
+<section id="adapt">
+<h2>Adapt-In</h2>
+<h3>Platform</h3>
+<p>Desktop Tauri v2, React 19, Vite. Primary macOS 13+ [ASSUMPTION]; Win/Linux via <code>targets: all</code> in <code>src-tauri/tauri.conf.json:24</code> but QA scope per Open Question 5. No mobile/web. Auto-update deferred.</p>
+<h3>Monetization</h3>
+<p>Paid one-time, price ladder: v1 $5 → +Canvas $9 → +Terminal $19 — lifetime updates for early tier [ASSUMPTION]. No subscription in v1. Via Lemon Squeezy/Gumroad/Stripe. Free trial: 7-day or 7-note limit [ASSUMPTION]; no accounts in app, license key file.</p>
+<h3>Information Architecture</h3>
+<p>Single full-size window. Left: Sidebar (top Search Cmd+P, middle File Tree, bottom Library). Right: Tab Bar (arrows, active name, +) over Editor over Status Bar. No floating panel in v1.</p>
+<h3>Aesthetic and Tone</h3>
+<p>References: Obsidian/Typora cleanliness, not Notion heaviness. Anti-reference: IDE chrome. Tone: calm, local, fast. Native traffic lights, neutral typography, live rendering without preview toggle.</p>
+<h3>Cross-Cutting NFRs</h3>
+<ul>
+  <li><strong>Performance:</strong> Cold launch &lt;1.5s on M1, file open &lt;200ms for &lt;100KB md, search filter &lt;100ms for 500 files [ASSUMPTION]</li>
+  <li><strong>Reliability:</strong> Never silently overwrite Markdown Source. Crash must not corrupt file (atomic write temp+rename)</li>
+  <li><strong>Privacy/Security:</strong> No network calls, no telemetry without opt-in, no cloud. Files never leave disk. Harden <code>tauri.conf.json:21 csp: null</code> before launch</li>
+  <li><strong>Accessibility:</strong> Keyboard-navigable Sidebar/File Tree, Cmd+P, Tab traversal [ASSUMPTION: WCAG AA deferred but keyboard path required]</li>
+  <li><strong>Observability:</strong> File-watcher errors surfaced as banner, not silent</li>
+</ul>
+</section>
+
+<div class="footer">
+  <p><strong>Paths:</strong> MD <code>_bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md:1</code> • HTML <code>prd.html</code> (this file, self-contained, inline CSS, no JS) • Forge <code>_bmad-output/forge/tauri-markdown-editor/forged-idea.md:1</code> • Memlog <code>.memlog.md</code></p>
+  <p>Next: iterate on this draft, then run Reviewer Gate (bmad-review structure/prose), then Finalize to <code>status: final</code> and hand off to <code>bmad-architecture</code> / <code>bmad-create-epics-and-stories</code>.</p>
+</div>
+</body>
+</html>

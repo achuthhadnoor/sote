@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DESIGN — snipnote (LocalEditor.app theme)</title>
+<style>
+:root{--bg:#FFFFFF;--fg:#0F0F0F;--muted:#F6F6F7;--muted-fg:#6B7280;--border:#EAEAEA;--sidebar:#F8F8F9;--accent:#F3F4F6;--primary:#0F0F0F;--link:#2563EB}
+*{box-sizing:border-box}body{font-family:Inter,SF Pro Text,system-ui,-apple-system,sans-serif; max-width:880px; margin:0 auto; padding:28px 20px 80px; color:var(--fg); line-height:1.65}
+header{border-bottom:2px solid var(--primary); padding-bottom:14px}
+.kicker{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-fg); font-weight:700}
+h1{font-size:26px; margin:6px 0 4px; letter-spacing:-.02em}
+.meta{font-size:12px; color:var(--muted-fg)} .meta code{font-size:11px; background:var(--muted); padding:2px 6px; border-radius:6px}
+.badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:var(--muted)}
+.badge.draft{background:#fef3c7; border-color:#fcd34d; color:#92400e}
+nav{position:sticky; top:0; z-index:5; background:rgba(255,255,255,.92); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:8px 10px; margin:16px 0 20px; display:flex; gap:6px; flex-wrap:wrap}
+nav a{font-size:11px; text-decoration:none; color:var(--link); background:#eff6ff; border:1px solid #dbeafe; padding:4px 8px; border-radius:8px}
+h2{font-size:18px; margin:30px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border)}
+h3{font-size:14px; margin:18px 0 6px; color:var(--primary)}
+p{margin:8px 0; font-size:14px} ul,ol{margin:8px 0; padding-left:20px; font-size:14px} li{margin:4px 0}
+.card{border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:#fffcfd; margin:10px 0}
+.card.muted{background:var(--muted)} .card.sidebar-demo{background:var(--sidebar)}
+.swatch{display:inline-flex; align-items:center; gap:8px; font-size:12px; margin:4px 12px 4px 0} .dot{width:18px; height:18px; border-radius:6px; border:1px solid var(--border); display:inline-block}
+.spec{border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:10px 0}
+.spec-head{background:var(--sidebar); padding:10px 14px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-bottom:1px solid var(--border)}
+.spec-body{padding:14px}
+.type-sample{border:1px solid var(--border); border-radius:8px; padding:12px; margin:8px 0; background:#fff}
+.mock{border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:12px 0; display:flex; height:280px; font-size:12px}
+.mock-sidebar{width:260px; background:var(--sidebar); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:10px; gap:8px}
+.mock-main{flex:1; display:flex; flex-direction:column}
+.mock-tab{height:40px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 12px; background:#fff}
+.mock-editor{flex:1; padding:16px 20px; background:#fff; overflow:auto}
+.mock-status{height:24px; border-top:1px solid var(--border); background:#fafafa; display:flex; justify-content:flex-end; align-items:center; padding:0 10px; color:var(--muted-fg); font-size:11px}
+kbd{font-family:JetBrains Mono,SF Mono,ui-monospace,monospace; font-size:11px; background:var(--accent); border:1px solid var(--border); border-bottom-width:2px; padding:1px 5px; border-radius:5px}
+table{width:100%; border-collapse:collapse; font-size:13px; margin:10px 0} th,td{border:1px solid var(--border); padding:8px 10px; text-align:left} th{background:var(--muted); font-weight:600}
+.footer{margin-top:36px; border-top:1px solid var(--border); padding-top:14px; font-size:12px; color:var(--muted-fg)}
+.assump{font-size:11px; color:#92400e; background:#fffbeb; border:1px dashed #f59e0b; padding:5px 9px; border-radius:8px; display:inline-block; margin:6px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">DESIGN.md • draft • 2026-09-02 • theme like localeditor.app</div>
+  <h1>snipnote — Design Spine</h1>
+  <div class="meta">Sources: <code>prds/prd-snipnote-2026-09-02/prd.md</code> • <code>forge/tauri-markdown-editor/forged-idea.md</code> • <a href="https://localeditor.app" target="_blank">https://localeditor.app</a> — light minimal monochrome, content-first. Tokens: <code>_bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/DESIGN.md:10</code></div>
+  <div style="margin-top:10px"><span class="badge draft">status: draft</span> <span class="badge">Tauri v2 • full-size • local-first</span> <span class="badge">#F8F8F9 sidebar • #FFFFFF editor • #EAEAEA hairlines</span></div>
+</header>
+
+<nav>
+  <a href="#brand">Brand</a><a href="#colors">Colors</a><a href="#type">Typography</a><a href="#layout">Layout</a><a href="#elevation">Elevation</a><a href="#shapes">Shapes</a><a href="#components">Components</a><a href="#dos">Do's/Don'ts</a>
+</nav>
+
+<section id="brand">
+<h2>Brand &amp; Style</h2>
+<p><strong>The editor you keep meaning to build — lightweight, local, calm beside the terminal.</strong> Directly references <a href="https://localeditor.app">localeditor.app</a> at your request: minimal chrome, content-first, no IDE heaviness, no cloud. Posture is <em>local-first quiet confidence</em> — files stay where they are (plain <code>.md</code>), UI stays out of the way. If LocalEditor's line is “Not every file needs an IDE,” snipnote's echo is “Not every Markdown file needs Obsidian — especially the ones Claude just wrote.”</p>
+<p>Inherits LocalEditor aesthetic wholesale: white editor, faint sidebar gray, hairline borders, neutral sans, black primary for the single decisive action. All unlisted components inherit minimal defaults.</p>
+<div class="assump">[ASSUMPTION: Light-first for v1; dark mode deferred but tokens ready to invert background/foreground/sidebar.]</div>
+<div class="card muted" style="display:flex; gap:12px; align-items:center">
+  <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em">Muse:</span>
+  <span style="font-size:13px">“A lightweight, local editor for the Markdown, HTML, YAML, JSON & config files your agents write.” — LocalEditor</span>
+  <span style="margin-left:auto; font-size:12px; color:var(--muted-fg)">→ snipnote v1 starts with Markdown only, same lightness</span>
+</div>
+</section>
+
+<section id="colors">
+<h2>Colors — Monochrome + one link blue</h2>
+<p>Lifted from LocalEditor screenshots (white canvas, <code>#F8F8F9</code> sidebar, <code>#EAEAEA</code> hairlines, black primary, muted <code>#6B7280</code>).</p>
+<div class="card">
+  <div style="display:flex; flex-wrap:wrap">
+    <span class="swatch"><span class="dot" style="background:#FFFFFF"></span><code>background</code> #FFFFFF</span>
+    <span class="swatch"><span class="dot" style="background:#0F0F0F"></span><code>foreground</code> #0F0F0F</span>
+    <span class="swatch"><span class="dot" style="background:#F8F8F9"></span><code>sidebar</code> #F8F8F9</span>
+    <span class="swatch"><span class="dot" style="background:#F6F6F7"></span><code>muted</code> #F6F6F7</span>
+    <span class="swatch"><span class="dot" style="background:#6B7280"></span><code>muted-fg</code> #6B7280</span>
+    <span class="swatch"><span class="dot" style="background:#EAEAEA"></span><code>border</code> #EAEAEA</span>
+    <span class="swatch"><span class="dot" style="background:#0F0F0F"></span><code>primary</code> #0F0F0F</span>
+    <span class="swatch"><span class="dot" style="background:#F3F4F6"></span><code>accent</code> #F3F4F6</span>
+    <span class="swatch"><span class="dot" style="background:#2563EB"></span><code>link</code> #2563EB</span>
+    <span class="swatch"><span class="dot" style="background:#FAFAFA"></span><code>status-bar</code> #FAFAFA</span>
+  </div>
+  <ul style="margin-top:10px">
+    <li><strong>Background / Foreground</strong> — Editor canvas, max contrast, no tint (LocalEditor renders markdown like a real page on white).</li>
+    <li><strong>Sidebar</strong> — Touch darker than editor, 1px <code>border</code> right. Light gray, not strong contrast.</li>
+    <li><strong>Muted</strong> — File tree secondary, Status Bar, Library. Quiet gray exactly as LocalEditor file list.</li>
+    <li><strong>Primary black</strong> — Single decisive action (Open Vault). Not a brand color, just contrast.</li>
+    <li><strong>Accent <code>#F3F4F6</code></strong> — Active File Highlight + hover row only. Never for buttons/banners.</li>
+    <li><strong>Link <code>#2563EB</code></strong> — Only chromatic token. All other chrome achromatic.</li>
+  </ul>
+</div>
+<p style="font-size:12px; color:var(--muted-fg)">Avoid: saturated navs, gradients, colored sidebars, more than one chromatic token, Mote dark #0a0a0a + orange.</p>
+</section>
+
+<section id="type">
+<h2>Typography — Single sans ramp</h2>
+<p>LocalEditor uses one sans family for UI + content. snipnote follows — no serif display.</p>
+<div class="spec"><div class="spec-head">Sans — Inter / SF Pro Text 14 / 1.6</div><div class="spec-body"><div style="font-size:14px; line-height:1.6">File Tree, Search, Tab Bar, body text, lists, tables — the UI and the markdown share this. Headings scale by weight/size but stay in the same family.</div></div></div>
+<div class="spec"><div class="spec-head">Heading-1 — 24 / 700 / 1.25 &nbsp;·&nbsp; Heading-2 — 18 / 600 / 1.35</div><div class="spec-body"><div style="font-size:24px; font-weight:700; line-height:1.25"># Pokedex — Starter example</div><div style="font-size:18px; font-weight:600; margin-top:8px">## Catch log</div><div style="font-size:14px; color:var(--muted-fg)">LocalEditor's Pokedex.md: # and ## are bolder/larger, not a different font.</div></div></div>
+<div class="spec"><div class="spec-head">Mono — JetBrains Mono / SF Mono 13 / 1.6 &nbsp;·&nbsp; Sans-sm — 13 / 1.5</div><div class="spec-body">
+  <div class="type-sample" style="font-family:JetBrains Mono, SF Mono, monospace; font-size:13px">{"name":"grove","version":"0.4.0"} · inline <code>code</code> · <kbd>⌘P</kbd> hint</div>
+  <div class="type-sample" style="font-size:13px; line-height:1.5; color:var(--muted-fg)">Sans-sm: Sidebar filenames · Status Bar 174 words | 1,209 chars · Library footer · Banner</div>
+  <div class="type-sample" style="font-size:18px; font-weight:600">Display 18/600 — “No vault open” empty state, spare not decorative.</div>
+</div></div>
+<p style="font-size:12px">Line length: Editor centered at <code>editor-max-width 760px</code> with 24px gutters — optimal reading, same as LocalEditor centered page.</p>
+</section>
+
+<section id="layout">
+<h2>Layout &amp; Spacing — 4-based scale, 760px reading width</h2>
+<p>Scale: 4, 8, 12, 16, 20, 24, 32. Content width 760px max — reading/writing surface, not wide table. Single-window two-pane + two-bar matching PRD screenshot breakdown.</p>
+<div class="mock">
+  <div class="mock-sidebar">
+    <div style="display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:12px">⌕ Search notes… <span style="margin-left:auto"><kbd>⌘P</kbd></span></div>
+    <div style="font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-fg); margin-top:4px">File Tree</div>
+    <div style="font-size:12px; line-height:1.8">
+      <div>▾ Daily Notes</div>
+      <div style="margin-left:12px; color:var(--muted-fg)">Reading list.md</div>
+      <div>▾ Projects</div>
+      <div style="margin-left:12px; background:var(--accent); border-radius:8px; padding:2px 6px; font-weight:600">Tech Stack Decisions</div>
+      <div style="margin-left:12px; color:var(--muted-fg)">Accessibility Audit</div>
+      <div>▾ Website Redesign</div>
+    </div>
+    <div style="margin-top:auto; border-top:1px solid var(--border); padding-top:8px; font-size:12px; display:flex; justify-content:space-between">Library <span style="color:var(--muted-fg)">≡</span></div>
+  </div>
+  <div class="mock-main">
+    <div class="mock-tab"><span style="color:var(--muted-fg)">‹ ›</span><span style="font-weight:600">Tech Stack Decisions</span><span>＋</span></div>
+    <div class="mock-editor">
+      <div style="font-size:18px; font-weight:700; margin-bottom:6px"># Tech Stack Decisions</div>
+      <div style="font-size:13px; color:var(--muted-fg); margin-bottom:10px">174 words · 1,209 chars · rendered live, no preview toggle</div>
+      <div style="font-size:13px; line-height:1.7">
+        <div style="font-weight:600">Migration status</div>
+        <div>Schema updated on staging. Remaining work:</div>
+        <div>• Backfill archived rows</div>
+        <div>• Re-run row-count check</div>
+        <div>• Flip read path to v2</div>
+        <div style="margin-top:8px; font-family:JetBrains Mono, monospace; background:var(--muted); border-radius:6px; padding:8px; font-size:12px">code block · mono · #F6F6F7</div>
+      </div>
+    </div>
+    <div class="mock-status">174 words | 1,209 chars | 10 paragraphs</div>
+  </div>
+</div>
+<ul>
+  <li><strong>Sidebar</strong> — Fixed <code>260px</code> [ASSUMPTION: fixed v1, resizable 220–320 in v2], full-height. Search 40px → File Tree flex scroll → Library 40px. Hairline right.</li>
+  <li><strong>Main</strong> — Tab Bar 40px (arrows + active name + <code>+</code>) → Editor scroll centered 760px/24px gutters → Status Bar 24px right-aligned.</li>
+  <li><strong>Window</strong> — Native traffic lights, min <code>800×600</code> per <code>src-tauri/tauri.conf.json:15</code>, persists size/position. [ASSUMPTION: fixed layout, desktop only.]</li>
+</ul>
+</section>
+
+<section id="elevation">
+<h2>Elevation &amp; Depth — Almost flat</h2>
+<p>Like LocalEditor, hierarchy from background contrast (white vs <code>#F8F8F9</code>) and hairlines, not shadows.</p>
+<ul>
+  <li><strong>Flat (0):</strong> Editor, Sidebar, File Tree rows, Tab Bar, Status Bar — flat with borders.</li>
+  <li><strong>Raised (1):</strong> Command palette <code>⌘P</code> — white + <code>12px</code> radius + <code>0 8px 32px rgba(0,0,0,.08)</code> + <code>0 1px 2px rgba(0,0,0,.06)</code>. Only elevated surface in v1. Matches LocalEditor's <code>Jump to anything…</code> palette.</li>
+  <li><strong>Banner (inline):</strong> Under Tab Bar, <code>muted</code> + border, no shadow.</li>
+</ul>
+</section>
+
+<section id="shapes">
+<h2>Shapes — Softly rectangular</h2>
+<ul>
+  <li><code>rounded/sm 6px</code> — Search input, inline code, Library sort, banner</li>
+  <li><code>rounded/md 8px</code> — Active Highlight row, palette result row, new-note button</li>
+  <li><code>rounded/lg 12px</code> — Palette shell, dialogs (Open Vault)</li>
+  <li><code>rounded/full 9999px</code> — Only for future pills/dots, not v1</li>
+</ul>
+</section>
+
+<section id="components">
+<h2>Components — Minimal set, LocalEditor language</h2>
+<table>
+<tr><th>Component</th><th>Visual</th></tr>
+<tr><td><strong>Sidebar</strong></td><td><code>{colors.sidebar}</code> fill, 260px, 1px <code>border</code> right, no shadow. Active row = <code>{colors.accent} #F3F4F6</code> + 8px, no left bar. Hover #EDEEF0 [ASSUMPTION].</td></tr>
+<tr><td><strong>File Tree Row</strong></td><td>13px sans-sm, 6px/8px padding, chevron + name. No icons v1 [ASSUMPTION].</td></tr>
+<tr><td><strong>Search ⌘P</strong></td><td>Sidebar input <code>#F6F6F7</code> 6px + <kbd>⌘P</kbd> 11px mono; floating palette elevated 12px 480×320 fuzzy results. [ASSUMPTION: palette is the surface, not in-place filter.]</td></tr>
+<tr><td><strong>Tab Bar</strong></td><td>40px white + bottom border, arrows 16px muted, name 14px/600 center, <code>+</code> 16px. Single active visible (PRD FR-9) [ASSUMPTION].</td></tr>
+<tr><td><strong>Editor</strong></td><td>White centered 760px/24px gutters/24px top. Links <code>{colors.link}</code> underline on hover. Code blocks muted 6px mono.</td></tr>
+<tr><td><strong>Status Bar</strong></td><td><code>{colors.status-bar}</code> 24px right-aligned 11px muted. Words | chars | paragraphs live.</td></tr>
+<tr><td><strong>Banner</strong></td><td>Muted + border, 12/8px padding, 6px radius, 13px + “Reload” (link) / “Keep mine” (muted).</td></tr>
+<tr><td><strong>Button primary</strong></td><td>Black fill white text 8px 14px/500 32px height — Open Vault / Create.</td></tr>
+</table>
+</section>
+
+<section id="dos">
+<h2>Do's and Don'ts</h2>
+<table>
+<tr><th>Do</th><th>Don't</th></tr>
+<tr><td>Monochrome — white editor, #F8F8F9 sidebar, #EAEAEA hairlines, one link blue</td><td>Saturated nav, gradients, colored sidebars, Mote dark+orange</td></tr>
+<tr><td>Use <code>{colors.accent}</code> only for Active Highlight / hover</td><td>Use accent for buttons/banners — primary is black</td></tr>
+<tr><td>Single sans for UI + content (LocalEditor does)</td><td>Add serif display for “personality”</td></tr>
+<tr><td>Center at 760px with gutters</td><td>Full-bleed edge-to-edge text</td></tr>
+<tr><td>6 / 8 / 12px radii, flat + borders, one elevated palette</td><td>Heavy shadows, cards everywhere</td></tr>
+<tr><td>Search as <code>⌘P</code> palette (LocalEditor's ⌘K)</td><td>Two separate search UIs in v1</td></tr>
+<tr><td>Status Bar quiet 11px muted right-aligned</td><td>Icons/colors/left clutter in Status Bar</td></tr>
+<tr><td>Preserve raw Markdown fidelity — no injected chrome</td><td>Injected HTML classes that leak into Markdown Source</td></tr>
+</table>
+</section>
+
+<div class="footer">
+  <div><strong>File:</strong> <code>_bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/DESIGN.md:1</code> → HTML this file (self-contained, inline CSS). Paired with <code>EXPERIENCE.md</code>. Theme source: <a href="https://localeditor.app">localeditor.app</a>. Spines win on conflict with any mock.</div>
+  <div style="margin-top:6px">Tokens: <code>colors.*</code> <code>typography.*</code> <code>rounded.*</code> <code>spacing.*</code> <code>components.*</code> — cross-referenced in EXPERIENCE.md as <code>{colors.sidebar}</code> etc.</div>
+</div>
+</body>
+</html>

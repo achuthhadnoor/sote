@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EXPERIENCE — snipnote</title>
+<style>
+:root{--bg:#fff;--fg:#0f0f0f;--muted:#F6F6F7;--muted-fg:#6b7280;--border:#EAEAEA;--accent:#F3F4F6;--primary:#0f0f0f;--link:#2563eb;--sidebar:#F8F8F9}
+*{box-sizing:border-box}body{font-family:Inter,SF Pro Text,system-ui,-apple-system,sans-serif; max-width:880px; margin:0 auto; padding:28px 20px 80px; color:var(--fg); line-height:1.65}
+header{border-bottom:2px solid var(--primary); padding-bottom:14px}
+.kicker{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-fg); font-weight:700}
+h1{font-size:26px; margin:6px 0 4px; letter-spacing:-.02em}
+.meta{font-size:12px; color:var(--muted-fg)} .meta code{font-size:11px; background:var(--muted); padding:2px 6px; border-radius:6px}
+.badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:var(--muted)}
+.badge.draft{background:#fef3c7; border-color:#fcd34d; color:#92400e}
+.badge.flow{background:#eff6ff; border-color:#dbeafe; color:#1d4ed8}
+nav{position:sticky; top:0; z-index:5; background:rgba(255,255,255,.92); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:8px 10px; margin:16px 0 20px; display:flex; gap:6px; flex-wrap:wrap}
+nav a{font-size:11px; text-decoration:none; color:var(--link); background:#eff6ff; border:1px solid #dbeafe; padding:4px 8px; border-radius:8px}
+h2{font-size:18px; margin:30px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border)}
+h3{font-size:14px; margin:18px 0 6px; color:var(--primary)}
+p{margin:8px 0; font-size:14px} ul,ol{margin:8px 0; padding-left:20px; font-size:14px} li{margin:4px 0}
+.card{border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:#fff; margin:10px 0}
+.card.muted{background:var(--muted)}
+table{width:100%; border-collapse:collapse; font-size:13px; margin:10px 0} th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top} th{background:var(--muted); font-weight:600}
+kbd{font-family:JetBrains Mono,SF Mono,ui-monospace,monospace; font-size:11px; background:var(--accent); border:1px solid var(--border); border-bottom-width:2px; padding:1px 5px; border-radius:5px}
+.flow{border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin:12px 0; background:#fcfcfd}
+.flow .step{counter-increment:flow; display:flex; gap:10px; margin:8px 0}
+.flow .step::before{content:counter(flow); flex:0 0 22px; height:22px; border-radius:999px; background:var(--primary); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px}
+.climax{border-left:3px solid var(--link); padding:8px 12px; background:#f8fafc; border-radius:0 8px 8px 0; margin:10px 0; font-size:13px}
+.assump{font-size:11px; color:#92400e; background:#fffbeb; border:1px dashed #f59e0b; padding:5px 9px; border-radius:8px; display:inline-block; margin:6px 0}
+.footer{margin-top:36px; border-top:1px solid var(--border); padding-top:14px; font-size:12px; color:var(--muted-fg)}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">EXPERIENCE.md • draft • 2026-09-02 • Desktop Tauri v2</div>
+  <h1>snipnote — Experience Spine</h1>
+  <div class="meta">Paired with <code>DESIGN.md</code> (LocalEditor.app monochrome — <code>{colors.sidebar} #F8F8F9</code> <code>{colors.background} #FFFFFF</code> <code>{colors.primary} #0F0F0F</code>). Sources: <code>prds/prd-snipnote-2026-09-02/prd.md</code> • <code>forge/tauri-markdown-editor/forged-idea.md</code> • <a href="https://localeditor.app">localeditor.app</a></div>
+  <div style="margin-top:10px"><span class="badge draft">status: draft</span> <span class="badge">Foundation: single-window desktop • IA: Sidebar+Tab+Editor+Status • 2 Key Flows</span></div>
+  <div class="card muted" style="margin-top:12px; font-size:13px"><strong>How to read:</strong> Foundation names form-factor and DESIGN.md as visual reference. Information Architecture lists surfaces. Flows are named-protagonist journeys with a climax beat (the value moment). Behavior lives here; visual tokens live in DESIGN.md and are referenced as <code>{colors.accent}</code> <code>{components.command-palette}</code> etc. Spines win on conflict with any mock.</div>
+</header>
+
+<nav>
+  <a href="#foundation">Foundation</a><a href="#ia">IA</a><a href="#voice">Voice</a><a href="#components">Components</a><a href="#states">States</a><a href="#interact">Interaction</a><a href="#a11y">A11y</a><a href="#inspire">Inspiration</a><a href="#flows">Key Flows</a><a href="#responsive">Platform</a>
+</nav>
+
+<section id="foundation">
+<h2>Foundation</h2>
+<p><strong>Form-factor:</strong> Single-surface desktop — Tauri v2 + React 19 + Vite, full-size window, macOS primary (Win/Linux builds ready via <code>src-tauri/tauri.conf.json:24 targets: all</code> but not QA'd per PRD Open Question 5). No mobile/web. <code>DESIGN.md</code> is the visual identity — monochrome LocalEditor palette (<code>{colors.sidebar} #F8F8F9</code> sidebar, <code>{colors.background} #FFFFFF</code> editor, <code>{colors.border} #EAEAEA</code> hairlines, <code>{colors.primary} #0F0F0F</code> primary). This spine is how it works.</p>
+<p>Single Vault at a time [ASSUMPTION]. No accounts, no cloud, no sync — files never leave disk. Auto-update deferred. Vault = plain folder you picked, not an import.</p>
+</section>
+
+<section id="ia">
+<h2>Information Architecture</h2>
+<table>
+<tr><th>Surface</th><th>Reached from</th><th>Purpose</th></tr>
+<tr><td><strong>Welcome / Vault Picker</strong></td><td>Cold launch, no vault set</td><td>Pick/confirm Vault folder, restore last vault</td></tr>
+<tr><td><strong>Main Window</strong></td><td>Vault open</td><td>Two-pane + two-bar — the entire v1 product</td></tr>
+<tr><td>├─ Sidebar</td><td>Persistent left <code>260px {spacing.sidebar-width}</code></td><td>Search → File Tree → Library footer</td></tr>
+<tr><td>├─ Tab Bar</td><td>Top of Main <code>{spacing.header-height} 40px</code></td><td>Back/forward, active Note name, <code>+</code></td></tr>
+<tr><td>├─ Editor</td><td>Center <code>760px {spacing.editor-max-width}</code></td><td>Live WYSIWYG markdown, raw Markdown Source on disk</td></tr>
+<tr><td>└─ Status Bar</td><td>Bottom <code>{spacing.status-height} 24px {colors.status-bar}</code></td><td>Live <code>words | chars | paragraphs</code></td></tr>
+<tr><td><strong>Command Palette (<kbd>⌘P</kbd>)</strong></td><td><kbd>⌘P</kbd> anywhere / click Search</td><td>Floating palette <code>{components.command-palette}</code> to jump by filename</td></tr>
+<tr><td><strong>File Changed Banner</strong></td><td>Inline under Tab Bar when external change</td><td><code>Reload / Keep mine</code> without loss</td></tr>
+</table>
+<p style="font-size:12px; color:var(--muted-fg)">→ Composition ref: PRD screenshot breakdown + LocalEditor Pokedex.md / package.json property panels for content-width/palette. Spine wins on conflict. Sidebar always visible in v1 full-size window.</p>
+</section>
+
+<section id="voice">
+<h2>Voice and Tone — Microcopy</h2>
+<p>Brand voice (quiet, local, calm) lives in <code>DESIGN.md</code> Brand & Style.</p>
+<table>
+<tr><th>Do</th><th>Don't</th></tr>
+<tr><td>“Search notes…”</td><td>“Search your vault 🔍”</td></tr>
+<tr><td>“No vault open. Pick a folder to start.”</td><td>“Welcome to snipnote! Let's get started 🚀”</td></tr>
+<tr><td>“File changed on disk — Reload / Keep mine”</td><td>“Conflict detected! Choose an action to resolve.”</td></tr>
+<tr><td>“174 words · 1,209 chars · 10 paragraphs”</td><td>“Word Count: 174 (Great job!)”</td></tr>
+<tr><td>“Untitled.md”</td><td>“New Note (1)”</td></tr>
+</table>
+<p style="font-size:13px">Tone = LocalEditor-like plain, never celebratory. No streaks. Errors factual: “Folder not found. Pick another.”</p>
+</section>
+
+<section id="components">
+<h2>Component Patterns — Behavioral</h2>
+<p style="font-size:12px; color:var(--muted-fg)">Visual specs live in <code>DESIGN.md</code> Components — tokens like <code>{colors.accent}</code> <code>{rounded.md}</code> <code>{components.sidebar}</code>.</p>
+<table>
+<tr><th>Component</th><th>Use</th><th>Behavioral rules</th></tr>
+<tr><td><strong>File Tree</strong></td><td>Sidebar</td><td>Reflects file system 1:1, <code>.md</code> only, alpha sorted. Folder click toggles expand; Note click opens in Editor + highlights with <code>{colors.accent}</code>. External rename/move (incl. Claude) reflected ≤2s. Empty folder shows no children.</td></tr>
+<tr><td><strong>Search / Palette</strong></td><td>Sidebar top + <kbd>⌘P</kbd></td><td><kbd>⌘P</kbd> floats palette <code>{components.command-palette}</code>. Filter substring case-insensitive. <kbd>↑</kbd><kbd>↓</kbd> moves highlight, <kbd>Enter</kbd> jumps, <kbd>Esc</kbd> closes → focus returns to Editor. [ASSUMPTION: filename-only v1.]</td></tr>
+<tr><td><strong>Tab Bar</strong></td><td>Main top</td><td>Shows active name + <code>+</code>. <code>+</code> creates <code>Untitled.md</code> immediately on disk in current folder (or Vault root) + focuses it. Back/forward = session history. Window close persists vault/tabs. [ASSUMPTION]</td></tr>
+<tr><td><strong>Editor</strong></td><td>Main center</td><td>Tiptap live: headings/bold/links/bullets render as typed, no preview toggle. Slash <code>/</code> not in v1 [ASSUMPTION]. Parse → Tiptap on load; serialize CommonMark/GFM + verbatim frontmatter on save, no HTML. Auto-save 500ms debounce [ASSUMPTION].</td></tr>
+<tr><td><strong>Library footer</strong></td><td>Sidebar bottom</td><td>Sort (alpha) + <code>Open Vault…</code> (re-pick). No multi-vault switcher beyond re-pick [ASSUMPTION].</td></tr>
+<tr><td><strong>File Changed Banner</strong></td><td>Under Tab Bar</td><td>Only when dirty Note overwritten. Non-blocking. <code>Reload</code> discards buffer → loads disk; <code>Keep mine</code> keeps buffer, suppresses until next write. If clean → silent reload preserving cursor/scroll.</td></tr>
+<tr><td><strong>Status Bar</strong></td><td>Bottom</td><td>Right-aligned quiet. Updates on keystroke + file load. Paragraph = blank-line block [ASSUMPTION]. No clicks v1.</td></tr>
+<tr><td><strong>Welcome / Picker</strong></td><td>Cold launch</td><td>If no Vault persisted → centered <code>display</code> “No vault open” + body + primary “Open Vault…” (Tauri dialog). If persisted but missing → error + same action.</td></tr>
+</table>
+</section>
+
+<section id="states">
+<h2>State Patterns</h2>
+<table>
+<tr><th>State</th><th>Surface</th><th>Treatment</th></tr>
+<tr><td>No vault (first launch)</td><td>Welcome</td><td>“No vault open.” + “Pick a folder — your files stay where they are.” Primary “Open Vault…” No sample files.</td></tr>
+<tr><td>Vault empty (no .md)</td><td>File Tree + Editor</td><td>Tree shows folders but no Notes. Editor placeholder “No file open — select a Note or press + to create.”</td></tr>
+<tr><td>Note loading</td><td>Editor</td><td>No skeleton [ASSUMPTION: <100KB <200ms]. If >200ms, subtle muted pulse, not skeleton.</td></tr>
+<tr><td>Dirty + external change</td><td>Banner</td><td>Banner as above. Buffer never overwritten.</td></tr>
+<tr><td>Clean + external change</td><td>Editor</td><td>Silent reload; cursor/scroll preserved; Status Bar updates.</td></tr>
+<tr><td>Save failure</td><td>Banner</td><td>Inline <code>destructive</code>: “Couldn't save — check permissions or disk. Edits still here.”</td></tr>
+<tr><td>No search matches</td><td>Palette</td><td>“No matches. Try another name.” No creation from palette v1 [ASSUMPTION].</td></tr>
+<tr><td>Offline</td><td>Global</td><td>No banner — app is offline by design. Local writes continue.</td></tr>
+</table>
+</section>
+
+<section id="interact">
+<h2>Interaction Primitives — Keyboard-first</h2>
+<p style="font-size:13px">Like LocalEditor's <code>⌘K</code>/<code>⌘⌥S</code> discipline, scoped to v1. Mouse is fallback.</p>
+<ul>
+  <li><kbd>⌘P</kbd> / <kbd>Ctrl+P</kbd> — Focus Search / open Palette (filename). <kbd>Esc</kbd> closes → focus Editor. The <code>⌘K</code> equivalent for snipnote v1.</li>
+  <li><kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd> — Palette nav</li>
+  <li>Click — File Tree row opens Note; Tab Bar <code>+</code> creates; Library opens menu</li>
+  <li><kbd>⌘S</kbd> — Save (also auto-save 500ms debounce [ASSUMPTION]); no unsaved dot — atomic temp+rename</li>
+  <li><kbd>⌘W</kbd> — Close window (persists vault/tabs)</li>
+  <li>Back/Forward in Tab Bar — Session history only [ASSUMPTION]</li>
+</ul>
+<p><strong>Mouse:</strong> click to act; no drag-to-reorder, no drag-to-move file, no multi-window v1, no full-text search v1, no slash palette v1, no floating Scratchpad <kbd>⌘⌥S</kbd> (LocalEditor, defers to v5), no collaborative cursors. Hover shows <code>{colors.accent}</code>. Editor scroll native.</p>
+<div class="assump">Banned everywhere: everything above — keeps v1 honest for first dollar.</div>
+</section>
+
+<section id="a11y">
+<h2>Accessibility Floor — Behavioral</h2>
+<p style="font-size:12px; color:var(--muted-fg)">Visual contrast lives in <code>DESIGN.md</code> — light monochrome <code>#0F0F0F</code> on <code>#FFFFFF</code> meets AA; tokens verified.</p>
+<ul>
+  <li>WCAG 2.2 AA across desktop window. All chrome meets AA against its token.</li>
+  <li><code>Tab</code> order: Sidebar Search → File Tree (roving <code>tabindex</code> per row) → Library → Tab Bar <code>+</code> → Editor → Status Bar (skip). <kbd>Esc</kbd> always returns to Editor or closes palette/banner.</li>
+  <li>Screen reader: “Vault {folder}, {N} notes.” Rows: “Note {name}” / “Folder {name}, collapsed/expanded, {N} items.”</li>
+  <li>Palette fully keyboard-operable; results announce via <code>aria-live</code> as filter changes.</li>
+  <li>Focus rings <code>{colors.ring} #0F0F0F</code> 2px offset, AA against background+sidebar.</li>
+  <li>Editor <code>contenteditable</code> preserves heading hierarchy for AT (h1/h2), links as links, code as code.</li>
+  <li>No traps. Native Tauri traffic lights OS-accessible.</li>
+</ul>
+</section>
+
+<section id="inspire">
+<h2>Inspiration &amp; Anti-patterns</h2>
+<ul>
+  <li><strong>Lifted from LocalEditor.app:</strong> “A lightweight, local editor for the files your agents write” / “Not every file needs an IDE.” Plain-folder Vault (no import), light palette, centered 760px reading width, file-type readable views (v1 Markdown only), no sync by principle (“No, and it never will”), <code>⌘K</code>-style palette (<code>Jump to anything…</code> → snipnote <code>⌘P</code>), “Projects/notes/Architecture.lcv” density. Pokedex.md status/tags/updated property panel informs future YAML/frontmatter but v1 preserves frontmatter as text [ASSUMPTION].</li>
+  <li><strong>Lifted from Obsidian:</strong> Plain <code>.md</code> on disk, file-system truth, vault as folder, Active Highlight.</li>
+  <li><strong>Rejected — Mote:</strong> Floating <code>⌘.</code> panel. snipnote is full-size by PRD §1; floating deferred to v5.</li>
+  <li><strong>Rejected — Cursor 3.0 heavy IDE:</strong> LSP, debugger, git UI, multi-panel, AI chat.</li>
+  <li><strong>Rejected — Notion complexity:</strong> Slash explosion, DB views, collaborative cursors, colored sidebars. LocalEditor anti-ref: “Fed up of notion's growing interface complexity.”</li>
+</ul>
+</section>
+
+<section id="flows">
+<h2>Key Flows — Named protagonists, climax beats</h2>
+<span class="badge flow">Flow 1 — UJ-1</span> <span class="badge flow">Flow 2 — UJ-2</span>
+<div class="flow" style="counter-reset:flow">
+  <div style="font-weight:700; font-size:14px; margin-bottom:6px">Flow 1 — Alex reviews Claude's Tech Stack Decisions side-by-side <span style="font-weight:400; color:var(--muted-fg)">Realizes UJ-1, PRD FR-1..FR-10</span></div>
+  <div class="step">Alex quit last night with Vault <code>~/snipnote-vault</code> + <code>Website Redesign/Tech Stack Decisions.md</code> open.</div>
+  <div class="step">Morning: launches (cold &lt;1.5s [ASSUMPTION]). Restores Vault, File Tree shows <code>Daily Notes</code>, <code>Projects</code>, <code>Website Redesign/</code> with <code>Tech Stack Decisions</code> highlighted <code>{colors.accent}</code>. Tab Bar shows name. Editor centered 760px, live headings/bold/links/bullets, Status Bar <code>174 words · 1,209 chars · 10 paragraphs</code>.</div>
+  <div class="step">Hits <kbd>⌘P</kbd>, palette floats <code>{components.command-palette}</code>. Types <code>access</code> → filters to <code>Accessibility Audit.md</code>. <kbd>Enter</kbd> — palette closes, highlight moves, Editor swaps no flash, Status Bar updates.</div>
+  <div class="step">In Ghostty beside snipnote, <code>claude</code> overwrites <code>Tech Stack Decisions.md</code> on disk. Watcher detects ≤2s. Since Alex now on <code>Accessibility Audit.md</code> (clean), no banner; next jump back via <kbd>⌘P</kbd> shows fresh content at same scroll.</div>
+  <div class="step">Clicks <code>+</code> in Tab Bar. <code>Untitled.md</code> appears immediately on disk + in File Tree, highlighted, focused. Types <code># Quick take</code>.</div>
+  <div class="climax"><strong>Climax:</strong> Without Obsidian, without preview toggle, Alex reviewed Claude's multi-file output and captured a note — all in one quiet window beside terminal, files still plain <code>.md</code> that <code>git diff</code> shows faithfully. Handoff succeeded with no corruption.</div>
+  <div style="font-size:12px; color:var(--muted-fg); margin-top:8px"><strong>Failure:</strong> Mid-edit dirty + external write → inline banner “File changed on disk — Reload / Keep mine.” No toast, no auto-merge.</div>
+</div>
+
+<div class="flow" style="counter-reset:flow">
+  <div style="font-weight:700; font-size:14px; margin-bottom:6px">Flow 2 — Priya capture-to-vault in 10 seconds <span style="font-weight:400; color:var(--muted-fg)">Realizes UJ-2</span></div>
+  <div class="step">Priya has snipnote open on <code>Daily Notes/</code> during Claude planning.</div>
+  <div class="step">Hits <code>+</code> → <code>Untitled.md</code> focused, highlighted. Types <code># Quick take</code> with <code>**bold**</code> + <code>[link](https://example.com)</code> — rendered live, no mode switch.</div>
+  <div class="step">Hits <kbd>⌘P</kbd>, types <code>tech</code> → jumps to <code>Tech Stack Decisions.md</code> to copy link.</div>
+  <div class="climax"><strong>Climax:</strong> Content live-rendered and still plain <code>.md</code> on disk — <code>cat</code> in terminal or commit. No IDE, no cloud.</div>
+  <div style="font-size:12px; color:var(--muted-fg); margin-top:8px"><strong>Failure:</strong> Vault folder missing on launch → Welcome error “Folder not found at ~/snipnote-vault” + primary “Open Vault…” button.</div>
+</div>
+</section>
+
+<section id="responsive">
+<h2>Responsive &amp; Platform</h2>
+<p>Desktop only, single full-size window. No responsive breakpoints beyond window resize. Min <code>800×600</code> per <code>src-tauri/tauri.conf.json:15</code>, content reflows via centered <code>760px</code> max-width — gutters grow/shrink, Sidebar fixed <code>260px</code>. Not a responsive web product; this section locks “desktop-only, not responsive web” as posture.</p>
+</section>
+
+<div class="footer">
+  <div><strong>Files:</strong> MD <code>_bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/EXPERIENCE.md:1</code> → HTML this file • <code>DESIGN.md:1 → DESIGN.html</code> • PRD <code>prds/prd-snipnote-2026-09-02/prd.md:1</code>. Theme source <a href="https://localeditor.app">localeditor.app</a>. Spines win on conflict with any mock.</div>
+  <div style="margin-top:6px">Tokens cross-referenced as <code>{colors.accent}</code> <code>{spacing.editor-max-width}</code> <code>{components.command-palette}</code> — single source of truth in DESIGN.md.</div>
+</div>
+</body>
+</html>
