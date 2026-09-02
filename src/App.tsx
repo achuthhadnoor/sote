@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/sidebar/Sidebar";
@@ -6,6 +6,7 @@ import { TabBar } from "./components/editor/TabBar";
 import { ConflictBanner } from "./components/editor/ConflictBanner";
 import { EditorSurface } from "./components/editor/EditorSurface";
 import { StatusBar } from "./components/editor/StatusBar";
+import { CommandPalette } from "./components/palette/CommandPalette";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
@@ -18,6 +19,7 @@ function App() {
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
   const isInitialized = useRef(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
 
   // Restore session on mount
   useEffect(() => {
@@ -107,12 +109,17 @@ function App() {
     }
   };
 
-  // Keyboard shortcut for Cmd+N / Ctrl+N
+  // Global keyboard shortcuts (Cmd+N for new note, Cmd+P for command palette)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         handleNewNote();
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        if (useVaultStore.getState().vaultPath) {
+          setIsPaletteOpen((prev) => !prev);
+        }
       }
     };
 
@@ -129,6 +136,10 @@ function App() {
         <EditorSurface />
         <StatusBar wordCount={0} charCount={0} paragraphCount={0} />
       </main>
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+      />
     </div>
   );
 }
