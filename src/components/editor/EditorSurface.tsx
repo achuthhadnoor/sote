@@ -24,6 +24,7 @@ export const EditorSurface: React.FC = () => {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editor = useEditor({
+    contentType: "markdown",
     extensions: [
       StarterKit.configure({
         codeBlock: false,
@@ -43,21 +44,21 @@ export const EditorSurface: React.FC = () => {
       },
     },
     onUpdate: ({ editor }) => {
-      const storage = editor.storage as any;
-      if (storage?.markdown?.getMarkdown) {
-        const md = storage.markdown.getMarkdown();
-        updateBody(md);
+      const ed = editor as any;
+      const md = typeof ed.getMarkdown === "function"
+        ? ed.getMarkdown()
+        : ed.storage?.markdown?.manager?.serialize?.(editor.getJSON()) || "";
+      updateBody(md);
 
-        // 500ms debounced auto-save
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-        debounceTimerRef.current = setTimeout(() => {
-          if (activePathRef.current) {
-            saveNow(activePathRef.current);
-          }
-        }, 500);
+      // 500ms debounced auto-save
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
+      debounceTimerRef.current = setTimeout(() => {
+        if (activePathRef.current) {
+          saveNow(activePathRef.current);
+        }
+      }, 500);
     },
   });
 
@@ -98,7 +99,13 @@ export const EditorSurface: React.FC = () => {
     loadNote(activePath)
       .then((body) => {
         if (!cancelled && editor) {
-          editor.commands.setContent(body);
+          const ed = editor as any;
+          if (ed.markdown?.parse) {
+            const parsedDoc = ed.markdown.parse(body);
+            editor.commands.setContent(parsedDoc);
+          } else {
+            (editor.commands as any).setContent(body, { contentType: "markdown" });
+          }
         }
       })
       .catch((err) => {
