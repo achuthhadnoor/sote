@@ -8,8 +8,8 @@ interface TabBarProps {
 
 export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
   const activeTitle = useTabStore((state) => state.activeTitle);
-  const canGoBack = useTabStore((state) => state.canGoBack());
-  const canGoForward = useTabStore((state) => state.canGoForward());
+  const canGoBack = useTabStore((state) => state.canGoBack);
+  const canGoForward = useTabStore((state) => state.canGoForward);
   const goBack = useTabStore((state) => state.goBack);
   const goForward = useTabStore((state) => state.goForward);
 
@@ -20,27 +20,38 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
     <header className="tab-bar">
       <div className="tab-nav-group">
         <button
+          type="button"
           className="tab-nav-btn"
           disabled={!canGoBack}
           onClick={goBack}
-          title="Go back"
+          title="Go back (⌘[)"
         >
           ←
         </button>
         <button
+          type="button"
           className="tab-nav-btn"
           disabled={!canGoForward}
           onClick={goForward}
-          title="Go forward"
+          title="Go forward (⌘])"
         >
           →
         </button>
       </div>
 
-      <div className="tab-title" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <div
+        className="tab-title"
+        style={{ display: "flex", alignItems: "center", gap: "6px" }}
+      >
         <span>{activeTitle}</span>
         {isSaving && (
-          <span style={{ fontSize: "11px", color: "var(--muted-fg)", fontWeight: 400 }}>
+          <span
+            style={{
+              fontSize: "11px",
+              color: "var(--muted-fg)",
+              fontWeight: 400,
+            }}
+          >
             saving...
           </span>
         )}
@@ -58,7 +69,12 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
         )}
       </div>
 
-      <button className="tab-action-btn" onClick={onNewNote} title="New note (+)">
+      <button
+        type="button"
+        className="tab-action-btn"
+        onClick={onNewNote}
+        title="New note (⌘N)"
+      >
         +
       </button>
     </header>

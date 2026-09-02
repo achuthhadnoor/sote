@@ -5,9 +5,9 @@ interface TabState {
   activeTitle: string;
   history: string[];
   historyIndex: number;
+  canGoBack: boolean;
+  canGoForward: boolean;
   selectNote: (path: string, name: string) => void;
-  canGoBack: () => boolean;
-  canGoForward: () => boolean;
   goBack: () => void;
   goForward: () => void;
 }
@@ -17,6 +17,8 @@ export const useTabStore = create<TabState>((set, get) => ({
   activeTitle: "Welcome",
   history: [],
   historyIndex: -1,
+  canGoBack: false,
+  canGoForward: false,
 
   selectNote: (path: string, name: string) => {
     const { history, historyIndex, activePath } = get();
@@ -24,30 +26,30 @@ export const useTabStore = create<TabState>((set, get) => ({
 
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(path);
+    const newIndex = newHistory.length - 1;
 
     set({
       activePath: path,
       activeTitle: name,
       history: newHistory,
-      historyIndex: newHistory.length - 1,
+      historyIndex: newIndex,
+      canGoBack: newIndex > 0,
+      canGoForward: false,
     });
-  },
-
-  canGoBack: () => get().historyIndex > 0,
-  canGoForward: () => {
-    const { history, historyIndex } = get();
-    return historyIndex >= 0 && historyIndex < history.length - 1;
   },
 
   goBack: () => {
     const { history, historyIndex } = get();
     if (historyIndex > 0) {
-      const prevPath = history[historyIndex - 1];
+      const newIndex = historyIndex - 1;
+      const prevPath = history[newIndex];
       const name = prevPath.split("/").pop() || prevPath;
       set({
         activePath: prevPath,
         activeTitle: name,
-        historyIndex: historyIndex - 1,
+        historyIndex: newIndex,
+        canGoBack: newIndex > 0,
+        canGoForward: newIndex < history.length - 1,
       });
     }
   },
@@ -55,12 +57,15 @@ export const useTabStore = create<TabState>((set, get) => ({
   goForward: () => {
     const { history, historyIndex } = get();
     if (historyIndex >= 0 && historyIndex < history.length - 1) {
-      const nextPath = history[historyIndex + 1];
+      const newIndex = historyIndex + 1;
+      const nextPath = history[newIndex];
       const name = nextPath.split("/").pop() || nextPath;
       set({
         activePath: nextPath,
         activeTitle: name,
-        historyIndex: historyIndex + 1,
+        historyIndex: newIndex,
+        canGoBack: newIndex > 0,
+        canGoForward: newIndex < history.length - 1,
       });
     }
   },

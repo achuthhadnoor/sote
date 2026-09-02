@@ -120,6 +120,12 @@ function App() {
         if (useVaultStore.getState().vaultPath) {
           setIsPaletteOpen((prev) => !prev);
         }
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "[") {
+        e.preventDefault();
+        useTabStore.getState().goBack();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "]") {
+        e.preventDefault();
+        useTabStore.getState().goForward();
       }
     };
 
