@@ -1,7 +1,9 @@
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -10,9 +12,46 @@ pub struct VaultChangeEvent {
     pub kind: String,
 }
 
+/// In-memory cache tracking recently written files to suppress self-inflicted save echoes (AD-3).
+#[derive(Clone, Default)]
+pub struct EchoSuppressionCache {
+    entries: Arc<Mutex<HashMap<PathBuf, Instant>>>,
+}
+
+impl EchoSuppressionCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record_write(&self, path: &Path) {
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        if let Ok(mut lock) = self.entries.lock() {
+            let now = Instant::now();
+            // Prune entries older than 2s
+            lock.retain(|_, timestamp| now.duration_since(*timestamp) < Duration::from_secs(2));
+            lock.insert(canonical, now);
+        }
+    }
+
+    pub fn is_suppressed(&self, path: &Path) -> bool {
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        if let Ok(mut lock) = self.entries.lock() {
+            let now = Instant::now();
+            if let Some(timestamp) = lock.get(&canonical) {
+                if now.duration_since(*timestamp) < Duration::from_secs(2) {
+                    return true;
+                }
+            }
+            lock.remove(&canonical);
+        }
+        false
+    }
+}
+
 pub struct VaultWatcherState {
     pub watcher: Arc<Mutex<Option<RecommendedWatcher>>>,
     pub watched_path: Arc<Mutex<Option<PathBuf>>>,
+    pub echo_cache: EchoSuppressionCache,
 }
 
 impl Default for VaultWatcherState {
@@ -20,6 +59,7 @@ impl Default for VaultWatcherState {
         Self {
             watcher: Arc::new(Mutex::new(None)),
             watched_path: Arc::new(Mutex::new(None)),
+            echo_cache: EchoSuppressionCache::default(),
         }
     }
 }
@@ -85,12 +125,13 @@ pub fn watch_vault(
     *watcher_lock = None;
 
     let app_clone = app.clone();
+    let echo_cache = state.echo_cache.clone();
     let mut watcher = RecommendedWatcher::new(
         move |res: Result<Event, notify::Error>| match res {
             Ok(event) => {
                 let kind_str = map_event_kind(&event.kind);
                 for p in event.paths {
-                    if should_emit_change(&p) {
+                    if should_emit_change(&p) && !echo_cache.is_suppressed(&p) {
                         let payload = VaultChangeEvent {
                             path: p.to_string_lossy().to_string(),
                             kind: kind_str.to_string(),
@@ -132,6 +173,24 @@ pub fn unwatch_vault(state: State<'_, VaultWatcherState>) -> Result<(), String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_echo_suppression_cache_lifecycle() {
+        let cache = EchoSuppressionCache::new();
+        let test_path = Path::new("/tmp/test_note.md");
+
+        // Initially not suppressed
+        assert!(!cache.is_suppressed(test_path));
+
+        // Record write
+        cache.record_write(test_path);
+
+        // Immediately suppressed within 2s TTL
+        assert!(cache.is_suppressed(test_path));
+
+        // Different path not suppressed
+        assert!(!cache.is_suppressed(Path::new("/tmp/other_note.md")));
+    }
 
     #[test]
     fn test_should_emit_change_filtering() {

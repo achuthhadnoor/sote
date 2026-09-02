@@ -158,17 +158,14 @@ pub fn read_file(file_path: String) -> Result<NoteEnvelope, String> {
     Ok(parse_note_envelope(&contents))
 }
 
-/// Tauri command to write a markdown file atomically using NoteEnvelope.
-#[tauri::command]
-pub fn write_file(
-    file_path: String,
-    body: String,
-    frontmatter: Option<String>,
+/// Internal helper for writing note file atomically.
+pub fn internal_write_file(
+    file_path: &Path,
+    body: &str,
+    frontmatter: Option<&str>,
 ) -> Result<(), String> {
-    let dest_path = PathBuf::from(&file_path);
-    let temp_path = dest_path.with_extension("snipnote.tmp");
-
-    let full_content = reassemble_envelope(&body, frontmatter.as_deref());
+    let temp_path = file_path.with_extension("snipnote.tmp");
+    let full_content = reassemble_envelope(body, frontmatter);
 
     // Write to temp file and sync
     let mut file = File::create(&temp_path)
@@ -181,17 +178,29 @@ pub fn write_file(
         .map_err(|e| format!("Failed to sync temporary file to disk: {}", e))?;
 
     // Atomic rename
-    fs::rename(&temp_path, &dest_path)
+    fs::rename(&temp_path, file_path)
         .map_err(|e| format!("Failed to atomically replace destination file: {}", e))?;
 
     Ok(())
 }
 
-/// Tauri command to create a new untitled markdown note on disk.
+/// Tauri command to write a markdown file atomically using NoteEnvelope.
 #[tauri::command]
-pub fn create_note(vault_path: String) -> Result<String, String> {
-    let path = PathBuf::from(&vault_path);
-    let canonical = path
+pub fn write_file(
+    state: tauri::State<'_, crate::watcher::VaultWatcherState>,
+    file_path: String,
+    body: String,
+    frontmatter: Option<String>,
+) -> Result<(), String> {
+    let dest_path = PathBuf::from(&file_path);
+    internal_write_file(&dest_path, &body, frontmatter.as_deref())?;
+    state.echo_cache.record_write(&dest_path);
+    Ok(())
+}
+
+/// Internal helper for creating an untitled note.
+pub fn internal_create_note(vault_path: &Path) -> Result<PathBuf, String> {
+    let canonical = vault_path
         .canonicalize()
         .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
 
@@ -215,6 +224,18 @@ pub fn create_note(vault_path: String) -> Result<String, String> {
     fs::write(&candidate, "")
         .map_err(|e| format!("Failed to create new note file: {}", e))?;
 
+    Ok(candidate)
+}
+
+/// Tauri command to create a new untitled markdown note on disk.
+#[tauri::command]
+pub fn create_note(
+    state: tauri::State<'_, crate::watcher::VaultWatcherState>,
+    vault_path: String,
+) -> Result<String, String> {
+    let path = PathBuf::from(&vault_path);
+    let candidate = internal_create_note(&path)?;
+    state.echo_cache.record_write(&candidate);
     Ok(candidate.to_string_lossy().to_string())
 }
 
@@ -227,19 +248,18 @@ mod tests {
         let temp_dir = std::env::temp_dir().join(format!("snipnote_create_note_test_{}", std::process::id()));
         let _ = fs::remove_dir_all(&temp_dir);
         fs::create_dir_all(&temp_dir).unwrap();
-        let path_str = temp_dir.to_string_lossy().to_string();
 
-        let n1 = create_note(path_str.clone()).unwrap();
-        assert!(n1.ends_with("Untitled.md"));
-        assert!(Path::new(&n1).is_file());
+        let n1 = internal_create_note(&temp_dir).unwrap();
+        assert!(n1.to_string_lossy().ends_with("Untitled.md"));
+        assert!(n1.is_file());
 
-        let n2 = create_note(path_str.clone()).unwrap();
-        assert!(n2.ends_with("Untitled 1.md"));
-        assert!(Path::new(&n2).is_file());
+        let n2 = internal_create_note(&temp_dir).unwrap();
+        assert!(n2.to_string_lossy().ends_with("Untitled 1.md"));
+        assert!(n2.is_file());
 
-        let n3 = create_note(path_str.clone()).unwrap();
-        assert!(n3.ends_with("Untitled 2.md"));
-        assert!(Path::new(&n3).is_file());
+        let n3 = internal_create_note(&temp_dir).unwrap();
+        assert!(n3.to_string_lossy().ends_with("Untitled 2.md"));
+        assert!(n3.is_file());
 
         let _ = fs::remove_dir_all(&temp_dir);
     }
@@ -285,7 +305,7 @@ mod tests {
         let body = "# Test Content\nBody here.";
         let frontmatter = Some("author: Tester\nversion: 1".to_string());
 
-        write_file(path_str.clone(), body.to_string(), frontmatter.clone()).unwrap();
+        internal_write_file(&file_path, body, frontmatter.as_deref()).unwrap();
 
         let envelope = read_file(path_str).unwrap();
         assert_eq!(envelope.frontmatter, frontmatter);
