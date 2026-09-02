@@ -242,4 +242,67 @@ So that architecture and workflow diagrams are visualized inline directly beside
 **Then** a custom NodeView renders the syntax into an SVG diagram inline.
 **And** syntax errors display a quiet warning box instead of crashing the editor.
 
+## Epic 3: External File Synchronization & Conflict Guard
+
+Users can keep `snipnote` open side-by-side with their terminal while Claude Code generates or edits spec files on disk. Clean files auto-reload seamlessly with preserved cursor/scroll position, while unsaved buffers display an inline non-blocking banner (`File changed on disk — [Reload] [Keep mine]`) without data loss. Snipnote never triggers false reloads on its own saves.
+
+### Story 3.1: Rust `notify` File Watcher & Vault Change Stream
+As a user,
+I want the Rust backend to watch my vault directory for external changes using native filesystem events,
+So that edits made by Claude Code in the terminal are immediately detected by Snipnote.
+
+**Acceptance Criteria:**
+**Given** an open vault directory,
+**When** files or folders are created, deleted, or modified on disk by external tools,
+**Then** the Rust `notify` background watcher detects the change and emits a Tauri `vault-changed` event containing `{ path: string, kind: string }`.
+**And** non-markdown files and hidden directories (`.git`) are filtered out.
+
+### Story 3.2: Echo Suppression Cache (AD-3)
+As a user,
+I want Snipnote to recognize its own saves,
+So that local typing and debounced saves never trigger self-inflicted reload loops or false conflict banners.
+
+**Acceptance Criteria:**
+**Given** Snipnote executing `write_file`,
+**When** the write completes,
+**Then** the canonical file path and timestamp are recorded in an in-memory `RecentlyWritten` cache with a 2-second TTL.
+**When** the file watcher intercepts a file modification event matching a `RecentlyWritten` entry,
+**Then** the event is silently dropped and no `vault-changed` event is emitted.
+
+### Story 3.3: Live Auto-Reload & Non-Blocking Conflict Banner (AD-4)
+As a user,
+I want clean files to reload instantly when modified externally, and dirty buffers protected with an inline conflict banner,
+So that I can fluidly collaborate with Claude Code without losing unsaved changes.
+
+**Acceptance Criteria:**
+**Given** the active open note modified externally by Claude Code,
+**When** the editor buffer is clean (`isDirty: false`),
+**Then** Snipnote automatically re-reads the file from disk and updates the editor content without prompting.
+**When** the editor buffer has unsaved changes (`isDirty: true`),
+**Then** Snipnote displays a non-blocking banner docked under the Tab Bar:
+`File changed on disk — [Reload] [Keep mine]`
+**When** clicking "Reload", the local changes are discarded and the disk file loaded.
+**When** clicking "Keep mine", the banner is dismissed and local changes retained.
+**And** when the vault tree structure changes, the sidebar file tree automatically refreshes within 2 seconds.
+
+## Epic 4: Fast Keyboard Navigation & Document Insights
+
+Users can navigate their vault at keyboard speed using a ⌘P Command Palette to instantly fuzzy-search and jump between notes by filename, traverse their session tab history with back/forward arrows, and monitor live word, character, and paragraph statistics in the quiet Status Bar as they write.
+
+### Story 4.1: Command Palette & Fuzzy Search
+As a user,
+I want to press `⌘P` to open a centered search palette and fuzzy-search my notes,
+So that I can switch between notes instantly without taking my hands off the keyboard.
+
+### Story 4.2: Tab History Navigation Stack
+As a user,
+I want back and forward arrows and keyboard shortcuts to traverse my note history,
+So that I can jump between recently referenced notes effortlessly.
+
+### Story 4.3: Live Document Statistics & Status Bar
+As a user,
+I want to see real-time word, character, and paragraph counts in the Status Bar,
+So that I have continuous unobtrusive insight into my writing progress.
+
+
 
