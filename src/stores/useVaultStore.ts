@@ -41,6 +41,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     try {
       const tree = await invoke<VaultNode[]>("scan_vault", { vaultPath: path });
       set({ vaultPath: path, tree, isLoading: false, error: null });
+      // Start watching vault directory for external changes
+      invoke("watch_vault", { vaultPath: path }).catch((err) => {
+        console.error("Failed to start vault file watcher:", err);
+      });
     } catch (err: any) {
       set({
         error: err?.message || String(err),
@@ -70,6 +74,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   },
 
   clearVault: () => {
+    invoke("unwatch_vault").catch(() => {});
     set({ vaultPath: null, tree: [], isLoading: false, error: null });
   },
 }));
