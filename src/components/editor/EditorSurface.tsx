@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -13,8 +13,14 @@ export const EditorSurface: React.FC = () => {
   const activePath = useTabStore((state) => state.activePath);
   const loadNote = useEditorStore((state) => state.loadNote);
   const updateBody = useEditorStore((state) => state.updateBody);
+  const saveNow = useEditorStore((state) => state.saveNow);
   const isLoading = useEditorStore((state) => state.isLoading);
   const error = useEditorStore((state) => state.error);
+
+  const activePathRef = useRef<string | null>(activePath);
+  activePathRef.current = activePath;
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -38,12 +44,51 @@ export const EditorSurface: React.FC = () => {
       if (storage?.markdown?.getMarkdown) {
         const md = storage.markdown.getMarkdown();
         updateBody(md);
+
+        // 500ms debounced auto-save
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+          if (activePathRef.current) {
+            saveNow(activePathRef.current);
+          }
+        }, 500);
       }
     },
   });
 
-  // When activePath changes, load file and set content
+  // Flush save on window blur or beforeunload
   useEffect(() => {
+    const handleFlush = () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (activePathRef.current && useEditorStore.getState().isDirty) {
+        saveNow(activePathRef.current);
+      }
+    };
+
+    window.addEventListener("blur", handleFlush);
+    window.addEventListener("beforeunload", handleFlush);
+
+    return () => {
+      handleFlush();
+      window.removeEventListener("blur", handleFlush);
+      window.removeEventListener("beforeunload", handleFlush);
+    };
+  }, [saveNow]);
+
+  // When activePath changes, flush previous note and load new note
+  const prevPathRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevPathRef.current && prevPathRef.current !== activePath) {
+      if (useEditorStore.getState().isDirty) {
+        saveNow(prevPathRef.current);
+      }
+    }
+    prevPathRef.current = activePath;
+
     if (!activePath || !editor) return;
 
     let cancelled = false;
@@ -60,7 +105,7 @@ export const EditorSurface: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [activePath, editor, loadNote]);
+  }, [activePath, editor, loadNote, saveNow]);
 
   if (!vaultPath) {
     return (

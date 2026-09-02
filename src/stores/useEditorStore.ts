@@ -7,10 +7,12 @@ interface EditorState {
   body: string;
   lastSavedBody: string;
   isDirty: boolean;
+  isSaving: boolean;
   isLoading: boolean;
   error: string | null;
   loadNote: (path: string) => Promise<string>;
   updateBody: (body: string) => void;
+  saveNow: (filePath: string) => Promise<void>;
   setSaved: () => void;
   clearNote: () => void;
 }
@@ -20,6 +22,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   body: "",
   lastSavedBody: "",
   isDirty: false,
+  isSaving: false,
   isLoading: false,
   error: null,
 
@@ -58,6 +61,41 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
+  saveNow: async (filePath: string) => {
+    const { body, frontmatter, isDirty } = get();
+    if (!filePath || !isDirty) return;
+
+    const snapshotBody = body;
+    const snapshotFrontmatter = frontmatter;
+    set({ isSaving: true });
+
+    try {
+      await invoke("write_file", {
+        filePath,
+        body: snapshotBody,
+        frontmatter: snapshotFrontmatter,
+      });
+
+      // Buffer snapshot concurrency guard:
+      // If user typed during write, current body will differ from snapshotBody
+      if (get().body === snapshotBody) {
+        set({
+          lastSavedBody: snapshotBody,
+          isDirty: false,
+          isSaving: false,
+          error: null,
+        });
+      } else {
+        set({ isSaving: false, error: null });
+      }
+    } catch (err: any) {
+      set({
+        isSaving: false,
+        error: err?.message || String(err),
+      });
+    }
+  },
+
   setSaved: () => {
     const { body } = get();
     set({
@@ -72,6 +110,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       body: "",
       lastSavedBody: "",
       isDirty: false,
+      isSaving: false,
       isLoading: false,
       error: null,
     });
