@@ -1136,6 +1136,28 @@ html, body, #root {
   text-decoration: underline;
 }
 
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  margin: 8px 0 14px 0;
+  display: inline-block;
+  vertical-align: middle;
+  background: var(--muted);
+}
+
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+.ProseMirror p img {
+  margin: 8px 2px;
+}
+
+/* Inline image inside paragraph flows with text; block image (alone in paragraph) still centered via max-width */
+
 /* Mermaid Diagram NodeView */
 .mermaid-node-wrapper {
   margin: 18px 0;

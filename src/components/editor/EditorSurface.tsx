@@ -4,6 +4,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { CustomCodeBlock } from "./extensions/CustomCodeBlock";
 import { FrontmatterTable } from "./FrontmatterTable";
@@ -78,11 +79,68 @@ export const EditorSurface: React.FC = () => {
       TaskItem.configure({
         nested: true,
       }),
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: "snipnote-image",
+        },
+      }),
       Markdown,
     ],
     editorProps: {
       attributes: {
         class: "snipnote-editor-content",
+      },
+      handleDrop: (view: any, event: DragEvent, _slice: any, _moved: boolean) => {
+        const files = (event as any).dataTransfer?.files as FileList | undefined;
+        if (!files || files.length === 0) return false;
+        const imageFiles = Array.from(files).filter((f: File) => f.type.startsWith("image/"));
+        if (imageFiles.length === 0) return false;
+        event.preventDefault();
+        imageFiles.forEach((file: File) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result as string;
+            const pos = view.posAtCoords({ left: (event as any).clientX, top: (event as any).clientY })?.pos;
+            const e = editor as any;
+            if (!e) return;
+            if (typeof pos === "number") {
+              e.chain().setTextSelection(pos).setImage({ src, alt: file.name }).run();
+            } else {
+              e.chain().focus().setImage({ src, alt: file.name }).run();
+            }
+            const md = typeof e.getMarkdown === "function" ? e.getMarkdown() : "";
+            updateBody(md);
+            triggerAutoSave();
+          };
+          reader.readAsDataURL(file);
+        });
+        return true;
+      },
+      handlePaste: (_view: any, event: ClipboardEvent, _slice: any) => {
+        const cd = event.clipboardData as DataTransfer | null;
+        const items = cd?.items;
+        if (!items) return false;
+        const hasImageItem = Array.from(items).some((it: any) => it.type.startsWith("image/"));
+        if (!hasImageItem) return false;
+        const files = Array.from(cd?.files ?? []).filter((f: File) => f.type.startsWith("image/"));
+        if (files.length === 0) return false;
+        event.preventDefault();
+        files.forEach((file: File) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result as string;
+            const e = editor as any;
+            if (!e) return;
+            e.chain().focus().setImage({ src, alt: file.name }).run();
+            const md = typeof e.getMarkdown === "function" ? e.getMarkdown() : "";
+            updateBody(md);
+            triggerAutoSave();
+          };
+          reader.readAsDataURL(file);
+        });
+        return true;
       },
     },
     onUpdate: ({ editor }) => {
