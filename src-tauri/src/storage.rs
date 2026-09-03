@@ -246,6 +246,85 @@ pub fn create_note(
     Ok(candidate.to_string_lossy().to_string())
 }
 
+/// Tauri command to rename a file or folder.
+#[tauri::command]
+pub fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
+    let old = PathBuf::from(&old_path);
+    if !old.exists() {
+        return Err(format!("Path does not exist: {:?}", old));
+    }
+    let parent = old.parent().ok_or_else(|| "Cannot rename root".to_string())?;
+    if new_name.contains('/') || new_name.contains('\\') || new_name.is_empty() {
+        return Err("Invalid new name".to_string());
+    }
+    let new_path = parent.join(&new_name);
+    if new_path.exists() {
+        return Err(format!("Target already exists: {:?}", new_path));
+    }
+    fs::rename(&old, &new_path).map_err(|e| e.to_string())?;
+    Ok(new_path.to_string_lossy().to_string())
+}
+
+/// Tauri command to delete a file or folder (recursive for folders).
+#[tauri::command]
+pub fn delete_path(path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("Path does not exist: {:?}", p));
+    }
+    if p.is_dir() {
+        fs::remove_dir_all(&p).map_err(|e| e.to_string())?;
+    } else {
+        fs::remove_file(&p).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Tauri command to create an empty file at a given directory with a name.
+#[tauri::command]
+pub fn create_file_at_path(
+    state: tauri::State<'_, crate::watcher::VaultWatcherState>,
+    dir_path: String,
+    file_name: String,
+) -> Result<String, String> {
+    let dir = PathBuf::from(&dir_path);
+    if !dir.is_dir() {
+        return Err(format!("Not a directory: {:?}", dir));
+    }
+    if file_name.contains('/') || file_name.contains('\\') || file_name.is_empty() {
+        return Err("Invalid file name".to_string());
+    }
+    let mut name = file_name;
+    if Path::new(&name).extension().is_none() {
+        name.push_str(".md");
+    }
+    let candidate = dir.join(&name);
+    if candidate.exists() {
+        return Err(format!("File already exists: {:?}", candidate));
+    }
+    fs::write(&candidate, "").map_err(|e| e.to_string())?;
+    state.echo_cache.record_write(&candidate);
+    Ok(candidate.to_string_lossy().to_string())
+}
+
+/// Tauri command to create a folder at a given directory.
+#[tauri::command]
+pub fn create_folder_at_path(dir_path: String, folder_name: String) -> Result<String, String> {
+    let dir = PathBuf::from(&dir_path);
+    if !dir.is_dir() {
+        return Err(format!("Not a directory: {:?}", dir));
+    }
+    if folder_name.contains('/') || folder_name.contains('\\') || folder_name.is_empty() {
+        return Err("Invalid folder name".to_string());
+    }
+    let new_folder = dir.join(&folder_name);
+    if new_folder.exists() {
+        return Err(format!("Already exists: {:?}", new_folder));
+    }
+    fs::create_dir_all(&new_folder).map_err(|e| e.to_string())?;
+    Ok(new_folder.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

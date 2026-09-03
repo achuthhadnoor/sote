@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { VaultNode } from "../../types/vault";
 import { useTabStore } from "../../stores/useTabStore";
+import { FileContextMenu } from "./FileContextMenu";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 interface FileTreeProps {
   nodes: VaultNode[];
@@ -8,18 +10,37 @@ interface FileTreeProps {
 }
 
 export const FileTree: React.FC<FileTreeProps> = ({ nodes, level = 0 }) => {
+  const [menu, setMenu] = useState<{ node: VaultNode | null; x: number; y: number } | null>(null);
+
+  const handleContextMenu = (e: React.MouseEvent, node: VaultNode | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenu({ node, x: e.clientX, y: e.clientY });
+  };
+
+  const handleEmptyContextMenu = (e: React.MouseEvent) => {
+    // only if clicking on the container itself (empty area)
+    if (e.target === e.currentTarget) {
+      handleContextMenu(e, null);
+    }
+  };
+
   return (
-    <div className="file-tree" style={{ paddingLeft: level > 0 ? 12 : 0 }}>
-      {nodes.map((node) => (
-        <FileTreeNode key={node.path} node={node} level={level} />
-      ))}
-    </div>
+    <>
+      <div className="file-tree" style={{ paddingLeft: level > 0 ? 12 : 0 }} onContextMenu={level === 0 ? handleEmptyContextMenu : undefined}>
+        {nodes.map((node) => (
+          <FileTreeNode key={node.path} node={node} level={level} onContextMenu={handleContextMenu} />
+        ))}
+      </div>
+      {menu && <FileContextMenu node={menu.node} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
+    </>
   );
 };
 
 interface FileTreeNodeProps {
   node: VaultNode;
   level: number;
+  onContextMenu: (e: React.MouseEvent, node: VaultNode) => void;
 }
 
 const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => (
@@ -32,7 +53,6 @@ const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => (
     aria-hidden="true"
   >
     {open ? (
-      // folder open
       <path
         d="M3 7.5a2.5 2.5 0 0 1 2.5-2.5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v8a2.5 2.5 0 0 1-2.5 2.5H5.5A2.5 2.5 0 0 1 3 17.5v-10Z"
         fill="currentColor"
@@ -51,14 +71,7 @@ const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => (
       strokeWidth="1.5"
       strokeLinejoin="round"
     />
-    {open && (
-      <path
-        d="M3 9.5H21"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        opacity="0.5"
-      />
-    )}
+    {open && <path d="M3 9.5H21" stroke="currentColor" strokeWidth="1.2" opacity="0.5" />}
   </svg>
 );
 
@@ -85,56 +98,31 @@ const FileIcon: React.FC<{ name: string }> = ({ name }) => {
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
-      <path
-        d="M14 2.5V6.5H18"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-      {/* lines hint — md files get 3 lines */}
-      <path
-        d="M10 13H15M10 16H14"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        opacity={isMd ? 0.9 : 0.35}
-      />
-      {isMd && (
-        <path
-          d="M10 10H13"
-          stroke="currentColor"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          opacity={0.9}
-        />
-      )}
+      <path d="M14 2.5V6.5H18" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M10 13H15M10 16H14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity={isMd ? 0.9 : 0.35} />
+      {isMd && <path d="M10 10H13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity={0.9} />}
     </svg>
   );
 };
 
 const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 24 24"
-    fill="none"
-    className={`tree-chevron-icon ${open ? "is-open" : ""}`}
-    aria-hidden="true"
-  >
-    <path
-      d="M9 6L15 12L9 18"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className={`tree-chevron-icon ${open ? "is-open" : ""}`} aria-hidden="true">
+    <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level }) => {
+const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu }) => {
   const [isOpen, setIsOpen] = useState(level === 0);
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === " " && !node.isDirectory) {
+      e.preventDefault();
+      // Quick Look: open with default app (Preview on macOS)
+      openPath(node.path).catch(() => {});
+    }
+  };
 
   if (node.isDirectory) {
     return (
@@ -142,7 +130,10 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level }) => {
         <div
           className="tree-row tree-dir-row"
           onClick={() => setIsOpen((prev) => !prev)}
+          onContextMenu={(e) => onContextMenu(e, node)}
           title={node.path}
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
         >
           <span className="tree-chevron">
             <ChevronIcon open={isOpen} />
@@ -150,9 +141,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level }) => {
           <FolderIcon open={isOpen} />
           <span className="tree-name">{node.name}</span>
         </div>
-        {isOpen && node.children && (
-          <FileTree nodes={node.children} level={level + 1} />
-        )}
+        {isOpen && node.children && <FileTreeWithMenu nodes={node.children} level={level + 1} onContextMenu={onContextMenu} />}
       </div>
     );
   }
@@ -163,11 +152,29 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level }) => {
     <div
       className={`tree-row tree-file-row ${isActive ? "active-row" : ""}`}
       onClick={() => selectNote(node.path, node.name)}
+      onContextMenu={(e) => onContextMenu(e, node)}
+      onKeyDown={handleKeyDown}
       title={node.path}
+      tabIndex={0}
     >
       <span className="tree-file-indent" aria-hidden="true" />
       <FileIcon name={node.name} />
       <span className="tree-name">{node.name}</span>
+    </div>
+  );
+};
+
+// Helper to propagate context menu through nested levels without creating new menu state each level
+const FileTreeWithMenu: React.FC<FileTreeProps & { onContextMenu: (e: React.MouseEvent, node: VaultNode) => void }> = ({
+  nodes,
+  level = 0,
+  onContextMenu,
+}) => {
+  return (
+    <div className="file-tree" style={{ paddingLeft: level > 0 ? 12 : 0 }}>
+      {nodes.map((node) => (
+        <FileTreeNode key={node.path} node={node} level={level} onContextMenu={onContextMenu} />
+      ))}
     </div>
   );
 };
