@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -7,8 +7,10 @@ import TaskItem from "@tiptap/extension-task-item";
 import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { CustomCodeBlock } from "./extensions/CustomCodeBlock";
+import { SearchHighlight } from "./extensions/SearchHighlight";
 import { FrontmatterTable } from "./FrontmatterTable";
 import { MarkdownOutline } from "./MarkdownOutline";
+import { FindBar } from "./FindBar";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
@@ -34,6 +36,8 @@ export const EditorSurface: React.FC = () => {
   activePathRef.current = activePath;
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isFindOpen, setIsFindOpen] = useState(false);
+  const [showReplace, setShowReplace] = useState(false);
 
   const handlePostSave = async (path: string, wasNew: boolean) => {
     // wasNew draft now has content and was saved -> promote to real file
@@ -65,6 +69,45 @@ export const EditorSurface: React.FC = () => {
     }, 500);
   };
 
+  // Find bar shortcuts: Cmd+F open, Shift+Cmd+F toggle replace, Esc handled in FindBar
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (!mod) return;
+      if (!activePath) return;
+      if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setIsFindOpen(true);
+          setShowReplace((prev) => !prev);
+        } else {
+          setIsFindOpen(true);
+          // keep replace state as is
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activePath]);
+
+  const handleFindClose = () => {
+    setIsFindOpen(false);
+    // clear highlights
+    (editor as any)?.chain()?.clearSearch?.()?.run();
+    // return focus to editor
+    setTimeout(() => editor?.commands.focus(), 30);
+  };
+
+  // Clear find when switching notes or toggling raw mode
+  useEffect(() => {
+    if (isFindOpen) {
+      setIsFindOpen(false);
+      (editor as any)?.chain()?.clearSearch?.()?.run();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePath, isRawMode]);
+
   const editor = useEditor({
     contentType: "markdown",
     extensions: [
@@ -75,6 +118,7 @@ export const EditorSurface: React.FC = () => {
         },
       }),
       CustomCodeBlock,
+      SearchHighlight,
       Link.configure({
         openOnClick: false,
       }),
@@ -319,6 +363,15 @@ export const EditorSurface: React.FC = () => {
       </div>
       {/* Floating outline — horizontal dashes at right center, expand on hover */}
       <MarkdownOutline editor={editor} body={body} isRawMode={isRawMode} />
+      {!isRawMode && (
+        <FindBar
+          editor={editor}
+          isOpen={isFindOpen}
+          showReplace={showReplace}
+          onClose={handleFindClose}
+          onToggleReplace={() => setShowReplace((v) => !v)}
+        />
+      )}
     </section>
   );
 };

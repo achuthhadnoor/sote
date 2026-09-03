@@ -1201,6 +1201,174 @@ html, body, #root {
   cursor: default;
 }
 
+/* Find Bar — floating above Status Bar */
+.find-bar {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 560px;
+  max-width: 90%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  z-index: 20;
+  animation: scaleIn 0.12s ease-out;
+}
+
+.find-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.find-input-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--muted-translucent);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  transition: border-color 0.12s ease;
+}
+
+.find-input-group:focus-within {
+  border-color: var(--primary);
+  background: var(--bg);
+}
+
+.find-icon {
+  color: var(--muted-fg);
+  flex-shrink: 0;
+}
+
+.find-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: var(--fg);
+  min-width: 0;
+}
+
+.find-input::placeholder {
+  color: var(--muted-fg);
+}
+
+.find-count {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--muted-fg);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.find-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.find-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.find-btn:hover:not(:disabled) {
+  background: var(--hover-translucent);
+  color: var(--fg);
+  border-color: var(--border-translucent);
+}
+
+.find-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.find-close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--muted-fg);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.find-close:hover {
+  background: var(--hover-translucent);
+  color: var(--fg);
+}
+
+.find-replace-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.find-replace-btn:hover:not(:disabled) {
+  background: var(--hover-translucent);
+}
+
+.find-replace-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ProseMirror search highlights */
+.search-highlight {
+  background-color: rgba(255, 235, 59, 0.35);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.search-highlight-active {
+  background-color: rgba(255, 193, 7, 0.9);
+  outline: 1px solid #EAB308;
+  border-radius: 2px;
+}
+
+[data-theme="dark"] .search-highlight {
+  background-color: rgba(234, 179, 8, 0.35);
+}
+
+[data-theme="dark"] .search-highlight-active {
+  background-color: rgba(234, 179, 8, 0.75);
+  outline-color: #FACC15;
+}
+
 /* File Tree */
 .file-tree {
   display: flex;
