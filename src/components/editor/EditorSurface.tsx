@@ -76,6 +76,7 @@ export const EditorSurface: React.FC = () => {
     extensions: [
       StarterKit.configure({
         codeBlock: false,
+        link: false,
         heading: {
           levels: [1, 2, 3, 4],
         },
@@ -187,20 +188,27 @@ export const EditorSurface: React.FC = () => {
 
   const handleFindClose = () => {
     setIsFindOpen(false);
-    (editor as any)?.chain()?.clearSearch?.()?.run();
-    setTimeout(() => editor?.commands.focus(), 30);
+    try {
+      (editor as any)?.chain()?.clearSearch?.()?.run();
+    } catch {}
+    try {
+      setTimeout(() => editor?.commands.focus(), 30);
+    } catch {}
   };
 
   useEffect(() => {
-    if (editor?.view?.dom) {
-      editor.view.dom.setAttribute("spellcheck", spellCheckEnabled ? "true" : "false");
-    }
+    try {
+      const dom = (editor as any)?.view?.dom as HTMLElement | undefined;
+      if (dom) dom.setAttribute("spellcheck", spellCheckEnabled ? "true" : "false");
+    } catch {}
   }, [spellCheckEnabled, editor]);
 
   useEffect(() => {
     if (isFindOpen) {
       setIsFindOpen(false);
-      (editor as any)?.chain()?.clearSearch?.()?.run();
+      try {
+        (editor as any)?.chain()?.clearSearch?.()?.run();
+      } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, isRawMode]);
