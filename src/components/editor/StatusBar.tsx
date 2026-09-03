@@ -28,8 +28,8 @@ export const StatusBar: React.FC = () => {
   }, [body, activePath]);
 
   return (
-    <footer className="status-bar">
-      <span className="status-stats">
+    <footer className="status-bar" role="status" aria-live="polite" aria-atomic="true">
+      <span className="status-stats" aria-live="polite">
         {stats.words} words · {stats.characters} characters · {stats.paragraphs} paragraphs
       </span>
       <button

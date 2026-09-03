@@ -79,11 +79,35 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
         </button>
       </div>
 
-      <div className="tabs-container" role="tablist" aria-label="Open notes">
+      <div className="tabs-container">
         {tabs.length === 0 ? (
           <div className="tab-empty-hint">No open notes</div>
         ) : (
-          <div className="tabs-scroll">
+          <div
+            className="tabs-scroll"
+            role="tablist"
+            aria-label="Open notes"
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
+              const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
+              const activeIdx = tabsEls.findIndex((el) => el.getAttribute("aria-selected") === "true");
+              let nextIdx = activeIdx;
+              if (e.key === "ArrowLeft") nextIdx = Math.max(0, activeIdx - 1);
+              else if (e.key === "ArrowRight") nextIdx = Math.min(tabsEls.length - 1, activeIdx + 1);
+              else if (e.key === "Home") nextIdx = 0;
+              else if (e.key === "End") nextIdx = tabsEls.length - 1;
+              if (nextIdx !== activeIdx && tabsEls[nextIdx]) {
+                e.preventDefault();
+                tabsEls.forEach((el) => (el.tabIndex = -1));
+                tabsEls[nextIdx].tabIndex = 0;
+                tabsEls[nextIdx].focus();
+                const el = tabsEls[nextIdx];
+                const path = el.getAttribute("data-tab-path");
+                const title = el.getAttribute("data-tab-title");
+                if (path && title) handleTabClick(path, title);
+              }
+            }}
+          >
             {tabs.map((tab) => {
               const isActive = tab.path === activePath;
               const isDraft = !!tab.isNew;
@@ -92,8 +116,18 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
                   key={tab.path}
                   role="tab"
                   aria-selected={isActive}
+                  aria-controls={`editor-${tab.path}`}
+                  tabIndex={isActive ? 0 : -1}
+                  data-tab-path={tab.path}
+                  data-tab-title={tab.title}
                   className={`tab-item ${isActive ? "is-active" : ""} ${isDraft ? "is-draft" : ""}`}
                   onClick={() => handleTabClick(tab.path, tab.title)}
+                  onFocus={(e) => {
+                    // roving: when tab receives focus via Tab, ensure it becomes roving active
+                    const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
+                    tabsEls.forEach((el) => (el.tabIndex = -1));
+                    (e.currentTarget as HTMLElement).tabIndex = 0;
+                  }}
                   title={isDraft ? `${tab.path} — not yet saved` : tab.path}
                 >
                   <FileTabIcon active={isActive} />

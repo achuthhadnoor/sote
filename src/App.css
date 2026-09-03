@@ -2702,6 +2702,27 @@ html, body, #root {
   }
 }
 
+@media (prefers-contrast: more) {
+  :root {
+    --border: #000000;
+    --border-translucent: #000000;
+  }
+  [data-theme="dark"] {
+    --border: #ffffff;
+    --border-translucent: #ffffff;
+  }
+  .tree-row,
+  .tab-item,
+  .outline-panel,
+  .status-bar,
+  .find-bar,
+  .file-context-menu,
+  .settings-dialog,
+  .palette-dialog {
+    border-width: 2px !important;
+  }
+}
+
 
 
 

@@ -144,7 +144,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           />
         </div>
 
-        <div className="palette-list" role="listbox">
+        <div className="palette-list" role="listbox" aria-live="polite" aria-label="Note results">
           {filteredNotes.length === 0 ? (
             <div className="palette-empty">No matching notes found</div>
           ) : (

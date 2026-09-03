@@ -14,6 +14,8 @@ interface FileTreeProps {
 
 export const FileTree: React.FC<FileTreeProps> = ({ nodes, level = 0 }) => {
   const [menu, setMenu] = useState<{ node: VaultNode | null; x: number; y: number } | null>(null);
+  const activePath = useTabStore((s) => s.activePath);
+  const rovingPath = activePath || nodes[0]?.path || null;
 
   const handleContextMenu = (e: React.MouseEvent, node: VaultNode | null) => {
     e.preventDefault();
@@ -30,9 +32,15 @@ export const FileTree: React.FC<FileTreeProps> = ({ nodes, level = 0 }) => {
 
   return (
     <>
-      <div className="file-tree" style={{ paddingLeft: level > 0 ? 12 : 0 }} onContextMenu={level === 0 ? handleEmptyContextMenu : undefined}>
+      <div
+        className="file-tree"
+        role="tree"
+        aria-label="Vault files"
+        style={{ paddingLeft: level > 0 ? 12 : 0 }}
+        onContextMenu={level === 0 ? handleEmptyContextMenu : undefined}
+      >
         {nodes.map((node) => (
-          <FileTreeNode key={node.path} node={node} level={level} onContextMenu={handleContextMenu} />
+          <FileTreeNode key={node.path} node={node} level={level} onContextMenu={handleContextMenu} rovingPath={rovingPath} />
         ))}
       </div>
       {menu && <FileContextMenu node={menu.node} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
@@ -44,6 +52,7 @@ interface FileTreeNodeProps {
   node: VaultNode;
   level: number;
   onContextMenu: (e: React.MouseEvent, node: VaultNode) => void;
+  rovingPath?: string | null;
 }
 
 const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => (
@@ -114,17 +123,70 @@ const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
   </svg>
 );
 
-const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu }) => {
+const FileTreeNode: React.FC<FileTreeNodeProps & { rovingPath?: string | null }> = ({ node, level, onContextMenu, rovingPath }) => {
   const [isOpen, setIsOpen] = useState(level === 0);
   const [isDragOver, setIsDragOver] = useState(false);
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
+  const isActive = !node.isDirectory && activePath === node.path;
+  const isRovingActive = rovingPath ? rovingPath === node.path : isActive;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === " " && !node.isDirectory) {
       e.preventDefault();
       // Quick Look: open with default app (Preview on macOS)
       openPath(node.path).catch(() => {});
+      return;
+    }
+    // Roving tabindex arrow navigation
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const items = Array.from(document.querySelectorAll<HTMLElement>('[role="treeitem"]'));
+      const idx = items.findIndex((el) => el === e.currentTarget);
+      if (idx === -1) return;
+      const nextIdx = e.key === "ArrowDown" ? Math.min(items.length - 1, idx + 1) : Math.max(0, idx - 1);
+      const next = items[nextIdx];
+      // Update tabIndex for roving
+      items.forEach((el) => (el.tabIndex = -1));
+      next.tabIndex = 0;
+      next.focus();
+      return;
+    }
+    if (node.isDirectory && e.key === "ArrowRight") {
+      e.preventDefault();
+      if (!isOpen) setIsOpen(true);
+      else {
+        // focus first child if expanded
+        const items = Array.from(document.querySelectorAll<HTMLElement>('[role="treeitem"]'));
+        const idx = items.findIndex((el) => el === e.currentTarget);
+        const next = items[idx + 1];
+        if (next) {
+          items.forEach((el) => (el.tabIndex = -1));
+          next.tabIndex = 0;
+          next.focus();
+        }
+      }
+      return;
+    }
+    if (node.isDirectory && e.key === "ArrowLeft") {
+      e.preventDefault();
+      if (isOpen) setIsOpen(false);
+      else {
+        // focus parent treeitem
+        const parent = (e.currentTarget as HTMLElement).closest(".tree-dir-item")?.parentElement?.closest('[role="treeitem"]') as HTMLElement | null;
+        if (parent) {
+          const items = Array.from(document.querySelectorAll<HTMLElement>('[role="treeitem"]'));
+          items.forEach((el) => (el.tabIndex = -1));
+          parent.tabIndex = 0;
+          parent.focus();
+        }
+      }
+      return;
+    }
+    if (e.key === "Enter" || (e.key === " " && node.isDirectory)) {
+      e.preventDefault();
+      if (node.isDirectory) setIsOpen((prev) => !prev);
+      else selectNote(node.path, node.name);
     }
   };
 
@@ -334,7 +396,10 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
           onDrop={handleFolderDrop}
           data-folder-path={node.path}
           title={node.path}
-          tabIndex={0}
+          role="treeitem"
+          aria-expanded={isOpen}
+          aria-selected={false}
+          tabIndex={isRovingActive ? 0 : -1}
           onKeyDown={handleKeyDown}
         >
           <span className="tree-chevron">
@@ -343,12 +408,10 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
           <FolderIcon open={isOpen} />
           <span className="tree-name">{node.name}</span>
         </div>
-        {isOpen && node.children && <FileTreeWithMenu nodes={node.children} level={level + 1} onContextMenu={onContextMenu} />}
+        {isOpen && node.children && <FileTreeWithMenu nodes={node.children} level={level + 1} onContextMenu={onContextMenu} rovingPath={rovingPath} />}
       </div>
     );
   }
-
-  const isActive = activePath === node.path;
 
   return (
     <div
@@ -359,7 +422,9 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
       onContextMenu={(e) => onContextMenu(e, node)}
       onKeyDown={handleKeyDown}
       title={node.path}
-      tabIndex={0}
+      role="treeitem"
+      aria-selected={isActive}
+      tabIndex={isRovingActive ? 0 : -1}
     >
       <span className="tree-file-indent" aria-hidden="true" />
       <FileIcon name={node.name} />
@@ -369,15 +434,16 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
 };
 
 // Helper to propagate context menu through nested levels without creating new menu state each level
-const FileTreeWithMenu: React.FC<FileTreeProps & { onContextMenu: (e: React.MouseEvent, node: VaultNode) => void }> = ({
+const FileTreeWithMenu: React.FC<FileTreeProps & { onContextMenu: (e: React.MouseEvent, node: VaultNode) => void; rovingPath?: string | null }> = ({
   nodes,
   level = 0,
   onContextMenu,
+  rovingPath,
 }) => {
   return (
-    <div className="file-tree" style={{ paddingLeft: level > 0 ? 12 : 0 }}>
+    <div className="file-tree" role="group" style={{ paddingLeft: level > 0 ? 12 : 0 }}>
       {nodes.map((node) => (
-        <FileTreeNode key={node.path} node={node} level={level} onContextMenu={onContextMenu} />
+        <FileTreeNode key={node.path} node={node} level={level} onContextMenu={onContextMenu} rovingPath={rovingPath} />
       ))}
     </div>
   );

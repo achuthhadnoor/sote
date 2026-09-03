@@ -243,6 +243,24 @@ export const EditorSurface: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, isRawMode]);
 
+  // Esc from any sidebar/tab/status element returns focus to editor
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (isFindOpen) return; // FindBar handles its own Esc
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isInChrome = activeEl?.closest?.('[role="tree"], [role="tablist"], .sidebar, .tab-bar, .status-bar');
+      if (isInChrome && editor) {
+        e.preventDefault();
+        try {
+          editor.commands.focus();
+        } catch {}
+      }
+    };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [editor, isFindOpen]);
+
   // Click on .md links → open in snipnote (normal) or new background tab (Cmd/Ctrl+Click); external links via opener
   useEffect(() => {
     if (!editor) return;
