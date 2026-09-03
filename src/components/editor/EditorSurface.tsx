@@ -15,6 +15,36 @@ import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
+import { openPath } from "@tauri-apps/plugin-opener";
+
+function resolveMarkdownLink(href: string, activePath: string | null, vaultPath: string | null): string | null {
+  const clean = href.split("#")[0].split("?")[0].trim();
+  if (!clean) return null;
+  if (/^(https?:|mailto:|ftp:|\/\/)/i.test(clean)) return null;
+  const lower = clean.toLowerCase();
+  if (!lower.endsWith(".md") && !lower.endsWith(".markdown")) return null;
+  if (!vaultPath) return null;
+  let target: string;
+  if (clean.startsWith("/")) {
+    target = vaultPath.replace(/\/+$/, "") + clean;
+  } else {
+    const dir = activePath ? activePath.substring(0, activePath.lastIndexOf("/")) : vaultPath;
+    target = (dir.replace(/\/+$/, "") || vaultPath) + "/" + clean;
+  }
+  const parts: string[] = [];
+  for (const p of target.split("/")) {
+    if (p === "" || p === ".") {
+      if (parts.length === 0) parts.push("");
+      continue;
+    }
+    if (p === "..") {
+      if (parts.length > 1) parts.pop();
+      continue;
+    }
+    parts.push(p);
+  }
+  return parts.join("/") || "/";
+}
 
 export const EditorSurface: React.FC = () => {
   const vaultPath = useVaultStore((state) => state.vaultPath);
@@ -212,6 +242,50 @@ export const EditorSurface: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, isRawMode]);
+
+  // Click on .md links → open in snipnote (normal) or new background tab (Cmd/Ctrl+Click); external links via opener
+  useEffect(() => {
+    if (!editor) return;
+    let dom: HTMLElement | null = null;
+    try {
+      dom = (editor as any)?.view?.dom as HTMLElement | undefined ?? null;
+    } catch {
+      dom = null;
+    }
+    if (!dom) return;
+    const handler = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest?.("a") as HTMLAnchorElement | null;
+      if (!target) return;
+      const hrefAttr = target.getAttribute("href");
+      if (!hrefAttr) return;
+      const href = hrefAttr.trim();
+      if (!href) return;
+      // External -> opener
+      if (/^(https?:|mailto:|ftp:|\/\/)/i.test(href)) {
+        e.preventDefault();
+        openPath(href).catch(() => {});
+        return;
+      }
+      const cleanCheck = href.split("#")[0].split("?")[0].toLowerCase();
+      const isMd = cleanCheck.endsWith(".md") || cleanCheck.endsWith(".markdown");
+      if (!isMd) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const vaultPath = useVaultStore.getState().vaultPath;
+      const curActive = useTabStore.getState().activePath;
+      const resolved = resolveMarkdownLink(href, curActive, vaultPath);
+      if (!resolved) return;
+      const name = resolved.split("/").pop() || "Note";
+      const isMod = (e as MouseEvent & { metaKey: boolean; ctrlKey: boolean }).metaKey || (e as any).ctrlKey;
+      if (isMod) {
+        useTabStore.getState().openInNewBackgroundTab(resolved, name);
+      } else {
+        useTabStore.getState().selectNote(resolved, name);
+      }
+    };
+    dom.addEventListener("click", handler);
+    return () => dom?.removeEventListener("click", handler);
+  }, [editor]);
 
   // Flush save on window blur or beforeunload (respects draft-no-content guard)
   useEffect(() => {

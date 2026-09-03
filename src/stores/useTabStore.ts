@@ -15,6 +15,7 @@ interface TabState {
   canGoBack: boolean;
   canGoForward: boolean;
   selectNote: (path: string, name: string, opts?: { isNew?: boolean }) => void;
+  openInNewBackgroundTab: (path: string, name: string) => void;
   closeTab: (path: string) => void;
   closeAll: () => void;
   setTabs: (tabs: Tab[], activePath: string | null) => void;
@@ -47,6 +48,12 @@ export const useTabStore = create<TabState>((set, get) => ({
       canGoBack: idx > 0,
       canGoForward: idx >= 0 && idx < history.length - 1,
     });
+  },
+
+  openInNewBackgroundTab: (path: string, name: string) => {
+    const { tabs } = get();
+    if (tabs.find((t) => t.path === path)) return;
+    set({ tabs: [...tabs, { path, title: name }] });
   },
 
   selectNote: (path: string, name: string, opts?: { isNew?: boolean }) => {
