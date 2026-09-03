@@ -7,6 +7,23 @@ interface SidebarProps {
   onOpenSettings?: () => void;
 }
 
+const isMacOS = () =>
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || (navigator as any).userAgent || "");
+
+const SFSymbol: React.FC<{ name: string }> = ({ name }) => {
+  if (!isMacOS()) return null;
+  const map: Record<string, string> = {
+    folder: "📁",
+    magnifyingglass: "🔍",
+    gearshape: "⚙️",
+  };
+  return (
+    <span className="sf-symbol" data-sf-symbol={name} aria-hidden="true">
+      {map[name] || name}
+    </span>
+  );
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   const { vaultPath, tree, isLoading, error, openVaultDialog } = useVaultStore();
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -23,12 +40,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">
+      <div className="sidebar-header" style={{ gap: 6 }}>
+        <span style={{ color: "var(--muted-fg)", display: "inline-flex", flexShrink: 0 }} aria-hidden="true">
+          {isMacOS() ? <SFSymbol name="magnifyingglass" /> : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M16 16L20 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          )}
+        </span>
         <input
           type="text"
           className="sidebar-search-input"
           placeholder="Search notes... (⌘P)"
           readOnly
+          style={{ flex: 1 }}
         />
       </div>
 
@@ -75,12 +101,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
 
       <div className="sidebar-footer">
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: "var(--muted-fg)", flexShrink: 0 }}>
-            <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20H5.5A2.5 2.5 0 0 1 3 17.5v-10Z" fill="currentColor" opacity="0.14" />
-            <path d="M5.5 5A2.5 2.5 0 0 0 3 7.5v10A2.5 2.5 0 0 0 5.5 20H18.5A2.5 2.5 0 0 0 21 17.5v-8A2.5 2.5 0 0 0 18.5 7H11L9 5H5.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-          </svg>
-          {folderName ?? "Library"}
-        </span>
+           {isMacOS() ? <SFSymbol name="folder" /> : (
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: "var(--muted-fg)", flexShrink: 0 }}>
+               <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20H5.5A2.5 2.5 0 0 1 3 17.5v-10Z" fill="currentColor" opacity="0.14" />
+               <path d="M5.5 5A2.5 2.5 0 0 0 3 7.5v10A2.5 2.5 0 0 0 5.5 20H18.5A2.5 2.5 0 0 0 21 17.5v-8A2.5 2.5 0 0 0 18.5 7H11L9 5H5.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+             </svg>
+           )}
+           {folderName ?? "Library"}
+         </span>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
           <button
             onClick={openVaultDialog}
@@ -121,10 +149,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
               (e.currentTarget as HTMLButtonElement).style.color = "var(--muted-fg)";
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M19.4 14.9a7.5 7.5 0 0 0 .1-1.8l1.7-1.3-1.7-3-1.9.4a7.3 7.3 0 0 0-1.6-.9L14.9 6h-3.4L10.2 8.3a7.3 7.3 0 0 0-1.6.9L6.7 8.8l-1.7 3 1.7 1.3a7.5 7.5 0 0 0 .1 1.8L5.1 16.2l1.7 3 1.9-.4c.5.4 1 .7 1.6.9l1.2 2.3h3.4l1.2-2.3c.6-.2 1.1-.5 1.6-.9l1.9.4 1.7-3-1.9-1.3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-            </svg>
+            {isMacOS() ? <SFSymbol name="gearshape" /> : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M19.4 14.9a7.5 7.5 0 0 0 .1-1.8l1.7-1.3-1.7-3-1.9.4a7.3 7.3 0 0 0-1.6-.9L14.9 6h-3.4L10.2 8.3a7.3 7.3 0 0 0-1.6.9L6.7 8.8l-1.7 3 1.7 1.3a7.5 7.5 0 0 0 .1 1.8L5.1 16.2l1.7 3 1.9-.4c.5.4 1 .7 1.6.9l1.2 2.3h3.4l1.2-2.3c.6-.2 1.1-.5 1.6-.9l1.9.4 1.7-3-1.9-1.3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+              </svg>
+            )}
           </button>
         </div>
       </div>

@@ -86,7 +86,7 @@ function App() {
 
     const unlistenPromise = listen<{ path: string; kind: string }>(
       "vault-changed",
-      (event) => {
+      async (event) => {
         const changedPath = event.payload.path;
         const currentVault = useVaultStore.getState().vaultPath;
         const currentActive = useTabStore.getState().activePath;
@@ -103,6 +103,39 @@ function App() {
           } else {
             // Dirty buffer: display non-blocking conflict banner
             useEditorStore.getState().setConflict(true);
+            // If window is hidden/minimized, also show native notification
+            try {
+              const isHidden = document.hidden || document.visibilityState === "hidden";
+              let shouldNotify = isHidden;
+              try {
+                const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+                const wv: any = getCurrentWebview();
+                if (wv.isMinimized) {
+                  const minimized = await wv.isMinimized();
+                  if (minimized) shouldNotify = true;
+                }
+                if (wv.isFocused) {
+                  const focused = await wv.isFocused();
+                  if (!focused) shouldNotify = true;
+                } else if (document.hasFocus && !document.hasFocus()) {
+                  shouldNotify = true;
+                }
+              } catch {}
+              if (shouldNotify) {
+                const { isPermissionGranted, requestPermission, sendNotification } = await import(
+                  "@tauri-apps/plugin-notification"
+                );
+                let granted = await isPermissionGranted();
+                if (!granted) {
+                  const perm = await requestPermission();
+                  granted = perm === "granted";
+                }
+                if (granted) {
+                  const name = changedPath.split("/").pop() || "File";
+                  sendNotification({ title: "File changed on disk", body: `${name} changed — click to review` });
+                }
+              }
+            } catch {}
           }
         }
 

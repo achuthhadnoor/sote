@@ -45,7 +45,34 @@ interface FileTreeNodeProps {
   onContextMenu: (e: React.MouseEvent, node: VaultNode) => void;
 }
 
-const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => (
+const isMacOS = () =>
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || (navigator as any).userAgent || "");
+
+const SFSymbol: React.FC<{ name: string; fallback: React.ReactNode }> = ({ name, fallback }) => {
+  if (!isMacOS()) return <>{fallback}</>;
+  // SF Symbol names mapping to emoji-like glyphs that render with San Francisco on macOS
+  const map: Record<string, string> = {
+    folder: "📁",
+    "folder.fill": "📁",
+    "doc.richtext": "📄",
+    magnifyingglass: "🔍",
+    gearshape: "⚙️",
+    "gearshape.fill": "⚙️",
+    doc: "📄",
+  };
+  const glyph = map[name] || name;
+  return (
+    <span className="sf-symbol" data-sf-symbol={name} aria-hidden="true">
+      {glyph}
+    </span>
+  );
+};
+
+const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => {
+  if (isMacOS()) {
+    return <SFSymbol name={open ? "folder.fill" : "folder"} fallback={null} />;
+  }
+  return (
   <svg
     width="16"
     height="16"
@@ -75,11 +102,15 @@ const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => (
     />
     {open && <path d="M3 9.5H21" stroke="currentColor" strokeWidth="1.2" opacity="0.5" />}
   </svg>
-);
+  );
+};
 
 const FileIcon: React.FC<{ name: string }> = ({ name }) => {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   const isMd = ext === "md" || ext === "markdown";
+  if (isMacOS()) {
+    return <SFSymbol name={isMd ? "doc.richtext" : "doc"} fallback={<span className="sf-symbol">📄</span>} />;
+  }
   return (
     <svg
       width="16"
