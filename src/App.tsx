@@ -30,6 +30,30 @@ function App() {
   useThemeStore((s) => s.effectiveTheme);
   const setTheme = useThemeStore((s) => s.setTheme);
 
+  const triggerHaptic = () => {
+    try {
+      (navigator as any).vibrate?.(10);
+    } catch {}
+    try {
+      invoke("haptic_feedback", { kind: "alignment" }).catch(() => {});
+    } catch {}
+  };
+
+  // Haptics on sidebar/settings toggles
+  const prevSidebarRef = useRef(sidebarCollapsed);
+  useEffect(() => {
+    if (prevSidebarRef.current !== sidebarCollapsed) {
+      prevSidebarRef.current = sidebarCollapsed;
+      triggerHaptic();
+    }
+  }, [sidebarCollapsed]);
+
+  const prevSettingsRef = useRef(isSettingsOpen);
+  useEffect(() => {
+    if (!prevSettingsRef.current && isSettingsOpen) triggerHaptic();
+    prevSettingsRef.current = isSettingsOpen;
+  }, [isSettingsOpen]);
+
   // Restore session on mount — restores vault + open tabs
   useEffect(() => {
     async function restoreSession() {

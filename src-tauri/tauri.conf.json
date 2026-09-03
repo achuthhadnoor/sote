@@ -52,6 +52,14 @@
     },
     "singleInstance": {
       "enabled": true
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IGR1bW15IHB1YmtleSBmb3IgdjEgLSBubyByZWFsIHVwZGF0ZSBzZXJ2ZXI=",
+      "endpoints": ["https://example.com/appcast.json"],
+      "windows": {
+        "installMode": "passive",
+        "installerArgs": []
+      }
     }
   }
 }

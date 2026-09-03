@@ -118,6 +118,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         set({ isSaving: false, error: null });
       }
     } catch (err: any) {
+      try {
+        (navigator as any).vibrate?.([30, 20, 30]);
+      } catch {}
       set({
         isSaving: false,
         error: err?.message || String(err),
