@@ -20,16 +20,18 @@ This document provides the complete epic and story breakdown for snipnote, decom
 ### Functional Requirements
 
 - **FR-1**: User can pick a local folder as Vault via system dialog. App persists the choice and restores it on relaunch without re-prompting.
-- **FR-2**: System displays File Tree in Sidebar matching file system 1:1 (folders and `.md` files only, sorted alphabetically). External renaming/moving on disk is reflected within 2s via file watcher.
-- **FR-3**: System highlights the currently open Note in File Tree and exposes Library entry in Sidebar footer.
-- **FR-4**: User can press Cmd+P (Ctrl+P on Win/Linux) to focus Search, type a substring, see filtered list of Note filenames, and jump to selected note.
-- **FR-5**: User can click a Note in File Tree or its Tab to make it active, with highlight and Tab Bar update. Back/forward arrows navigate session tab history.
-- **FR-6**: Editor renders headings, bold, links, and bullets live as user types without a split preview pane. Fenced Mermaid blocks, task lists, and inline code are rendered.
-- **FR-7**: System preserves Markdown Source on save exactly as standard CommonMark/GFM with no injected HTML/class attributes. Frontmatter is preserved verbatim.
-- **FR-8**: System watches Markdown Source on disk; when external agents (Claude) write to a Note: auto-reloads if clean (dirty=false); displays non-blocking banner "File changed on disk — Reload / Keep mine" if dirty (dirty=true).
-- **FR-9**: User can see active Note name in Tab Bar, navigate history via arrows, and create a new Note via `+` (creates `Untitled.md` on disk immediately in current folder/vault root).
+- **FR-2**: System displays File Tree in Sidebar with filtered FS: dot-folders (e.g. `.templates`) shown only if subtree has `.md`, empty folders hidden, hidden files (`.DS_Store`, `.hidden.md`) excluded, sorted dirs-first then alpha, with SVG folder/file icons + chevron rotate. [UPDATED 2026-09-03: was strict 1:1; now filtered + icons, see `storage.rs:79`]
+- **FR-3**: System highlights the currently open Note in File Tree and exposes Library entry in Sidebar footer with folder SVG + `Switch/Open…` + gear Settings (`⌘,` overlay). [UPDATED: icons + gear]
+- **FR-4**: User can press Cmd+P (Ctrl+P on Win/Linux) to focus Search, type a substring, see filtered list of Note filenames, and jump to selected note (opens as tab).
+- **FR-5**: User can click a Note in File Tree or its Tab to make it active, with highlight and Tab Bar update; tabs are scrollable multi-tabs with `×` close, `⌘W` close, `Ctrl/⌘+Tab` cycle, draft italic/hollow, dirty •/saving…. Back/forward arrows navigate session tab history.
+- **FR-6**: Editor renders headings, bold, links, and bullets live as user types without a split preview pane. Fenced Mermaid blocks, task lists, and inline code are rendered. Draft `isNew` tabs init empty without `read_file` until `hasContent`.
+- **FR-7**: System preserves Markdown Source on save exactly as standard CommonMark/GFM with no injected HTML/class attributes. Frontmatter is preserved verbatim. Save is atomic temp+rename; draft guard `hasContent` prevents empty file creation.
+- **FR-8**: System watches Markdown Source on disk; when external agents (Claude) write to a Note: auto-reloads if clean (dirty=false); displays non-blocking banner "File changed on disk — Reload / Keep mine" if dirty (dirty=true). Dot-folder markdown still emits.
+- **FR-9**: User can open notes as tabs (`+`/`⌘N` creates draft `Untitled.md` `{isNew:true}` virtual, no disk until content → 500ms debounce `write_file` → `markTabSaved` + `loadVault`; `×`/`⌘W` close, `openTabs` persisted in `session.json`). [UPDATED: was immediate disk create; now draft-until-content]
 - **FR-10**: System shows live word count, character count, and paragraph count in Status Bar, updating on every keystroke and on file load.
-- **FR-11**: System shows standard macOS traffic lights (close/minimize/maximize) and persists window size and position across relaunch.
+- **FR-11**: System shows standard macOS traffic lights over vibrant window (`Sidebar` on macOS / `Mica` on Win11 via `EffectsBuilder`, `transparent:true`, `radius 12`, `1280×720` `min 1100×600` `Overlay`) and persists window size/position + `openTabs` across relaunch.
+- **FR-12**: User can pick Light/Dark/System theme in Settings (`⌘,`) — `System` follows `prefers-color-scheme` live; `data-theme` drives `App.css [data-theme="dark"]` overrides, persisted in `localStorage snipnote-theme`. [NEW 2026-09-03]
+- **FR-13**: User can open Settings overlay via `⌘,`/`Ctrl+,` or Sidebar gear, close via `Esc`/`×`/`Done`/`⌘,` toggle, and switch theme. [NEW 2026-09-03]
 
 ### NonFunctional Requirements
 
@@ -55,37 +57,41 @@ This document provides the complete epic and story breakdown for snipnote, decom
 
 ### UX Design Requirements
 
-- **UX-DR1 (Design Tokens)**: Monochrome palette (`#FFFFFF` editor, `#F8F8F9` sidebar, `#EAEAEA` hairlines, `#0F0F0F` primary, `#2563EB` link, `#F6F6F7` muted, `#6B7280` muted-foreground, `#F3F4F6` accent, `#EF4444` destructive).
+- **UX-DR1 (Design Tokens)**: Monochrome palette light (`#FFFFFF` editor, `#F8F8F9` sidebar, `#EAEAEA` hairlines, `#0F0F0F` primary, `#2563EB` link) + dark (`#141416` bg, `#1A1A1E` sidebar, `#2A2A2E` border, `#EDEEF0` fg, `#60A5FA` link) + translucent `rgba` over vibrant Sidebar/Mica (`bg 0.78` white / `0.72` dark, etc.) via `src/App.css:1` + `html[data-theme]`.
 - **UX-DR2 (Typography)**: Inter / SF Pro Text typography ramp: body sans 14px/1.6, sidebar/status sans-sm 13px/1.5, mono 13px/1.6, heading-1 24px/700, heading-2 18px/600, display 18px/600.
-- **UX-DR3 (Layout & Spacing)**: Fixed 260px Sidebar (Search header 40px, scrollable File Tree, Library footer 40px), Main area with 40px TabBar, centered 760px max-width EditorSurface with 24px gutters, and 24px StatusBar.
-- **UX-DR4 (Sidebar & File Tree)**: Hierarchical tree view with folder chevrons, `.md` note rows, active row highlight (`accent` background, 8px radius), hover states.
-- **UX-DR5 (Command Palette)**: Elevated floating modal (`white`, 12px radius, shadow `0 8px 32px rgba(0,0,0,0.08)`, max 480x320) triggered by `⌘P`, fuzzy filtering note filenames with keyboard navigation (Up/Down/Enter/Esc).
-- **UX-DR6 (Tab Bar)**: 40px height, bottom border, back/forward history arrows, active note name (14px sans 600), right `+` button.
-- **UX-DR7 (Status Bar)**: Quiet 11px mono/sans-sm muted text right-aligned showing `X words | Y characters | Z paragraphs`.
-- **UX-DR8 (Conflict Banner)**: Non-blocking inline banner docked directly under Tab Bar (`muted` background, `border`, 6px radius, 13px text) with "Reload" and "Keep mine" buttons.
+- **UX-DR3 (Layout & Spacing)**: Fixed 260px Sidebar (Search header 40px, scrollable File Tree, Library footer 40px with gear), Main area with 40px TabBar (scrollable tabs `28px` `max 180px`), centered 760px max-width EditorSurface with 24px gutters, and 24px StatusBar; Right Panel `420px` Terminal/Browser/Canvas built but hidden (`App.tsx` commented); window `1280×720` `min 1100×600` vibrant `radius 12` `Overlay`.
+- **UX-DR4 (Sidebar & File Tree)**: Hierarchical tree view with SVG folder (closed/open `0.14 fill`) + `16px` file (doc with md lines) + `14px` chevron rotate, `.md` note rows, active row highlight (`accent-translucent` `8px` radius), hover `hover-translucent`, dot-folders shown only if contain md, empty hidden.
+- **UX-DR5 (Command Palette)**: Elevated floating modal (`white`/`dark #141416`, `12px` radius, shadow `0 8px 32px`, `520×400`) triggered by `⌘P`, fuzzy filtering note filenames with keyboard navigation (Up/Down/Enter/Esc), opens as tab.
+- **UX-DR6 (Tab Bar)**: `40px` height, bottom `border-translucent`, `bg-translucent`, `26px` back/forward `←→`, scrollable `tabs-scroll` (`gap 6px`, hidden scrollbar) with `tab-item` (`28px`, `is-active` `bg`+`border`+shadow, `is-draft` italic + hollow `6px` / `draft` label, dirty `•`, `saving…`, `×` close), right `+` `26px` draft-until-content.
+- **UX-DR7 (Status Bar)**: Quiet `11px` mono/sans-sm muted text right-aligned showing `X words | Y characters | Z paragraphs`, translucent `status-translucent` over vibrant.
+- **UX-DR8 (Conflict Banner)**: Non-blocking inline banner docked directly under Tab Bar (`muted-translucent`, `border-translucent`, `6px` radius, `13px` text) with "Reload" and "Keep mine" buttons.
+- **UX-DR9 (Settings)**: Overlay `560px` `blur 8px` `z 10000` `12px` radius `shadow 0 20px 50px`, header `Settings` + `×`, body `Appearance` radios Light/Dark/System + About, footer `Done`; opened via `⌘,`/gear, closed via `Esc`/`×`.
+- **UX-DR10 (Theme)**: `light|dark|system` via `useThemeStore` + `localStorage snipnote-theme` + `document[data-theme]` + `colorScheme`; System follows `prefers-color-scheme` live.
 
 ### FR Coverage Map
 
 - **FR-1**: Epic 1 — Open local Vault via native dialog and restore across restarts
-- **FR-2**: Epic 1 — Render 1:1 File Tree in Sidebar with alphabetical sorting
-- **FR-3**: Epic 1 — Active File Highlight in File Tree and Library footer
-- **FR-4**: Epic 4 — ⌘P Command Palette fuzzy search across note filenames
-- **FR-5**: Epic 4 — Navigate via File Tree clicks and Tab Bar history arrows
-- **FR-6**: Epic 2 — Live WYSIWYG Markdown & Mermaid diagram rendering
-- **FR-7**: Epic 2 — Raw Markdown round-trip fidelity & Envelope frontmatter preservation
-- **FR-8**: Epic 3 — Real-time file watcher, echo suppression, and conflict resolution banner
-- **FR-9**: Epic 2 — Tab lifecycle, active note indicator, and `+` instant note creation
+- **FR-2**: Epic 1 — Render filtered File Tree (dot-folders + hide empty) with SVG icons + alphabetical sorting
+- **FR-3**: Epic 1 — Active File Highlight + Library footer with gear Settings
+- **FR-4**: Epic 4 — ⌘P Command Palette fuzzy search across note filenames (opens as tab)
+- **FR-5**: Epic 4 — Navigate via File Tree clicks and Tab Bar multi-tab + `×`/`⌘W`/`Ctrl+Tab` history
+- **FR-6**: Epic 2 — Live WYSIWYG Markdown & Mermaid diagram rendering, draft-empty init
+- **FR-7**: Epic 2 — Raw Markdown round-trip fidelity & Envelope frontmatter preservation + `hasContent` guard
+- **FR-8**: Epic 3 — Real-time file watcher, echo suppression, and conflict resolution banner (dot-folder md still watched)
+- **FR-9**: Epic 2 — Multi-tab lifecycle, draft-until-content `+`/`⌘N`, `openTabs` persistence in `session.json`
 - **FR-10**: Epic 4 — Live document statistics (words, characters, paragraphs) in Status Bar
-- **FR-11**: Epic 1 — Native window controls, traffic lights, and geometry persistence
+- **FR-11**: Epic 1 — Vibrant window (`Sidebar`/`Mica`, `1280×720`, `transparent`, `radius 12`) + native traffic lights + geometry + `openTabs` persistence
+- **FR-12**: Epic 1 — Theme Light/Dark/System via `data-theme` + `localStorage` + `useThemeStore`
+- **FR-13**: Epic 1 — Settings overlay via `⌘,`/gear
 
 ## Epic List
 
-### Epic 1: Workspace Shell & Vault Access
-Users can launch the branded `snipnote` desktop application (with native window traffic lights, clean identity, LocalEditor styling, and hardened security), pick any local folder as their note vault via system dialog, explore their folder and `.md` file hierarchy 1:1 in the Sidebar with active file highlighting, and have their vault path and window geometry restored automatically on relaunch.
-**FRs covered:** FR-1, FR-2, FR-3, FR-11 (incorporates ARCH-1 template rename & configs)
+### Epic 1: Workspace Shell & Vault Access (Vibrant + Theme + Settings)
+Users can launch the branded vibrant `snipnote` desktop application (`1280×720` `Sidebar`/`Mica` via `EffectsBuilder`, `transparent` + `radius 12`, traffic lights `Overlay`, `macos-private-api`, light/dark/system theme, `⌘,` Settings), pick any local folder as vault via system dialog, explore filtered hierarchy in Sidebar (dot-folders shown only if contain md, empty hidden, SVG icons), with active highlight, and have vault + `openTabs` + theme + window geometry restored automatically on relaunch.
+**FRs covered:** FR-1, FR-2, FR-3, FR-11, FR-12, FR-13 (incorporates ARCH-1 + window material)
 
-### Epic 2: Live Markdown Editor & Document Fidelity
-Users can open, view, edit, and create new notes (`+` button) in a centered, clean editing canvas with instant live WYSIWYG rendering for headings, bold, links, lists, code, and Mermaid diagrams. Users can trust that saving maintains pure CommonMark/GFM formatting and preserves YAML frontmatter byte-for-byte on disk without injected HTML.
+### Epic 2: Live Markdown Editor & Document Fidelity (Multi-Tab + Draft)
+Users can open notes as tabs (`+` creates draft `{isNew:true}` `Untitled.md` not on disk until has content) in a centered, clean editing canvas with scrollable multi-tabs (`×`/`⌘W`/`Ctrl+Tab`), instant live WYSIWYG rendering for headings, bold, links, lists, code, and Mermaid diagrams. Users can trust saving maintains pure CommonMark/GFM and preserves YAML frontmatter byte-for-byte, with atomic write + `hasContent` guard and 500ms debounce.
 **FRs covered:** FR-6, FR-7, FR-9
 
 ### Epic 3: External File Synchronization & Conflict Guard
@@ -115,46 +121,49 @@ So that the desktop shell is cleanly identified and hardened against security re
 
 **Given** `src-tauri/tauri.conf.json`,
 **When** window settings are evaluated,
-**Then** the window enforces `minWidth: 800`, `minHeight: 600`, and macOS native traffic light window controls.
+**Then** the window enforces `width: 1280`, `height: 720`, `minWidth: 1100`, `minHeight: 600`, `transparent:true`, `macOSPrivateApi:true`, `titleBarStyle Overlay`, `macos-private-api` feature in `Cargo.toml`, and `EffectsBuilder([Sidebar,Mica],Active,radius12)` in `lib.rs:14` with `html/body` transparent + translucent `rgba` fills.
+**And** macOS native traffic light window controls float over vibrant with `border-radius 12`.
 
 **Given** the application security configuration in `src-tauri/tauri.conf.json`,
 **When** CSP is evaluated,
 **Then** Tauri CSP is strictly configured to `default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset:;` with no external scripts allowed.
 
-### Story 1.2: LocalEditor Design System & Shell Wireframe
+### Story 1.2: LocalEditor Design System & Shell Wireframe (Vibrant + Dark + Multi-Tab)
 
 As a user,
-I want a clean 2-pane + 2-bar desktop layout styled with the LocalEditor design tokens,
+I want a clean vibrant 2-pane + 2-bar (3-pane-ready, right hidden) desktop layout styled with the LocalEditor design tokens plus dark theme,
 So that I have a calm, distraction-free reading and editing surface beside my terminal.
 
 **Acceptance Criteria:**
 
 **Given** the launched application,
 **When** rendered,
-**Then** the screen displays a fixed 260px Sidebar on the left, a 40px Header TabBar on top, a centered 760px maximum width main canvas with 24px gutters, and a 24px StatusBar at the bottom.
+**Then** the screen displays a fixed 260px Sidebar on the left (with SVG folder/file icons + chevron), a 40px Header TabBar on top (scrollable multi-tabs `28px` `max 180px` + `×` + `+`), a centered 760px maximum width main canvas with 24px gutters, and a 24px StatusBar at the bottom; Right Panel `420px` Terminal/Browser/Canvas is built but hidden (`App.tsx` commented) for later.
+**And** vibrant window shows `transparent` + `Sidebar`/`Mica` `radius 12` with translucent fills; Right Panel hidden does not affect layout.
 
-**Given** the CSS design tokens,
+**Given** the CSS design tokens in `src/App.css:1`,
 **When** evaluated,
-**Then** the palette implements `#FFFFFF` (canvas), `#F8F8F9` (sidebar), `#EAEAEA` (hairlines), `#0F0F0F` (primary), `#F6F6F7` (muted), `#6B7280` (muted-foreground), and `#2563EB` (link blue), along with the Inter/system sans typography ramp.
+**Then** the palette implements light `#FFFFFF`/`#F8F8F9`/`#EAEAEA`/`#0F0F0F` and dark `[data-theme="dark"]` `#141416`/`#1A1A1E`/`#2A2A2E`/`#EDEEF0` + translucent `rgba` variants (`bg 0.78` white / `0.72` dark, etc.), along with the Inter/system sans typography ramp and `[data-theme]` switching via `useThemeStore`.
 
-### Story 1.3: Rust Storage Service & Vault Directory Scanning
+### Story 1.3: Rust Storage Service & Vault Directory Scanning (Dot-Folders + Hide Empty)
 
 As a user,
-I want the Rust backend to recursively scan and index my local vault directory,
-So that my markdown files are discovered at native speed without risking frontend filesystem vulnerabilities.
+I want the Rust backend to recursively scan and index my local vault directory with filtered rules,
+So that my markdown files are discovered at native speed without clutter from empty folders.
 
 **Acceptance Criteria:**
 
-**Given** a local directory containing `.md` files and nested subfolders,
-**When** the Rust command `scan_vault` is called via Tauri IPC,
-**Then** it returns a recursive `VaultNode` structure (`{ path, name, isDirectory, children }`) containing only subdirectories and `.md` files, sorted alphabetically.
-**And** all non-markdown files (except directories) are filtered out from the tree.
+**Given** a local directory containing `.md` files, nested subfolders, dot-folders, empty folders, and hidden files,
+**When** the Rust command `scan_vault` (`src-tauri/src/storage.rs:79` `scan_directory`) is called via Tauri IPC,
+**Then** it returns a recursive `VaultNode` structure (`{ path, name, isDirectory, children }`) containing only subdirectories whose subtree contains `.md`/`.markdown` (empty folders hidden, e.g. `Beta` or `.emptyDot` hidden) and `.md` files (e.g. `.templates/template.md` shown because its dot-folder contains md), sorted `dirs-first then alpha case-insensitive` with SVG icons in UI.
+**And** hidden files (dot-files like `.DS_Store`, `.hidden.md`) and non-markdown files (except directories) are filtered out from the tree.
+**And** `watcher::should_emit_change` still emits markdown changes inside dot-folders (e.g. `.templates/template.md`).
 
-### Story 1.4: Vault Opening, File Tree Rendering & Active File Highlighting
+### Story 1.4: Vault Opening, File Tree Rendering & Active File Highlighting (Icons + Settings)
 
 As a user,
-I want to select a local directory via a native OS dialog and browse my notes in an interactive Sidebar File Tree,
-So that I can easily inspect and select notes from my vault with 1:1 disk accuracy.
+I want to select a local directory via a native OS dialog and browse my notes in an interactive Sidebar File Tree with icons,
+So that I can easily inspect and select notes from my vault with filtered accuracy and open Settings.
 
 **Acceptance Criteria:**
 
@@ -162,22 +171,48 @@ So that I can easily inspect and select notes from my vault with 1:1 disk accura
 **When** the user clicks "Open Vault" in the empty state or Sidebar,
 **Then** a native OS folder picker dialog opens.
 **When** a folder is selected,
-**Then** `useVaultStore` updates and the Sidebar renders the hierarchical file tree with expandable/collapsible folder chevrons.
+**Then** `useVaultStore` updates and the Sidebar renders the hierarchical file tree with SVG folder (`FolderIcon` closed/open `0.14 fill`) + file (`FileIcon` doc with md lines) + `14px` chevron `rotate 90` when open, and indent spacer for files.
 **When** a note row is clicked,
-**Then** it receives the active highlight (`accent` background, 8px radius) and registers as the active file in `useTabStore`.
+**Then** it receives the active highlight (`accent-translucent` `8px` radius, `muted-fg`→`fg` on hover/active) and opens as tab via `useTabStore.selectNote` (adds to `tabs` if not present).
+**And** Sidebar footer shows folder SVG + vault name + `Switch/Open…` + gear Settings (`⌘,`) button (`Sidebar.tsx:5`).
 
-### Story 1.5: Cold-Start Session & Window State Persistence
+### Story 1.5: Cold-Start Session, Tabs & Theme Persistence
 
 As a user,
-I want my opened vault and window geometry remembered across relaunches,
+I want my opened vault, open tabs, active tab, theme, and window geometry remembered across relaunches,
 So that I never have to re-select my vault or reposition my window when reopening the app.
 
 **Acceptance Criteria:**
 
-**Given** an open vault and customized window size/position,
+**Given** an open vault with multiple tabs (`Untitled.md` drafts excluded) and theme `light|dark|system` and customized window size/position,
 **When** the application is closed and reopened,
-**Then** the Rust setup lifecycle restores window size and position from `$APP_CONFIG_DIR/session.json` before displaying the window (preventing visual flickers).
-**And** the previously opened vault path is automatically re-scanned and rendered without prompt.
+**Then** Rust `session.rs:6` restores `{lastVaultPath, activeFilePath, openTabs: string[]}` from `$APP_CONFIG_DIR/session.json` (sanitized to existing files) + `App.tsx:32` restores via `setTabs` before window show; theme restores from `localStorage snipnote-theme` via `useThemeStore` + `html[data-theme]` before paint (preventing flicker).
+**And** the previously opened vault path is automatically re-scanned and rendered without prompt, with tabs re-opened; draft `isNew` tabs are not persisted.
+
+### Story 1.6: Vibrant Window Material (Sidebar/Mica via EffectsBuilder)
+
+As a user,
+I want my window to feel native with macOS Sidebar vibrancy and Windows Mica,
+So that snipnote feels at home beside Finder/Explorer and respects light/dark.
+
+**Acceptance Criteria:**
+
+**Given** `src-tauri/tauri.conf.json:12` `transparent:true` + `macOSPrivateApi:true` + `tauri` feature `macos-private-api` + `src-tauri/src/lib.rs:14` `.setup` `EffectsBuilder([Sidebar,Mica],Active,radius12)`,
+**When** launched on macOS 10.14+ / Win11 22H1+,
+**Then** sidebar `rgba(248,248,249,0.68)` / dark `rgba(26,26,30,0.68)` and editor `rgba(255,255,255,0.78)` / dark `rgba(20,20,22,0.72)` show wallpaper/Mica tint with `blur` and `border-radius 12`; `html,body,#root` remain `transparent`; Linux falls back to opaque hexes.
+
+### Story 1.7: Light/Dark/System Theme + Settings (⌘,)
+
+As a user,
+I want to choose Light/Dark/System theme in a Settings overlay opened via `⌘,`/gear,
+So that I can match my OS and keep vibrant readability.
+
+**Acceptance Criteria:**
+
+**Given** `src/stores/useThemeStore.ts:1` + `src/components/settings/SettingsDialog.tsx:1` + `src/App.css:43` `[data-theme="dark"]` + `Sidebar.tsx:5` gear,
+**When** the user presses `⌘,`/`Ctrl+,` or clicks gear in Sidebar footer,
+**Then** a modal overlay `560px` `blur 8px` appears with Appearance radios Light/Dark/System + About, footer `Done`; selecting a theme writes `localStorage snipnote-theme`, sets `html[data-theme]` + `colorScheme`, and System follows `prefers-color-scheme` live via `matchMedia` listener.
+**And** tab bar, sidebar, editor, status, and settings reflect dark tokens (`#141416` etc.) with AA contrast over vibrant.
 
 ## Epic 2: Live Markdown Editor & Document Fidelity
 
@@ -207,29 +242,29 @@ So that reading and writing notes feels effortless and visually polished.
 **When** loaded into the editor surface,
 **Then** the Tiptap headless engine renders headings, bold, italics, lists, blockquotes, and code blocks live in a centered 760px canvas with 24px reading gutters.
 **And** styling adheres strictly to the LocalEditor monochrome design tokens.
-
-### Story 2.3: 500ms Debounced Auto-Save & Flush Lifecycle
+### Story 2.3: 500ms Debounced Auto-Save & Flush Lifecycle (Draft Guard)
 As a user,
-I want my edits automatically saved without interruption,
-So that my work is continuously safely persisted to disk without lag or disk thrashing.
+I want my edits automatically saved without interruption but without creating empty files,
+So that my work is continuously safely persisted to disk without lag or disk thrashing and without polluting vault with empty `Untitled.md`.
 
 **Acceptance Criteria:**
-**Given** active keystrokes in the editor,
+
+**Given** active keystrokes in the editor (including `FrontmatterTable`),
 **When** typing pauses for 500ms,
-**Then** an auto-save triggers via `write_file`.
+**Then** an auto-save triggers via `write_file` only if `isDirty` and `hasContent` (`body.trim()||frontmatter.trim() >0`); empty draft `isNew` with no content does nothing (`src/stores/useEditorStore.ts:84` guard + `EditorSurface.tsx:12` `triggerAutoSave` `wasNew && !hasContent` skip).
 **When** the user switches tabs, blurs the window, or closes the app,
-**Then** any pending changes are immediately flushed to disk synchronously before the navigation completes.
-
-### Story 2.4: Instant Disk-First Note Creation
+**Then** any pending changes are immediately flushed to disk synchronously before the navigation completes with same `hasContent` guard; after `isNew` draft with content saves, `markTabSaved(false)` + `loadVault` shows file in tree.
+### Story 2.4: Draft-Until-Content Note Creation (was Disk-First)
 As a user,
-I want clicking the `+` button to immediately create a new note on disk,
-So that my notes are always grounded in the filesystem without orphaned unsaved scratch buffers.
+I want clicking the `+` button to immediately open a draft tab without touching disk,
+So that empty `Untitled.md` tabs don't pollute my vault until they have content.
 
 **Acceptance Criteria:**
-**Given** an opened vault,
+
+**Given** an opened vault (or no vault → `openVaultDialog` first),
 **When** the user clicks the `+` button in the TabBar or presses `⌘N`,
-**Then** Rust command `create_note` generates the next available `Untitled.md` (or `Untitled 1.md`) directly in the vault root.
-**And** the file tree refreshes and the new note is immediately selected and focused in the editor.
+**Then** `App.tsx:124` `handleNewNote` generates next non-colliding `Untitled.md`/`Untitled 1.md` vs. existing files + open tabs (e.g. `baseVault/Untitled.md` vs. `Set(existingPaths)`), and `selectNote(path,name,{isNew:true})` opens a draft tab with italic title + hollow dot / `draft` label, `editor.setContent("")` without `read_file`, and does NOT call `create_note` nor create file on disk.
+**And** typing content → 500ms debounce → `hasContent` → `write_file` → file appears in tree via `loadVault` after `markTabSaved`; closing empty draft with `×`/`⌘W` without content just closes tab with no disk side-effect.
 
 ### Story 2.5: Interactive Mermaid Diagram Rendering
 As a user,

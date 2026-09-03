@@ -85,6 +85,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { body, frontmatter, isDirty } = get();
     if (!filePath || !isDirty) return;
 
+    // Do not create a new note file if there is no content (requirement: save only when there is content)
+    const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
+    if (!hasContent) return;
+
     const snapshotBody = body;
     const snapshotFrontmatter = frontmatter;
     set({ isSaving: true });

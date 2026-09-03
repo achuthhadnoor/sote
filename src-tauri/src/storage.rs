@@ -77,7 +77,9 @@ pub fn reassemble_envelope(body: &str, frontmatter: Option<&str>) -> String {
 }
 
 /// Recursively scans a directory, returning a sorted tree of directories and markdown files.
-/// Hidden files and non-markdown files are excluded.
+/// - Shows dot-folders (e.g. `.obsidian`, `.templates`) if they contain markdown
+/// - Hidden files (dot-files like `.DS_Store`, `.hidden.md`) are still excluded
+/// - Hides folders which do not contain any `.md`/`.markdown` files in their subtree
 pub fn scan_directory(dir_path: &Path) -> Result<Vec<VaultNode>, String> {
     if !dir_path.is_dir() {
         return Err(format!("Path is not a directory: {:?}", dir_path));
@@ -90,14 +92,15 @@ pub fn scan_directory(dir_path: &Path) -> Result<Vec<VaultNode>, String> {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         let file_name = entry.file_name().to_string_lossy().to_string();
+        let is_dir = path.is_dir();
 
-        // Skip hidden files and directories (e.g. .git, .DS_Store, .snipnote)
-        if file_name.starts_with('.') {
-            continue;
-        }
-
-        if path.is_dir() {
+        if is_dir {
+            // Include dot-folders now; hide later if they contain no markdown
             let children = scan_directory(&path)?;
+            if children.is_empty() {
+                // Hide folders which do not have .md files in subtree
+                continue;
+            }
             nodes.push(VaultNode {
                 path: path.to_string_lossy().to_string(),
                 name: file_name,
@@ -105,6 +108,10 @@ pub fn scan_directory(dir_path: &Path) -> Result<Vec<VaultNode>, String> {
                 children: Some(children),
             });
         } else if path.is_file() {
+            // Still skip hidden files (dot-files)
+            if file_name.starts_with('.') {
+                continue;
+            }
             // Include only .md and .markdown files
             if let Some(ext) = path.extension() {
                 let ext_lower = ext.to_string_lossy().to_lowercase();
@@ -347,16 +354,15 @@ mod tests {
 
         let nodes = scan_directory(&temp_dir).unwrap();
 
-        // Top level should contain: Alpha, Beta (directories first), then apple.md, zebra.md
-        assert_eq!(nodes.len(), 4);
+        // Beta is empty (no md) -> hidden; .git is empty dot-folder -> hidden; .hidden.md is hidden file
+        // Top level should contain: Alpha (dir with md) then apple.md, zebra.md
+        assert_eq!(nodes.len(), 3);
         assert_eq!(nodes[0].name, "Alpha");
         assert!(nodes[0].is_directory);
-        assert_eq!(nodes[1].name, "Beta");
-        assert!(nodes[1].is_directory);
-        assert_eq!(nodes[2].name, "apple.md");
+        assert_eq!(nodes[1].name, "apple.md");
+        assert!(!nodes[1].is_directory);
+        assert_eq!(nodes[2].name, "zebra.md");
         assert!(!nodes[2].is_directory);
-        assert_eq!(nodes[3].name, "zebra.md");
-        assert!(!nodes[3].is_directory);
 
         // Alpha should contain nested.md
         let alpha_children = nodes[0].children.as_ref().unwrap();
@@ -365,6 +371,63 @@ mod tests {
         assert!(!alpha_children[0].is_directory);
 
         // Clean up
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_scan_directory_shows_dot_folders_with_md_and_hides_empty() {
+        let temp_dir = std::env::temp_dir().join(format!("snipnote_test_vault_dot_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        // Dot folder with md should be shown
+        let dot_with_md = temp_dir.join(".templates");
+        fs::create_dir_all(&dot_with_md).unwrap();
+        let mut f_dot = File::create(dot_with_md.join("template.md")).unwrap();
+        writeln!(f_dot, "# Template").unwrap();
+
+        // Dot folder without md should be hidden
+        let dot_empty = temp_dir.join(".emptyDot");
+        fs::create_dir_all(&dot_empty).unwrap();
+
+        // Regular empty folder should be hidden
+        let empty = temp_dir.join("EmptyFolder");
+        fs::create_dir_all(&empty).unwrap();
+
+        // Regular folder with md nested in subfolder should be shown
+        let parent = temp_dir.join("Parent");
+        let child = parent.join("Child");
+        fs::create_dir_all(&child).unwrap();
+        let mut f_nested = File::create(child.join("deep.md")).unwrap();
+        writeln!(f_nested, "# Deep").unwrap();
+
+        // Top-level md file
+        let mut f_top = File::create(temp_dir.join("top.md")).unwrap();
+        writeln!(f_top, "# Top").unwrap();
+
+        let nodes = scan_directory(&temp_dir).unwrap();
+
+        // Expected: .templates and Parent (dirs first, sorted), then top.md
+        // .emptyDot and EmptyFolder hidden; .templates shown because it has md
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(nodes[0].name, ".templates");
+        assert!(nodes[0].is_directory);
+        assert_eq!(nodes[1].name, "Parent");
+        assert!(nodes[1].is_directory);
+        assert_eq!(nodes[2].name, "top.md");
+
+        // .templates children
+        let dot_children = nodes[0].children.as_ref().unwrap();
+        assert_eq!(dot_children.len(), 1);
+        assert_eq!(dot_children[0].name, "template.md");
+
+        // Parent should contain Child (which contains deep.md) — Parent not empty
+        let parent_children = nodes[1].children.as_ref().unwrap();
+        assert_eq!(parent_children.len(), 1);
+        assert_eq!(parent_children[0].name, "Child");
+        assert!(parent_children[0].is_directory);
+        assert_eq!(parent_children[0].children.as_ref().unwrap()[0].name, "deep.md");
+
         let _ = fs::remove_dir_all(&temp_dir);
     }
 

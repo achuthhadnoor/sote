@@ -2,7 +2,7 @@
 title: snipnote DESIGN
 status: draft
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-03
 sources:
   - _bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md
   - _bmad-output/forge/tauri-markdown-editor/forged-idea.md
@@ -96,9 +96,9 @@ components:
 
 snipnote is the editor you keep meaning to build — lightweight, local, and calm beside the terminal. Theme directly references **https://localeditor.app** at user request: minimal chrome, content-first, no IDE heaviness, no cloud. The brand posture is *local-first quiet confidence*: files live where they already are (plain `.md` on disk), the UI stays out of the way, and every surface earns its place. If LocalEditor's tagline is "Not every file needs an IDE," snipnote's echo is "Not every Markdown file needs Obsidian — especially the ones Claude just wrote."
 
-snipnote inherits the LocalEditor aesthetic wholesale: white editor, faint `sidebar` gray (`#F8F8F9`), hairline `border` (`#EAEAEA`), neutral typography, and black `primary` for the single decisive action per surface. This DESIGN.md specifies only the brand-layer deltas needed for a Tauri/desktop reading surface; all unlisted components inherit the minimal defaults. [ASSUMPTION: Light-first for v1; dark mode deferred but tokens are ready to invert `background`/`foreground`/`sidebar`.]
+snipnote inherits the LocalEditor aesthetic wholesale: white editor, faint `sidebar` gray (`#F8F8F9`), hairline `border` (`#EAEAEA`), neutral typography, and black `primary` for the single decisive action per surface. This DESIGN.md specifies only the brand-layer deltas needed for a Tauri/desktop reading surface; all unlisted components inherit the minimal defaults. Theme is now light/dark/system via `data-theme` (dark `bg #141416` / `fg #EDEEF0`, see §Colors) with vibrant translucency kept.
 
-**Window material (new):** The Tauri window itself is native-vibrant: **macOS `Sidebar` vibrancy** via `tauri::window::Effect::Sidebar` and **Windows 11 `Mica`** via `Effect::Mica`, both applied through **`EffectsBuilder::new().effects([Effect::Sidebar, Effect::Mica])`** (platform ignores the irrelevant effect). The window is `transparent:true` + `macOSPrivateApi:true` + `tauri` feature `macos-private-api`; HTML `html, body` is `transparent` so the native material shows through translucent surface fills. On platforms without effects (Linux, older Windows) the same tokens fall back to opaque fills. No `window-vibrancy` crate is added — EffectsBuilder is the single implementation path per user request.
+**Window material:** The Tauri window itself is native-vibrant: **macOS `Sidebar` vibrancy** via `tauri::window::Effect::Sidebar` and **Windows 11 `Mica`** via `Effect::Mica`, both applied through **`EffectsBuilder::new().effects([Effect::Sidebar, Effect::Mica])`** (platform ignores the irrelevant effect). The window is `transparent:true` + `macOSPrivateApi:true` + `tauri` feature `macos-private-api`; HTML `html, body` is `transparent` so the native material shows through translucent surface fills. On platforms without effects (Linux, older Windows) the same tokens fall back to opaque fills. No `window-vibrancy` crate is added — EffectsBuilder is the single implementation path per user request. Window `1280×720` `min 1100×600` `Overlay` titleBarStyle, `border-radius 12`.
 
 ## Colors
 
@@ -115,7 +115,9 @@ Palette is **monochrome + one semantic link blue**, lifted from LocalEditor.app 
 
 Translucency rule: any surface whose CSS is directly over the vibrancy (`sidebar`, `main-container`, `tab-bar`, `status-bar`) uses the `rgba` variant when `@supports (backdrop-filter: blur(1px))` or when `window.set_effects` is active; fallback `@supports not` uses the solid hex. Text tokens never go translucent.
 
-Avoid: saturated accent navs, gradient surfaces, colored sidebars, more than one chromatic token (link blue only), Mote-style dark `#0a0a0a` + orange — snipnote is light-first like LocalEditor. Also avoid making the editor canvas too transparent (`<0.68`) — text contrast must stay AA.
+**Dark theme (2026-09-03):** `src/App.css:43` `[data-theme="dark"]` overrides: `bg #141416`/`fg #EDEEF0`, `sidebar #1A1A1E`/`sidebar-fg #EDEEF0`, `border #2A2A2E`, `muted #1E1E22`/`muted-fg #9AA0A8`, `accent #26262A`, `link #60A5FA`, `primary #EDEEF0` on `primary-fg #0F0F0F`, translucent dark `bg 0.72`/`sidebar 0.68`/`border 0.90` kept over `Sidebar`/`Mica` dark material; AA contrast maintained. `System` follows `prefers-color-scheme` via `src/stores/useThemeStore.ts:1` + `localStorage snipnote-theme`.
+
+Avoid: saturated accent navs, gradient surfaces, colored sidebars, more than one chromatic token (link blue only light → `#60A5FA` dark), Mote-style dark `#0a0a0a` + orange — snipnote stays monochrome in both themes. Also avoid making the editor canvas too transparent (`<0.68`) — text contrast must stay AA in both.
 
 ## Typography
 
@@ -132,11 +134,12 @@ Line length: Editor content constrained to `editor-max-width` (`760px`) centered
 
 Spacing scale is 4-based: 4, 8, 12, 16, 20, 24, 32. Content width `760px` max — snipnote is a reading/writing surface, not a wide table.
 
-Single-window, two-pane + two-bar layout matching the screenshot breakdown and PRD §6 IA:
+Single-window, three-pane-ready but currently two-pane + two-bar layout (Right Panel hidden) matching PRD §6 IA:
 
-- **Sidebar** — Fixed `260px` [ASSUMPTION: fixed for v1, resizable 220–320 in v2], full-height left. Stack: Search (40px header) → File Tree (flex, scroll) → Library footer (40px). Hairline `border` right edge.
-- **Main** — Flex column. Top: Tab Bar (`header-height` 40px, arrows + active Note name + `+`). Middle: Editor (scroll, centered `760px` content with 24px gutters). Bottom: Status Bar (`status-height` 24px, right-aligned `words | chars | paragraphs`).
-- **Window** — Tauri native traffic lights, min `800×600` per `src-tauri/tauri.conf.json:15`, persists size/position. [ASSUMPTION: v1 fixed layout, not responsive web breakpoints — desktop only.]
+- **Sidebar** — Fixed `260px` [ASSUMPTION: fixed for v1, resizable 220–320 in v2], full-height left. Stack: Search (40px header) → File Tree (flex, scroll, SVG folder/file icons, dot-folders shown if contain md, empty hidden) → Library footer (40px, folder SVG + `Switch/Open…` + gear Settings `⌘,`). Hairline `border-translucent` right edge.
+- **Main** — Flex column `flex:1`. Top: Tab Bar (`header-height` 40px, `4px` nav `←→` + scrollable multi-tab row + `+`; each tab `28px` `max 180px` `ellipsis`, `is-active` white/shadow, draft italic + hollow dot / `draft` label, dirty `•`, `×` close). Middle: Editor (scroll, centered `760px` content with 24px gutters). Bottom: Status Bar (`status-height` 24px, right-aligned `words | chars | paragraphs`).
+- **Right Panel** — `420px` (`320–560`) `Terminal`/`Browser`/`Canvas` — built (`src/components/rightPanel/*` + `src/App.css:136`) but hidden behind `App.tsx` comment for later, not rendered in current build.
+- **Window** — Tauri native traffic lights `Overlay`, `1280×720` default `min 1100×600` per `src-tauri/tauri.conf.json:15` (was `800×600` to fit 3-pane), `border-radius 12` over vibrant, persists size/position + `openTabs`. [ASSUMPTION: v1 fixed layout, not responsive web breakpoints — desktop only.]
 
 Sidebar nav is always visible in v1 full-size window — no Sheet/collapse until Floating/Palette work in later increments. The discipline is LocalEditor's: one window, one sidebar, one editor.
 
@@ -162,15 +165,17 @@ Subtly rounded, not pill-driven — LocalEditor's controls are softly rectangula
 
 v1 uses a minimal component set — no design system inheritance beyond these. LocalEditor's component language is the reference: plain lists, subtle highlights, one black primary action.
 
-- **Sidebar** — `rgba(248,248,249,0.68)` on vibrancy (fallback `{colors.sidebar}` `#F8F8F9`). Full-height, `260px`. No shadow, 1px `rgba(234,234,234,0.85)` border right (fallback `{colors.border}`). Active row = `rgba(243,244,246,0.76)` + `8px` radius, no left accent bar. Hover = `rgba(237,238,240,0.72)` (fallback `#EDEEF0`) [ASSUMPTION]. The translucency lets `Effect::Sidebar` / `Effect::Mica` show through as the column's material.
-- **File Tree Row** — `13px sans-sm`, `6px` vertical padding, `8px` horizontal. Folder rows show chevron + name; file rows show `.md` file name only (no icons in v1 [ASSUMPTION]). Active row uses `sidebar-active` tokens (translucent accent on vibrancy, opaque fallback).
-- **Search (⌘P)** — Sidebar-top input + global palette. In Sidebar: `rgba(246,246,247,0.72)` input (fallback `F6F6F7`) with `6px` radius, placeholder "Search notes…" + `⌘P` kbd hint in `muted-foreground` `11px` mono. When invoked via `⌘P`, same component floats as `command-palette` (elevated, `12px`, max 480×320) — **palette stays opaque `white`** (not translucent) so it reads as a sheet above the vibrancy. Fuzzy file-name results. [ASSUMPTION: palette is the `⌘P` surface, not in-place sidebar filtering.]
-- **Tab Bar** — `40px` high, `rgba(255,255,255,0.78)` on vibrancy (fallback `white`) + bottom `rgba(234,234,234,0.85)` border. Left: back/forward arrows (`16px` icon, `muted-foreground` inactive). Center: active Note name (`14px` sans, `600`). Right: `+` (16px, `muted-foreground`, hover `foreground`). Tabs: single active visible in v1; multi-tab row is a visual but only one active at a time per PRD FR-9. [ASSUMPTION]
-- **Editor Surface** — `rgba(255,255,255,0.78)` on vibrancy (fallback `white`), centered `760px` content, `24px` gutters, `24px` top padding. The surrounding `.app-shell` is `transparent` so the effect is window-wide; the editor's translucent white keeps reading contrast while showing Mica/wallpaper tint. Headings/bold/links/bullets render live per FR-6. Links use `{colors.link}` underline on hover only. Code blocks: `rgba(246,246,247,0.72)` (fallback `muted`) + `6px` radius + mono.
-- **Status Bar** — `rgba(250,250,250,0.72)` on vibrancy (fallback `status-bar` `#FAFAFA`) + top `rgba(234,234,234,0.85)` border, `24px`, right-aligned `sans-sm` `11px` `muted-foreground`. Shows `words | chars | paragraphs` live. No interactive elements in v1. Translucent so material shows at the bottom edge, like Finder's status bar.
-- **Banner (File Changed)** — Inline under Tab Bar: `rgba(246,246,247,0.72)` background (fallback `muted`), `border`, `12px` horizontal padding, `8px` vertical, `6px` radius, `13px` text + two text buttons "Reload" (primary text = link) and "Keep mine" (muted). Dismissible. Non-blocking.
-- **Button (primary)** — `{colors.primary}` fill, `{colors.primary-foreground}` text, `8px` radius, `14px` sans 500, `32px` height. Opaque always — never translucent. Used for Open Vault / Create.
-- **Window Chrome** — Native traffic lights / Win32 caption remain OS-drawn over the vibrant window. Corner radius is set via `EffectsBuilder::radius(12.0)` on macOS (ignored on Windows). No custom title bar in v1 — vibrancy is the only chrome change.
+- **Sidebar** — `rgba(248,248,249,0.68)` on vibrancy (fallback `{colors.sidebar}` `#F8F8F9`) `dark rgba(26,26,30,0.68)`. Full-height, `260px`. No shadow, 1px `border-translucent` right. Active row = `rgba(243,244,246,0.76)` `dark rgba(38,38,42,0.78)` + `8px` radius. Hover = `rgba(237,238,240,0.72)` `dark rgba(42,42,46,0.6)`. The translucency lets `Effect::Sidebar` / `Effect::Mica` show through.
+- **File Tree Row** — `13px sans-sm`, `6px` vertical padding, `8px` horizontal. Folder rows: `14px` chevron `rotate 90` when open + `16px` folder SVG (closed/open `fill 0.14` + stroke `1.5`) + name; file rows: `14px` indent spacer + `16px` file SVG (doc with fold, `0.10` fill, `1.5` stroke, md lines `1.2` / hollow when not md) + name; `FolderIcon`/`FileIcon` `muted-fg→fg` on hover/active, `FileIcon.is-md` `fg 0.9`. Active row uses `sidebar-active` translucent accent.
+- **Search (⌘P)** — Sidebar-top input `rgba(246,246,247,0.72)` `dark rgba(30,30,34,0.72)` with `6px` radius, placeholder "Search notes… (⌘P)". Palette `command-palette` stays opaque `white` `dark #141416` (not translucent) above vibrancy, `12px` radius, max `520×400`.
+- **Tab Bar** — `40px` high, `bg-translucent` + bottom `border-translucent`. Left: `26px` back/forward `←→` (`muted-fg`, hover `muted-translucent`). Center: scrollable `tabs-container` → `tabs-scroll` (`gap 6px`, `scrollbar hidden`, `padding 6px 2px`) with `tab-item` (`28px` `max 180px` `ellipsis`, `border transparent` → hover `hover-translucent`, `is-active` `bg`+`border`+`shadow`, `is-draft` title italic + `draft` label 10px italic / hollow dot `6px` border, dirty `• 6px` `primary`, `saving…` 10px). Right: `+` `26px` (`muted-fg` → hover `muted-translucent`). Now multi-tab, not single title.
+- **Editor Surface** — `bg-translucent` (`white 0.78` / `dark 0.72`), centered `760px`, `24px` gutters. Surrounding `.app-shell` `transparent` + `border-radius 12`. Draft `isNew` tabs init empty (`body ""`, `frontmatter null`, `isDirty false`) without `read_file`; first `hasContent` (`body/frontmatter trimmed >0`) triggers `write_file` → `markTabSaved` + `loadVault`.
+- **Status Bar** — `status-translucent` (`#FAFAFA 0.72` / dark `#18181B 0.72`) + top `border-translucent`, `24px`, right `11px` `muted-fg` `mono`.
+- **Right Panel (hidden)** — `420px` (`320–560`) `sidebar-translucent` + left `border-translucent`, header `40px` with `Tabs` (`Terminal`/`Browser`/`Canvas` icons, `26px` `is-active` white/shadow) + collapse `→`; content `bg-translucent`; `TerminalPane` dark `#0F0F0F` (`$` green), `BrowserPane` URL bar + `iframe`, `CanvasPane` toolbar + dotted grid `canvas` — all built but not rendered (`App.tsx` commented) for later.
+- **Settings Dialog** — Overlay `rgba(0,0,0,0.32)` `blur 8px` `z 10000` + `settings-dialog` `560px` `12px` radius `shadow 0 20px 50px`, header `Settings` + `×`, body `Appearance` (Light/Dark/System radios) + About, footer `Done`; `settings-option` `is-active` `accent` + radio `fg` dot; opened via `⌘,`/`Ctrl+,` or gear, `Esc` closes.
+- **Banner (File Changed)** — `muted-translucent` + `border-translucent`, `12px` `8px`, `6px`, `13px` + "Reload"/"Keep mine".
+- **Button (primary)** — `{colors.primary}` `primary-fg` `8px` `14px 500` `32px`; respects `[data-theme="dark"]` flip (`#EDEEF0` on `#0F0F0F`).
+- **Window Chrome** — Native traffic lights / Win32 caption over vibrant, `radius 12` via `EffectsBuilder::radius(12)` on macOS.
 
 ## Do's and Don'ts
 

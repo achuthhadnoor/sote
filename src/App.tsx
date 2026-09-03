@@ -7,10 +7,11 @@ import { ConflictBanner } from "./components/editor/ConflictBanner";
 import { EditorSurface } from "./components/editor/EditorSurface";
 import { StatusBar } from "./components/editor/StatusBar";
 import { CommandPalette } from "./components/palette/CommandPalette";
-import { RightPanel } from "./components/rightPanel/RightPanel";
+import { SettingsDialog } from "./components/settings/SettingsDialog";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
+import { useThemeStore } from "./stores/useThemeStore";
 import { SessionState } from "./types/session";
 import "./App.css";
 
@@ -18,18 +19,36 @@ function App() {
   const vaultPath = useVaultStore((state) => state.vaultPath);
   const loadVault = useVaultStore((state) => state.loadVault);
   const activePath = useTabStore((state) => state.activePath);
+  const tabs = useTabStore((state) => state.tabs);
   const selectNote = useTabStore((state) => state.selectNote);
+  const setTabs = useTabStore((state) => state.setTabs);
   const isInitialized = useRef(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // ensure theme is initialized (store side-effect loads from localStorage)
+  useThemeStore((s) => s.effectiveTheme);
 
-  // Restore session on mount
+  // Restore session on mount — restores vault + open tabs
   useEffect(() => {
     async function restoreSession() {
       try {
         const session = await invoke<SessionState>("get_session");
         if (session.lastVaultPath) {
           await loadVault(session.lastVaultPath);
-          if (session.activeFilePath) {
+          const openTabs = (session as any).openTabs as string[] | null | undefined;
+          const active = session.activeFilePath ?? null;
+          if (openTabs && openTabs.length > 0) {
+            const tabObjs = openTabs.map((p) => ({
+              path: p,
+              title: p.split("/").pop() || "Note",
+            }));
+            setTabs(tabObjs, active);
+            // if active not in openTabs, ensure it is opened
+            if (active && !openTabs.includes(active)) {
+              const fileName = active.split("/").pop() || "Note";
+              selectNote(active, fileName);
+            }
+          } else if (session.activeFilePath) {
             const fileName = session.activeFilePath.split("/").pop() || "Note";
             selectNote(session.activeFilePath, fileName);
           }
@@ -42,9 +61,9 @@ function App() {
     }
 
     restoreSession();
-  }, [loadVault, selectNote]);
+  }, [loadVault, selectNote, setTabs]);
 
-  // Persist session on state changes
+  // Persist session on state changes — now includes open tabs (only real files, drafts with no disk file are not persisted)
   useEffect(() => {
     if (!isInitialized.current) return;
 
@@ -52,11 +71,12 @@ function App() {
       session: {
         lastVaultPath: vaultPath,
         activeFilePath: activePath,
+        openTabs: tabs.filter((t) => !t.isNew).map((t) => t.path),
       },
     }).catch((err) => {
       console.error("Failed to save session:", err);
     });
-  }, [vaultPath, activePath]);
+  }, [vaultPath, activePath, tabs]);
 
   // Listen for native filesystem changes emitted by Rust file watcher (AD-4)
   useEffect(() => {
@@ -100,19 +120,57 @@ function App() {
     };
   }, []);
 
-  const createNote = useVaultStore((state) => state.createNote);
-
+  // New note is now a draft tab — no file on disk until there is content
   const handleNewNote = async () => {
-    const newPath = await createNote();
-    if (newPath) {
-      const fileName = newPath.split("/").pop() || "Untitled.md";
-      selectNote(newPath, fileName);
+    let vp = useVaultStore.getState().vaultPath;
+    if (!vp) {
+      await useVaultStore.getState().openVaultDialog();
+      vp = useVaultStore.getState().vaultPath;
+      if (!vp) return;
     }
+    const baseVault = vp.replace(/\/+$/, "");
+    // collect existing file paths from tree + open tabs
+    const collectPaths = (nodes: any[]): string[] => {
+      const out: string[] = [];
+      for (const n of nodes) {
+        if (!n.isDirectory) out.push(n.path);
+        if (n.children) out.push(...collectPaths(n.children));
+      }
+      return out;
+    };
+    const existing = new Set<string>([
+      ...collectPaths(useVaultStore.getState().tree as any),
+      ...useTabStore.getState().tabs.map((t) => t.path),
+    ]);
+    let candidateName = "Untitled.md";
+    let candidatePath = `${baseVault}/${candidateName}`;
+    let idx = 1;
+    while (existing.has(candidatePath)) {
+      candidateName = `Untitled ${idx}.md`;
+      candidatePath = `${baseVault}/${candidateName}`;
+      idx++;
+    }
+    selectNote(candidatePath, candidateName, { isNew: true });
   };
 
-  // Global keyboard shortcuts (Cmd+N for new note, Cmd+P for command palette)
+  // Global keyboard shortcuts (Cmd+N, Cmd+P, Cmd+, Cmd+W, nav)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+, / Ctrl+, -> Settings (macOS standard) — check both key and code for layout safety
+      if ((e.metaKey || e.ctrlKey) && (e.key === "," || (e as any).code === "Comma")) {
+        e.preventDefault();
+        setIsSettingsOpen((prev) => !prev);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        const active = useTabStore.getState().activePath;
+        if (active) {
+          // flush dirty before close is handled by EditorSurface on activePath change
+          useTabStore.getState().closeTab(active);
+        }
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         handleNewNote();
@@ -127,27 +185,37 @@ function App() {
       } else if ((e.metaKey || e.ctrlKey) && e.key === "]") {
         e.preventDefault();
         useTabStore.getState().goForward();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "Tab") {
+        // Ctrl+Tab / Cmd+Tab cycle tabs
+        e.preventDefault();
+        const { tabs, activePath } = useTabStore.getState();
+        if (tabs.length <= 1) return;
+        const idx = tabs.findIndex((t) => t.path === activePath);
+        const nextIdx = e.shiftKey ? (idx - 1 + tabs.length) % tabs.length : (idx + 1) % tabs.length;
+        const next = tabs[nextIdx];
+        useTabStore.getState().selectNote(next.path, next.title);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [createNote, selectNote]);
+  }, [selectNote]);
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
       <main className="main-container">
         <TabBar onNewNote={handleNewNote} />
         <ConflictBanner />
         <EditorSurface />
         <StatusBar />
       </main>
-      <RightPanel />
+      {/* RightPanel hidden for now — terminal/browser/canvas to be handled later */}
       <CommandPalette
         isOpen={isPaletteOpen}
         onClose={() => setIsPaletteOpen(false)}
       />
+      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 }

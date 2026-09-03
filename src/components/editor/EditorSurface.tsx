@@ -13,6 +13,7 @@ export const EditorSurface: React.FC = () => {
   const vaultPath = useVaultStore((state) => state.vaultPath);
   const openVaultDialog = useVaultStore((state) => state.openVaultDialog);
   const activePath = useTabStore((state) => state.activePath);
+  const tabs = useTabStore((state) => state.tabs);
   const loadNote = useEditorStore((state) => state.loadNote);
   const updateBody = useEditorStore((state) => state.updateBody);
   const saveNow = useEditorStore((state) => state.saveNow);
@@ -20,19 +21,41 @@ export const EditorSurface: React.FC = () => {
   const error = useEditorStore((state) => state.error);
   const reloadCount = useEditorStore((state) => state.reloadCount);
 
+  const activeTab = tabs.find((t) => t.path === activePath);
+  const isNewDraft = !!activeTab?.isNew;
+
   const activePathRef = useRef<string | null>(activePath);
   activePathRef.current = activePath;
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const handlePostSave = async (path: string, wasNew: boolean) => {
+    // wasNew draft now has content and was saved -> promote to real file
+    const stillDirty = useEditorStore.getState().isDirty;
+    if (wasNew && !stillDirty) {
+      useTabStore.getState().markTabSaved(path);
+      const vp = useVaultStore.getState().vaultPath;
+      if (vp) {
+        // reload tree to show newly created file (watcher echo is suppressed)
+        await useVaultStore.getState().loadVault(vp);
+      }
+    }
+  };
+
   const triggerAutoSave = () => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
-    debounceTimerRef.current = setTimeout(() => {
-      if (activePathRef.current) {
-        saveNow(activePathRef.current);
-      }
+    debounceTimerRef.current = setTimeout(async () => {
+      const path = activePathRef.current;
+      if (!path) return;
+      const tab = useTabStore.getState().tabs.find((t) => t.path === path);
+      const wasNew = !!tab?.isNew;
+      const { body, frontmatter } = useEditorStore.getState();
+      const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
+      if (wasNew && !hasContent) return;
+      await saveNow(path);
+      await handlePostSave(path, wasNew);
     }, 500);
   };
 
@@ -66,15 +89,21 @@ export const EditorSurface: React.FC = () => {
     },
   });
 
-  // Flush save on window blur or beforeunload
+  // Flush save on window blur or beforeunload (respects draft-no-content guard)
   useEffect(() => {
     const handleFlush = () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      if (activePathRef.current && useEditorStore.getState().isDirty) {
-        saveNow(activePathRef.current);
-      }
+      const path = activePathRef.current;
+      if (!path || !useEditorStore.getState().isDirty) return;
+      const tab = useTabStore.getState().tabs.find((t) => t.path === path);
+      const wasNew = !!tab?.isNew;
+      const { body, frontmatter } = useEditorStore.getState();
+      const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
+      if (wasNew && !hasContent) return;
+      // fire and handle post-save async
+      saveNow(path).then(() => handlePostSave(path, wasNew));
     };
 
     window.addEventListener("blur", handleFlush);
@@ -87,17 +116,40 @@ export const EditorSurface: React.FC = () => {
     };
   }, [saveNow]);
 
-  // When activePath changes, flush previous note and load new note
+  // When activePath changes, flush previous note (if has content) and load new note
   const prevPathRef = useRef<string | null>(null);
   useEffect(() => {
     if (prevPathRef.current && prevPathRef.current !== activePath) {
-      if (useEditorStore.getState().isDirty) {
-        saveNow(prevPathRef.current);
+      const prev = prevPathRef.current;
+      if (prev && useEditorStore.getState().isDirty) {
+        const tab = useTabStore.getState().tabs.find((t) => t.path === prev);
+        const wasNew = !!tab?.isNew;
+        const { body, frontmatter } = useEditorStore.getState();
+        const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
+        if (!(wasNew && !hasContent)) {
+          saveNow(prev).then(() => handlePostSave(prev, wasNew));
+        }
       }
     }
     prevPathRef.current = activePath;
 
     if (!activePath || !editor) return;
+
+    // Draft new note: no file on disk yet, init empty
+    if (isNewDraft) {
+      useEditorStore.setState({
+        frontmatter: null,
+        lastSavedFrontmatter: null,
+        body: "",
+        lastSavedBody: "",
+        isDirty: false,
+        isLoading: false,
+        error: null,
+        hasConflict: false,
+      } as any);
+      editor.commands.setContent("");
+      return;
+    }
 
     let cancelled = false;
     loadNote(activePath)
@@ -119,7 +171,7 @@ export const EditorSurface: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [activePath, reloadCount, editor, loadNote, saveNow]);
+  }, [activePath, isNewDraft, reloadCount, editor, loadNote, saveNow]);
 
   if (!vaultPath) {
     return (

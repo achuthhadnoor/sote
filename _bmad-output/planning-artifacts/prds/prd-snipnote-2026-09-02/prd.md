@@ -1,8 +1,10 @@
 ---
 title: snipnote - Full-Size Markdown Editor for Claude Code
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-03
 status: draft
+changelog:
+  - 2026-09-03: Vibrant window (Sidebar/Mica via EffectsBuilder, transparent, radius 12, 1280×720); multi-tab center pane with draft-until-content; dot-folders shown if contain md, empty folders hidden; folder/file SVG icons; light/dark/system theme + Cmd+, Settings; right panel (Terminal/Browser/Canvas) built then hidden for later
 ---
 
 # PRD: snipnote - Full-Size Markdown Editor for Claude Code
@@ -52,14 +54,17 @@ Why now: Claude Code has moved agentic coding to the terminal. The output (plan.
 
 ## 3. Glossary
 - **Vault** — The root local folder the user picks on first launch. Contains folders and Notes as plain files. 1 vault open at a time in v1. [ASSUMPTION: Single vault v1.]
-- **Note** — A single `.md` file on disk, rendered in Editor. File name = Note title. Raw Markdown is source of truth.
-- **File Tree** — Hierarchical view in Sidebar showing folders (e.g., Daily Notes, Projects, Website Redesign) and Notes. Reflects file system 1:1.
-- **Sidebar** — Left pane containing Search, File Tree, and Library footer. Persistent in full-size window.
+- **Note** — A single `.md` file on disk, rendered in Editor. File name = Note title. Raw Markdown is source of truth. New notes are draft in-memory (`isNew`) until they have content.
+- **File Tree** — Hierarchical view in Sidebar showing folders (dot-folders like `.templates` shown only if they contain `.md` in subtree; empty folders hidden) and Notes (`.md`/`.markdown` only, hidden files like `.DS_Store` excluded). Sorted directories-first then alpha case-insensitive, reflects filtered file-system truth.
+- **Sidebar** — Left pane containing Search, File Tree, and Library footer. Persistent in full-size window; folder/file rows now have SVG icons (closed/open folder, md file with lines, chevron rotate).
 - **Search** — The input at top of Sidebar triggered by Cmd+P. In v1, searches Note filenames. [ASSUMPTION: filename-only.]
-- **Library** — Footer entry in Sidebar with sort/options. In v1, entry point to vault switcher/sort. [ASSUMPTION: Vault switch + sort.]
-- **Editor** — Large right pane where Note content is displayed/edited with Tiptap. Parses raw Markdown on open, serializes back on save.
-- **Tab Bar / Breadcrumb Bar** — Top bar in Editor with back/forward arrows, active Note name, and `+` to create a new Note.
+- **Library** — Footer entry in Sidebar with `📁` vault name, `Switch/Open…` and gear `⚙` Settings (`⌘,`) entry. In v1, entry point to vault switcher/sort [ASSUMPTION: Vault switch + sort].
+- **Editor** — Center pane where Note content is displayed/edited with Tiptap. Parses raw Markdown on open, serializes back on save.
+- **Tab Bar** — Top bar in Main with back/forward, scrollable multi-tab row (`Untitled.md` draft italic + hollow dot, dirty •, saving…), per-tab close `×`, and `+`. Tabs persist in session `openTabs`.
 - **Status Bar** — Footer at bottom of Editor showing live document statistics: words, characters, paragraphs.
+- **Right Panel** — Right `420px` pane for Terminal / In-App Browser / Canvas (Excalidraw stub). Built but hidden in current build (`App.tsx` commented) to be re-enabled later [ASSUMPTION: deferred, see §6.2].
+- **Settings** — Modal overlay opened via `⌘,` / `Ctrl+,` (or Sidebar gear), with Appearance section (Light/Dark/System) persisted in `localStorage snipnote-theme` and `data-theme` attribute.
+- **Theme** — `light` (monochrome white `#FFFFFF`/`#F8F8F9`) / `dark` (`#141416`/`#1A1A1E`) / `system` (follows `prefers-color-scheme`). Translucent `rgba` variants sit over vibrant Sidebar/Mica material.
 - **Markdown Source** — The raw `.md` file on disk. Must round-trip through Tiptap without corruption or injected HTML.
 
 ## 4. Features
@@ -75,16 +80,18 @@ User can pick a local folder as Vault via system dialog. App persists the choice
 - After picking `~/snipnote-vault`, relaunch restores same path without re-prompt.
 - Invalid/missing folder shows error and re-prompts; app does not create vault silently.
 
-#### FR-2: Render File Tree 1:1
-System displays File Tree in Sidebar matching file system: folders and `.md` files only, sorted alphabetically. Realizes UJ-1.
+#### FR-2: Render File Tree (filtered, sorted, iconized)
+System displays File Tree in Sidebar matching filtered file system: folders shown only if their subtree contains `.md`/`.markdown` (empty folders hidden), dot-folders (e.g. `.templates`, `.obsidian`) shown when they contain md (e.g. `.templates/template.md` visible, `.emptyDot` hidden), hidden files (`.DS_Store`, `.hidden.md`) always excluded, sorted directories-first then alpha case-insensitive, with SVG folder (closed/open, chevron rotate) + file (md lines) icons. Realizes UJ-1. [UPDATED 2026-09-03: was strict 1:1; now filtered + icons]
 **Consequences:**
-- File Tree shows `Daily Notes/`, `Projects/`, `Website Redesign/` and `Tech Stack Decisions.md` etc. exactly as on disk.
-- Renaming/moving a file on disk (including by Claude) is reflected in File Tree within 2s via file watcher.
+- File Tree shows `Daily Notes/`, `Projects/`, `Website Redesign/` and `Tech Stack Decisions.md` etc.; empty `Beta` or `.emptyDot` do not appear; `.templates` appears only with `.templates/template.md`.
+- Dot-folders like `.templates` appear with folder icon when they contain markdown.
+- Renaming/moving a file on disk (including by Claude) is reflected in File Tree within 2s via file watcher (markdown in dot-folders still emits `vault-changed`).
 
-#### FR-3: Active File Highlight and Library footer
-System highlights the currently open Note in File Tree and exposes Library entry in Sidebar footer. Realizes UJ-1.
+#### FR-3: Active File Highlight and Library footer (with icons + Settings entry)
+System highlights the currently open Note in File Tree (accent `rgba(243,244,246,0.76)` + 8px radius, folder/file icons tint `fg` on hover/active) and exposes Library entry in Sidebar footer with folder SVG + `Switch/Open…` + gear Settings (`⌘,` opens Settings dialog). Realizes UJ-1. [UPDATED 2026-09-03: icons + Settings gear]
 **Consequences:**
-- Only one Note is highlighted at a time; highlight follows Tab switch and File Tree click.
+- Only one Note is highlighted at a time; highlight follows Tab switch and File Tree click; icons use `currentColor` `muted-fg` → `fg` on hover/active.
+- Gear in footer opens Settings (same as `⌘,`/`Ctrl+,`).
 
 **Notes:** Obsidian-compatible folder structure is required for readiness (plain `.md`, frontmatter preserved as text even if not rendered in v1). [ASSUMPTION]
 
@@ -99,11 +106,12 @@ User can press Cmd+P (Ctrl+P on Win/Linux [ASSUMPTION]) to focus Search, type a 
 - Typing `tech` shows `Tech Stack Decisions.md`; `access` shows `Accessibility Audit.md`.
 - Search is filename-only in v1; no full-text. [ASSUMPTION]
 
-#### FR-5: Navigate via File Tree and Tab selection
-User can click a Note in File Tree or its Tab to make it active, with highlight and Tab Bar update. Realizes UJ-1, UJ-2.
+#### FR-5: Navigate via File Tree and Multi-Tab selection
+User can click a Note in File Tree or its Tab to make it active (opens as tab if not already open), with highlight and Tab Bar update. Tabs are scrollable, show `×` close, draft `italic + hollow dot` / `draft` label, dirty `•` / `saving…`, and persist in `session.json openTabs`. Realizes UJ-1, UJ-2. [UPDATED 2026-09-03: single-tab → multi-tab]
 **Consequences:**
-- Clicking a Note opens it in Editor and highlights it; Tab Bar shows its name.
-- Back/forward arrows navigate tab history within the same window session. [ASSUMPTION: session history only.]
+- Clicking a Note opens/adds tab; active tab is `is-active` (`bg`/`border` + shadow) + `FileTabIcon`.
+- `×` or `⌘W` closes tab; `Ctrl/⌘+Tab` cycles tabs (Shift reverses). Closing the last tab shows `No open notes` + `No Note Selected` empty state.
+- Back/forward arrows navigate tab history within the same window session. [ASSUMPTION: session history only + tabs].
 
 ### 4.3 Editor Core (Tiptap, Markdown Source)
 **Description:** Full-size Editor with live WYSIWYG rendering but raw Markdown on disk. Parses MarkdownSource to Tiptap model on open, serializes back on save. Supports v1 Markdown features visible in screenshot: headings, bold, links, bullet points. [ASSUMPTION: v1 also ships Mermaid fenced blocks, task lists, and inline code as read-rendered — toggled via Tiptap extensions.] Realizes UJ-1, UJ-2.
@@ -131,16 +139,17 @@ System watches Markdown Source on disk; when Claude overwrites a Note, Editor ha
 **Feature-specific NFRs:**
 - Round-trip serialization covered by automated tests: at least 50 fixtures (headings, lists, links, code, frontmatter, Mermaid) must pass byte-equality. [ASSUMPTION: test threshold.]
 
-### 4.4 Tabs & Breadcrumb Navigation
-**Description:** Tab Bar in Editor shows navigation arrows, Active Note name, and `+` to create new Note. Tabs represent open Notes; v1 supports single active tab visible at a time plus `+` [ASSUMPTION: multi-tab row is v1, not single-tab only — matches "+ to open a new tab/file" in breakdown.]
+### 4.4 Tabs & Multi-Tab Navigation (Draft-until-content)
+**Description:** Tab Bar in Editor shows navigation arrows, scrollable multi-tab row (each `Untitled.md` draft italic + hollow dot, dirty •, saving…), per-tab `×` close, and `+`. Tabs represent open Notes; draft tabs (`isNew`) are in-memory virtual (`Untitled.md` path not yet on disk) until they have content (body/frontmatter trimmed >0) then auto-saved via 500ms debounce → `write_file` → `markTabSaved` + vault reload. [UPDATED 2026-09-03: was immediate disk create; now draft-until-content per user request; resolves Open Question 3.]
 
 **Functional Requirements:**
 
-#### FR-9: Tab lifecycle
-User can see active Note name in Tab Bar, navigate history via arrows, and create a new Note via `+`. Realizes UJ-1, UJ-2.
+#### FR-9: Tab lifecycle (multi-tab, draft, persist)
+User can open notes as tabs (`+` or File Tree/`⌘P`), switch by clicking tab, close via `×`/`⌘W`, cycle via `Ctrl/⌘+Tab`, and have open tabs + active restored on relaunch via `session.json { openTabs: string[], activeFilePath }`. Realizes UJ-1, UJ-2.
 **Consequences:**
-- `+` creates `Untitled.md` / `Untitled 2.md` in current folder (or Vault root if no folder selected) and opens it in Editor, added to File Tree immediately. File is created on disk on creation (not only on save). [ASSUMPTION: immediate create.]
-- Closing the window restores prior tabs/vault on next launch via persisted session.
+- `+`/`⌘N` creates `Untitled.md` / `Untitled 1.md` as draft `isNew` tab (choose first non-colliding name vs. existing files + open tabs, `baseVault/Name`), shows italic + `draft`/`hollow dot`, does NOT create file on disk if no content. Typing → `isDirty` → 500ms `saveNow` → `hasContent` guard → `write_file` → `markTabSaved(false)` + `loadVault` to show file in tree. Empty draft closed or window blurred with no content does nothing on disk.
+- Closing active tab picks neighbor (same index else previous) or `Welcome`; `⌘W` closes active; empty hint when no tabs.
+- Persist: `openTabs` excludes `isNew` drafts; `sanitize_session` filters to existing files; `active` must be inside `openTabs` else first.
 
 ### 4.5 Status Bar & Document Insights
 **Description:** Status Bar at bottom right of Editor shows live counts. Realizes UJ-1 climax.
@@ -152,20 +161,44 @@ System shows live word count, character count, and paragraph count in Status Bar
 **Consequences:**
 - For `Tech Stack Decisions` example, displays `174 words | 1,209 characters | 10 paragraphs` (paragraph = block separated by blank line [ASSUMPTION]).
 
-### 4.6 Window & System Integration
-**Description:** Native desktop windowing per breakdown. macOS window controls, single full-size window in v1.
+### 4.6 Window & System Integration (Vibrant)
+**Description:** Native desktop windowing with vibrant material. macOS `Sidebar` vibrancy + Windows `Mica` via `EffectsBuilder` only, single full-size window in v1. [UPDATED 2026-09-03: added vibrant via `tauri` `macos-private-api` + `transparent:true` + `macOSPrivateApi:true` + `EffectsBuilder([Sidebar,Mica],Active,radius12)`, `html/body` transparent, translucent fills.]
 
 **Functional Requirements:**
 
-#### FR-11: Native window controls and persistence
-System shows standard macOS traffic lights (close/minimize/maximize) and persists window size/position across relaunch. Realizes UJ-1, UJ-2. [ASSUMPTION: Native Tauri window; min 800x600.]
+#### FR-11: Native window controls, vibrant material, and persistence
+System shows standard macOS traffic lights (close/minimize/maximize) over vibrant window, `1280×720` default `1100×600` min (was `800×600` to make room for future right panel), `Overlay` titleBarStyle, `border-radius 12` + translucent `rgba` surfaces (`bg 0.78`, `sidebar 0.68`, etc.) over `NSVisualEffectView`/`Mica`; Linux falls back to opaque hexes; persists window size/position + vault + `openTabs` across relaunch. Realizes UJ-1, UJ-2. [ASSUMPTION: `transparent:true` + `macos-private-api` feature; no `window-vibrancy` crate.]
 **Consequences:**
-- Close hides/minimizes per OS; relaunch restores prior size/position and vault.
+- `src-tauri/tauri.conf.json:12` + `src-tauri/Cargo.toml:21` + `src-tauri/src/lib.rs:14` `.setup` `window.set_effects(Some(EffectsBuilder…))`.
+- `src/App.css:1` translucent vars + `html/body` transparent; fallback opaque on unsupported.
+- Close hides/minimizes per OS; relaunch restores prior size/position and vault + tabs.
+
+### 4.7 Appearance Theme (Light/Dark/System)
+**Description:** App supports `light` (monochrome `#FFFFFF`/`#0F0F0F`), `dark` (`#141416`/`#EDEEF0` + translucent dark `rgba(20,20,22,0.72)` etc.), and `system` (follows `prefers-color-scheme`, listens to OS changes). Vibrant material tints both. [NEW 2026-09-03]
+
+**Functional Requirements:**
+
+#### FR-12: Theme switching
+User can pick Light/Dark/System in Settings (`⌘,`); `System` follows OS; `data-theme` attribute on `html` drives `src/App.css:43` `[data-theme="dark"]` overrides; persisted in `localStorage snipnote-theme` + `document.style.colorScheme`; `System` updates live on OS change. [NEW]
+**Consequences:**
+- `src/stores/useThemeStore.ts:1` `theme: Theme` + `effectiveTheme`, `setTheme` writes `localStorage` + `data-theme`.
+- Dark switch keeps AA contrast over vibrant.
+
+### 4.8 Settings
+**Description:** Single Settings modal overlay (blur `8px`, `12px` radius, `560px` max) with Appearance section and About. [NEW]
+
+**Functional Requirements:**
+
+#### FR-13: Open Settings via Cmd+,
+User can open Settings via `⌘,`/`Ctrl+,` (global `keydown` in `src/App.tsx:119` handling `key ","`/`code Comma`), Sidebar gear, and close via `Esc`, `×`, or `Done`. Realizes theme switching. [NEW]
+**Consequences:**
+- `src/components/settings/SettingsDialog.tsx:1` overlay + `settings-dialog` + `settings-option` radios; `Sidebar.tsx:5` gear button; `App.tsx` `isSettingsOpen` state.
 
 ## 5. Non-Goals (Explicit)
 - Not a floating capture panel in v1 (Mote owns this; deferred to v5).
-- Not a Canvas/whiteboard — Excalidraw is v3, not v1.
-- Not an embedded terminal/PTY running Claude — v4, not v1; Claude stays in user's Ghostty/iTerm beside the editor.
+- Not a Canvas/whiteboard — Excalidraw stub built for Right Panel but hidden in current build (`App.tsx` commented) and deferred to v3 for full integration (keep JSON design ready) [UPDATED 2026-09-03: canvas scaffold exists].
+- Not an embedded terminal/PTY running Claude — Terminal pane built for Right Panel but hidden; v4 will wire `tauri-plugin-shell` PTY (v1 Claude stays in Ghostty) [UPDATED: stub exists].
+- Not an In-App Browser full replacement — Browser pane (`iframe` + URL bar) built but hidden behind Right Panel.
 - Not cloud sync, collaboration, or accounts — v1 is local-only. Ready for future sync (file abstraction) but no sync logic in v1.
 - Not mobile, not web — desktop Tauri only.
 - Not a full IDE — no LSP, debugger, or git UI in v1.
@@ -174,17 +207,20 @@ System shows standard macOS traffic lights (close/minimize/maximize) and persist
 ## 6. MVP Scope
 
 ### 6.1 In Scope
-- Local Vault pick/restore (FR-1), File Tree 1:1 (FR-2), Active highlight + Library footer (FR-3)
-- Cmd+P filename search (FR-4), File Tree/Tab navigation (FR-5)
+- Local Vault pick/restore (FR-1), File Tree filtered + icons (`isNew` draft, dot-folders, hide empty) (FR-2), Active highlight + Library footer + gear Settings (FR-3)
+- Cmd+P filename search (FR-4), File Tree / multi-tab navigation + close/cycle (FR-5)
 - Tiptap live rendering headings/bold/links/bullets (+ Mermaid/tasks/code as rendered) (FR-6), raw Markdown round-trip (FR-7), file-watcher with banner (FR-8)
-- Tab Bar with `+` new note (FR-9)
+- Tab Bar multi-tab with `+` draft-until-content (FR-9)
 - Status Bar word/char/paragraph (FR-10)
-- Native window controls + persistence (FR-11)
-- Plain `.md` files, frontmatter preserved, vault folder = file system
+- Native vibrant window (`Sidebar`/`Mica`, `1280×720`) + persistence of `openTabs` (FR-11)
+- Appearance theme Light/Dark/System via `data-theme` + Settings modal `⌘,` (new FR-12)
+- Settings dialog `⌘,`/gear (new FR-13)
+- Plain `.md` files, frontmatter preserved, vault folder = file system; Right Panel scaffolds (Terminal/Browser/Canvas) hidden behind flag for later
 
 ### 6.2 Out of Scope for MVP
-- Canvas/Excalidraw — deferred to v3. Reason: major scope, not needed for first dollar. [NOTE FOR PM: Keep separate JSON files design ready.]
-- Embedded Terminal / running Claude inside app — deferred to v4. Reason: PTY backend complexity. [NOTE FOR PM: Users already have Ghostty.]
+- Canvas/Excalidraw **full** integration (replace stub `<canvas>` with `@excalidraw/excalidraw` + JSON persistence) — deferred to v3. Reason: major scope; stub in `src/components/rightPanel/CanvasPane.tsx` keeps design ready while `App.tsx` hides RightPanel. [NOTE FOR PM: Keep separate JSON files design ready.]
+- Embedded Terminal PTY **wiring** (`xterm.js` + `tauri-plugin-shell`) — stub `TerminalPane.tsx` (mock `help/ls/pwd/echo`, dark `#0F0F0F`) exists but hidden; deferred to v4. Reason: PTY backend complexity. [NOTE FOR PM: Users already have Ghostty.]
+- In-App Browser full hardening (CSP `frame-src`, opener fallback) — `BrowserPane.tsx` (`iframe` + URL bar) built but hidden.
 - Floating window/panel — deferred to v5. Reason: competes head-on with Mote, needs multi-window sync.
 - Cloud sync / collaboration / accounts — deferred. Reason: local-first wedge. Architecture must keep file abstraction ready.
 - Full-text search, tags, graph view, plugins — deferred.
@@ -208,26 +244,28 @@ System shows standard macOS traffic lights (close/minimize/maximize) and persist
 ## 8. Open Questions
 1. File conflict copy: Is banner "Reload / Keep mine" sufficient for v1, or do we need to write a `.conflict.md` side file? [Owner: PM, revisit if user testing shows mid-edit loss.]
 2. `⌘P` scope: Confirm filename-only is acceptable for v1 or must support full-text fallback before paywall?
-3. `+` creation semantics: Should Untitled be unsaved (in-memory) until first keystroke, or created on disk immediately as assumed in FR-9?
+3. `+` creation semantics: **RESOLVED 2026-09-03** — `Untitled.md` is draft `isNew` in-memory until it has content (`body/frontmatter trimmed >0`) then auto-saved (`write_file` → `markTabSaved` + `loadVault`), empty drafts never hit disk; closes/blur with no content does nothing. [Was: immediate disk create.]
 4. Mermaid/tasks in v1: Must Mermaid render live in Tiptap for v1 or can it be code-block fallback with preview on save?
-5. Platform QA for v1: Ship macOS-only (fast) vs Mac/Win/Linux signed builds from Day 1?
-6. Vault switcher: Does Library footer need vault switcher in v1 or single vault is enough for first dollar?
+5. Platform QA for v1: Ship macOS-only (fast) vs Mac/Win/Linux signed builds from Day 1? Vibrant now covers Mac (`Sidebar`) + Win11 (`Mica`) via EffectsBuilder; Linux is opaque fallback.
+6. Vault switcher: Does Library footer need vault switcher in v1 or single vault is enough for first dollar? Footer now has `Switch/Open…` + gear Settings; single vault still.
 7. Pricing ladder: Confirm $5 -> $9 -> $19 ladder tied to Canvas/Terminal, and lifetime vs subscription semantics.
+8. Theme: Light/Dark/System shipped (`data-theme` + `localStorage snipnote-theme` + `⌘,` Settings); confirm dark palette `#141416` etc. is accessible AA for vibrant.
+9. Right Panel: Confirm keeping Terminal/Browser/Canvas hidden behind `App.tsx` flag until v3/v4 vs. exposing behind feature flag in v1.
 
 ## 9. Assumptions Index
-- CommonMark+GFM, Tauri dialog single vault, session history only, filename-only search, Ctrl+P on Win/Linux, immediate Untitled.md create, paragraph = blank-line block, native 800x600 window, 50-fixture round-trip suite, auto-reload when clean, banner when dirty, forwardmatter preserved verbatim, single vault, local-first ready-for-future sync, macOS-first vs cross-platform toggle, Obsidian plain-file readiness, Mermaid/tasks rendered in v1.
+- CommonMark+GFM, Tauri dialog single vault, session history + multi-tab `tabs: Tab[] {path,title,isNew}` + `history[]`, filename-only search, Ctrl+P/Ctrl+,/Ctrl+W/Ctrl+Tab on Win/Linux, **draft Untitled.md until content** (`hasContent` guard), paragraph = blank-line block, vibrant `1280×720` `min 1100×600` `transparent` + `Sidebar`/`Mica` + `radius12`, 50-fixture round-trip suite, auto-reload when clean, banner when dirty, frontmatter preserved verbatim, single vault (Library footer gear → Settings), local-first ready-for-future sync, macOS-primary with Win Mica + Linux opaque fallback, Obsidian plain-file readiness, Mermaid/tasks rendered in v1, theme `light/dark/system` via `prefers-color-scheme` + `localStorage`, dot-folders shown only if subtree has md, empty folders hidden, SVG icons.
 
 ---
 ## Adapt-In Menu
 
 ### Platform
-- **Target:** Desktop Tauri v2, React 19, Vite. Primary: macOS 13+ [ASSUMPTION]; Win/Linux builds ready via Tauri `targets: all` but QA scope per Open Question 5. No mobile/web in v1. Auto-update via Tauri updater deferred [ASSUMPTION].
+- **Target:** Desktop Tauri v2, React 19, Vite, vibrant `transparent` + `Sidebar`/`Mica` via `EffectsBuilder` + `macos-private-api`, `1280×720` `min 1100×600` `Overlay` titleBarStyle. Primary: macOS 13+ with Win11 Mica + Linux opaque fallback; Win/Linux builds ready via `targets: all` but QA scope per Open Question 5. No mobile/web in v1. Auto-update via Tauri updater deferred [ASSUMPTION].
 
 ### Monetization
 - **Model:** Paid one-time, price ladder: v1 $5, then increase as features land (e.g. +Canvas $9, +Terminal $19) — lifetime updates included for early tier [ASSUMPTION]. No subscription in v1. Payment via Lemon Squeezy/Gumroad/Stripe. Free trial? [ASSUMPTION: 7-day trial or free with 7-note limit — confirm before launch.] No accounts in app; license key file.
 
 ### Information Architecture
-- **Surfaces:** Single full-size window. Left: Sidebar (top Search Cmd+P, middle File Tree with folders/files, bottom Library). Right: Tab Bar (arrows, active name, +) over Editor (rendered Markdown) over Status Bar (words/chars/paragraphs). No floating panel in v1.
+- **Surfaces:** Single vibrant window `1280×720`. Left: Sidebar (Search `⌘P`, File Tree with SVG icons + dot-folders, Library footer with gear Settings `⌘,`). Center: Main (`Tab Bar` scrollable multi-tabs + `×` + `+` over `Editor` 760px + `StatusBar` + inline `ConflictBanner` + `CommandPalette` overlay + `Settings` overlay). Right: `RightPanel` (`Terminal`/`Browser`/`Canvas`) — built (`src/components/rightPanel/*`) but hidden behind `App.tsx` comment for later. No floating panel in v1.
 
 ### Aesthetic and Tone
 - **References:** Obsidian/Typora cleanliness, not Notion heaviness. Anti-reference: IDE chrome. Tone: calm, local, fast. Visual: native macOS traffic lights, neutral typography, live rendering without preview toggle.

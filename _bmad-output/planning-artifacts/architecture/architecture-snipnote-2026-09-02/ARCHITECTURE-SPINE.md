@@ -7,7 +7,7 @@ paradigm: 'Hexagonal with Tauri IPC Bridge (Ports & Adapters)'
 scope: 'snipnote desktop markdown editor (v1 scope)'
 status: final
 created: '2026-09-02'
-updated: '2026-09-02'
+updated: '2026-09-03'
 binds:
   - FR-1
   - FR-2
@@ -20,6 +20,8 @@ binds:
   - FR-9
   - FR-10
   - FR-11
+  - FR-12
+  - FR-13
 sources:
   - _bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md
   - _bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/DESIGN.md
@@ -102,13 +104,25 @@ graph TD
 - **Prevents:** Disk I/O thrashing on rapid typing while ensuring Claude Code reads fresh content within 500ms; prevents keystroke drops during in-flight saves.
 - **Rule:** Editor keystroke updates MUST be debounced at 500ms of inactivity before triggering an atomic disk write. The frontend MUST execute an immediate synchronous flush to Rust on tab change, note blur, window blur, and before window close. To prevent dropping keystrokes typed during an in-flight async save, the `dirty` state MUST be cleared if and only if the current editor buffer matches the exact snapshot that was dispatched to disk.
 
-### AD-8 — Disk-First Note Creation Semantics [ADOPTED]
+### AD-8 — Draft-Until-Content Note Creation (was Disk-First) [ADOPTED 2026-09-03]
 
-- **Binds:** FR-9, vault layer
-- **Prevents:** Desynchronization between UI tabs and disk where external agents fail to detect newly created notes.
-- **Rule:** Clicking `+` in the Tab Bar MUST immediately invoke Rust to create `Untitled.md` (or incremented counter `Untitled 1.md`) on disk in the selected folder (or vault root), immediately append it to the vault tree, and set it as the active tab.
+- **Binds:** FR-9, vault layer, editor layer, tab layer
+- **Prevents:** Vault pollution with empty `Untitled.md` files when user presses `+`/`⌘N` without typing; desynchronization between draft tabs and disk.
+- **Rule:** Clicking `+`/`⌘N` in the Tab Bar MUST create a virtual draft tab `{path: baseVault/Untitled.md, title, isNew:true}` via `useTabStore.selectNote(...,{isNew:true})` with `editor.setContent("")` and `isDirty:false`, without invoking Rust `create_note` nor touching disk. The draft MUST remain in-memory (italic title + hollow dot) until `hasContent = body.trim()||frontmatter.trim() >0`. First autosave (500ms debounce) or flush (blur/tab switch/close) with `hasContent` MUST invoke `write_file` → atomic write → `markTabSaved(false)` → `loadVault` to show file in tree. Empty draft closed or window blurred with no content MUST do nothing on disk. `openTabs` persisted in `session.json` MUST exclude `isNew` drafts; `sanitize_session` filters to existing files.
 
-### AD-9 — Strict Local-Only Network & Tauri Security Isolation [ADOPTED]
+### AD-9 — Vibrant Window Material via EffectsBuilder Only [ADOPTED 2026-09-03]
+
+- **Binds:** FR-11, window layer, design tokens
+- **Prevents:** Non-native window chrome, heavy custom blur JS, platform-inconsistent translucency.
+- **Rule:** Window MUST be `transparent:true` + `macOSPrivateApi:true` + `tauri` feature `macos-private-api` + `html/body/#root transparent` + `src-tauri/src/lib.rs:14` `.setup` `EffectsBuilder::new().effects([Effect::Sidebar, Effect::Mica]).state(Active).radius(12.0).build()` → `window.set_effects`. CSS translucent `rgba` variants (`bg 0.78`/`0.72 dark`, `sidebar 0.68`, etc.) sit over native `NSVisualEffectView`/`Mica`; Linux falls back to opaque hexes. No `window-vibrancy` crate. Window `1280×720` `min 1100×600` `Overlay`.
+
+### AD-10 — Light/Dark/System Theme + Settings [ADOPTED 2026-09-03]
+
+- **Binds:** FR-12, FR-13, design tokens
+- **Prevents:** Theme flicker, inconsistent vibrant readability, hidden settings discoverability.
+- **Rule:** Theme state MUST live in `src/stores/useThemeStore.ts:1` (`theme: light|dark|system` + `effectiveTheme`, `localStorage snipnote-theme`, `html[data-theme]` + `style.colorScheme`, `matchMedia(prefers-color-scheme)` live listener when `system`). `src/App.css:43` `[data-theme="dark"]` overrides MUST define dark `bg #141416` etc. + dark translucent. Settings MUST be `src/components/settings/SettingsDialog.tsx:1` overlay `560px` `blur 8px` `z 10000`, opened via global `keydown` `⌘,`/`Ctrl+,` (`key ","`/`code Comma`) or Sidebar gear `Sidebar.tsx:5`, closed via `Esc`/`×`/`Done`/`⌘,` toggle.
+
+### AD-11 — Strict Local-Only Network & Tauri Security Isolation [ADOPTED]
 
 - **Binds:** FR-11, security, NFR
 - **Prevents:** Remote code execution or data leakage of local vault files.
@@ -151,36 +165,44 @@ graph TD
 snipnote/
   src-tauri/
     src/
-      lib.rs                # Tauri command registration & app builder
+      lib.rs                # Tauri command registration & app builder + EffectsBuilder vibrant setup
       main.rs               # Entry point
-      storage.rs            # Atomic save, tempfile handling, file reading, directory scan
+      storage.rs            # Atomic save, tempfile handling, file reading, directory scan (dot-folders + hide empty)
       watcher.rs            # notify watcher thread & RecentlyWritten echo suppression cache
-      session.rs            # session.json load/save & window geometry setup
-    Cargo.toml
-    tauri.conf.json         # Window definitions, permissions, CSP
+      session.rs            # session.json load/save & window geometry + openTabs
+    Cargo.toml              # tauri feature macos-private-api
+    tauri.conf.json         # Window 1280×720 transparent + macOSPrivateApi + Overlay + CSP
   src/
     components/
       sidebar/
-        Sidebar.tsx         # Left pane shell (260px)
-        FileTree.tsx        # Recursive directory tree
-        LibraryFooter.tsx   # Vault switcher & info
+        Sidebar.tsx         # Left pane shell (260px) + gear Settings + vault switch
+        FileTree.tsx        # Recursive directory tree with SVG Folder/File icons + chevron
+        LibraryFooter.tsx   # Vault switcher & info (legacy)
       editor/
-        EditorSurface.tsx   # Tiptap wrapper & centered 760px canvas
-        TabBar.tsx          # History arrows, active note name, '+' button
+        EditorSurface.tsx   # Tiptap wrapper & centered 760px canvas + draft-until-content + auto-save 500ms
+        TabBar.tsx          # Scrollable multi-tabs (isNew draft hollow, dirty •, ×, +) + history arrows
         StatusBar.tsx       # Live word, character, and paragraph counters
         ConflictBanner.tsx  # Non-blocking external change banner
       palette/
-        CommandPalette.tsx  # ⌘P filename quick-switcher
+        CommandPalette.tsx  # ⌘P filename quick-switcher (opens as tab)
+      rightPanel/           # Built but hidden (App.tsx commented) for later
+        RightPanel.tsx      # 420px container + collapsed rail + Tabs Terminal/Browser/Canvas
+        TerminalPane.tsx    # Mock dark #0F0F0F prompt
+        BrowserPane.tsx     # URL bar + iframe
+        CanvasPane.tsx      # Dotted grid canvas + pen/rect/arrow
+      settings/
+        SettingsDialog.tsx  # 560px blur overlay + Appearance radios
     hooks/
       useTauriEvents.ts     # Listeners for vault:file-changed & vault:tree-changed
     stores/
-      useVaultStore.ts      # Active vault path, tree hierarchy, file index
-      useTabStore.ts        # Open tabs, active tab path, history stack
-      useEditorStore.ts     # Document envelope, dirty status, save debouncer
+      useVaultStore.ts      # Active vault path, tree hierarchy (filtered), file index
+      useTabStore.ts        # Tabs Tab[] {path,title,isNew}, active, history, select/close/setTabs/markSaved
+      useEditorStore.ts     # Document envelope, dirty/isSaving/isLoading, saveNow with hasContent guard
+      useThemeStore.ts      # Theme light|dark|system, effectiveTheme, localStorage, data-theme
     utils/
       envelope.ts           # Frontmatter extraction & reattachment
       stats.ts              # Word, character, and paragraph counters
-    App.tsx                 # Two-pane layout orchestration
+    App.tsx                 # Vibrant app-shell (Sidebar | Main | [RightPanel hidden]) + global shortcuts (⌘N/P/,/W/Tab) + session + theme
     main.tsx                # React root mount
     index.html
 ```
@@ -190,23 +212,27 @@ snipnote/
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
 | FR-1: Open local Vault | `src-tauri/src/storage.rs`, `useVaultStore.ts` | AD-1, AD-6 |
-| FR-2: Render File Tree 1:1 | `components/sidebar/FileTree.tsx`, `useVaultStore.ts` | AD-1, AD-8 |
-| FR-3: Active File Highlight & Library | `components/sidebar/Sidebar.tsx`, `useTabStore.ts` | AD-5 |
+| FR-2: Render File Tree (filtered + icons) | `components/sidebar/FileTree.tsx` (SVG icons), `useVaultStore.ts`, `src-tauri/src/storage.rs:79` | AD-1, AD-8 |
+| FR-3: Active File Highlight & Library + Settings gear | `components/sidebar/Sidebar.tsx` (folder SVG + gear), `useTabStore.ts`, `useThemeStore.ts` | AD-5, AD-10 |
 | FR-4: Search via ⌘P (filename) | `components/palette/CommandPalette.tsx`, `useVaultStore.ts` | AD-5 |
-| FR-5: Navigate via File Tree & Tabs | `components/editor/TabBar.tsx`, `useTabStore.ts` | AD-5 |
-| FR-6: Live Markdown & Mermaid | `components/editor/EditorSurface.tsx`, Tiptap NodeViews | AD-2, AD-5 |
-| FR-7: Raw Markdown Round-Trip | `utils/envelope.ts`, `src-tauri/src/storage.rs` | AD-1, AD-2, AD-7 |
+| FR-5: Navigate via File Tree & Multi-Tabs | `components/editor/TabBar.tsx` (scrollable tabs, ×/⌘W/Ctrl+Tab), `useTabStore.ts` | AD-5, AD-8 |
+| FR-6: Live Markdown & Mermaid + Draft | `components/editor/EditorSurface.tsx` (isNew draft init), Tiptap NodeViews | AD-2, AD-5, AD-8 |
+| FR-7: Raw Markdown Round-Trip + hasContent | `utils/envelope.ts`, `src-tauri/src/storage.rs`, `useEditorStore.ts:84` | AD-1, AD-2, AD-7, AD-8 |
 | FR-8: File Watcher & Conflict Banner | `src-tauri/src/watcher.rs`, `ConflictBanner.tsx` | AD-1, AD-3, AD-4 |
-| FR-9: Tab Lifecycle & `+` Note | `components/editor/TabBar.tsx`, `src-tauri/src/storage.rs` | AD-5, AD-8 |
+| FR-9: Multi-Tab + Draft-Until-Content `+` | `components/editor/TabBar.tsx`, `useTabStore.ts`, `App.tsx:124` (handleNewNote draft), `useEditorStore.ts` | AD-5, AD-8 |
 | FR-10: Live Document Statistics | `components/editor/StatusBar.tsx`, `utils/stats.ts` | AD-5 |
-| FR-11: Native Window & Persistence | `src-tauri/src/session.rs`, `tauri.conf.json` | AD-6, AD-9 |
+| FR-11: Vibrant Window & Persistence | `src-tauri/src/session.rs` (`openTabs`), `tauri.conf.json` (`1280×720` `transparent`), `lib.rs:14` `EffectsBuilder`, `useThemeStore.ts` | AD-6, AD-9, AD-10 |
+| FR-12: Theme Light/Dark/System | `src/stores/useThemeStore.ts`, `src/App.css:43` `[data-theme="dark"]`, `SettingsDialog.tsx` | AD-10 |
+| FR-13: Settings Overlay `⌘,` | `src/components/settings/SettingsDialog.tsx`, `Sidebar.tsx:5` gear, `App.tsx:119` global `keydown` | AD-10 |
+| Right Panel (hidden) | `src/components/rightPanel/*` (`TerminalPane`, `BrowserPane`, `CanvasPane`), `App.css:136` | Deferred — built but `App.tsx` commented |
 
-## Deferred
+## Deferred (with stubs built but hidden)
 
-| Item | Reason for Deferral |
+| Item | Reason for Deferral / Current State |
 | --- | --- |
-| Canvas & Whiteboarding (Excalidraw) | Major scope expansion; deferred to v3 to keep v1 focused on text spec reviews. |
-| Embedded Terminal & PTY Host | Terminal emulation complexity; Claude lives in user's Ghostty/iTerm beside snipnote (v4). |
+| Canvas & Whiteboarding (Excalidraw) | Stub `src/components/rightPanel/CanvasPane.tsx:1` (dotted grid `canvas` + pen/rect/arrow + Clear) built but `App.tsx` hides `RightPanel`; full `@excalidraw/excalidraw` + JSON persistence deferred to v3. |
+| Embedded Terminal & PTY Host | Stub `src/components/rightPanel/TerminalPane.tsx:1` (mock `help/ls/pwd/echo` on dark `#0F0F0F`) built but hidden; PTY wiring via `tauri-plugin-shell` + `xterm.js` deferred to v4 (Claude still in Ghostty). |
+| In-App Browser | Stub `src/components/rightPanel/BrowserPane.tsx:1` (`iframe` + URL bar + reload) built but hidden; `frame-src` CSP + `opener` fallback deferred. |
 | Floating Window Capture Panel | Competes with Mote; requires multi-window sync complexity (deferred to v5). |
 | Cloud Sync & User Accounts | v1 is strictly local-first and single-user. File abstraction remains ready for sync layer. |
 | Full-Text Search & Indexing | Filename search via ⌘P meets v1 performance goals (<100ms for 500 notes). Inverted index deferred to v2. |

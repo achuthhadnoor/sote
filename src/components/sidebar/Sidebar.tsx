@@ -2,7 +2,11 @@ import React from "react";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { FileTree } from "./FileTree";
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onOpenSettings?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   const { vaultPath, tree, isLoading, error, openVaultDialog } = useVaultStore();
 
   const folderName = vaultPath ? vaultPath.split("/").pop() || vaultPath : null;
@@ -66,20 +70,52 @@ export const Sidebar: React.FC = () => {
           </svg>
           {folderName ?? "Library"}
         </span>
-        <button
-          onClick={openVaultDialog}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--fg)",
-            cursor: "pointer",
-            fontSize: "13px",
-            fontWeight: 500,
-          }}
-          title={vaultPath || "Open vault"}
-        >
-          {vaultPath ? "Switch" : "Open..."}
-        </button>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={openVaultDialog}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--fg)",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 500,
+            }}
+            title={vaultPath || "Open vault"}
+          >
+            {vaultPath ? "Switch" : "Open..."}
+          </button>
+          <button
+            onClick={() => onOpenSettings?.()}
+            title="Settings (⌘,)"
+            aria-label="Open settings"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              border: "1px solid transparent",
+              background: "transparent",
+              color: "var(--muted-fg)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "var(--hover-translucent)";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--fg)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--muted-fg)";
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M19.4 14.9a7.5 7.5 0 0 0 .1-1.8l1.7-1.3-1.7-3-1.9.4a7.3 7.3 0 0 0-1.6-.9L14.9 6h-3.4L10.2 8.3a7.3 7.3 0 0 0-1.6.9L6.7 8.8l-1.7 3 1.7 1.3a7.5 7.5 0 0 0 .1 1.8L5.1 16.2l1.7 3 1.9-.4c.5.4 1 .7 1.6.9l1.2 2.3h3.4l1.2-2.3c.6-.2 1.1-.5 1.6-.9l1.9.4 1.7-3-1.9-1.3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
       </div>
     </aside>
   );
