@@ -25,8 +25,10 @@ function App() {
   const isInitialized = useRef(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // ensure theme is initialized (store side-effect loads from localStorage)
   useThemeStore((s) => s.effectiveTheme);
+  const setTheme = useThemeStore((s) => s.setTheme);
 
   // Restore session on mount — restores vault + open tabs
   useEffect(() => {
@@ -120,6 +122,8 @@ function App() {
     };
   }, []);
 
+
+
   // New note is now a draft tab — no file on disk until there is content
   const handleNewNote = async () => {
     let vp = useVaultStore.getState().vaultPath;
@@ -153,6 +157,34 @@ function App() {
     selectNote(candidatePath, candidateName, { isNew: true });
   };
 
+  // Native menu event listeners (from Rust on_menu_event)
+  useEffect(() => {
+    const unlisteners: Array<() => void> = [];
+    const setup = async () => {
+      unlisteners.push(await listen("menu:new_note", () => handleNewNote()));
+      unlisteners.push(await listen("menu:open_vault", () => useVaultStore.getState().openVaultDialog()));
+      unlisteners.push(
+        await listen("menu:close_tab", () => {
+          const active = useTabStore.getState().activePath;
+          if (active) useTabStore.getState().closeTab(active);
+        })
+      );
+      unlisteners.push(await listen("menu:toggle_sidebar", () => setSidebarCollapsed((v) => !v)));
+      unlisteners.push(await listen("menu:theme_light", () => setTheme("light")));
+      unlisteners.push(await listen("menu:theme_dark", () => setTheme("dark")));
+      unlisteners.push(await listen("menu:theme_system", () => setTheme("system")));
+      unlisteners.push(await listen("menu:about", () => setIsSettingsOpen(true)));
+    };
+    setup();
+    return () => {
+      unlisteners.forEach((fn) => {
+        try {
+          fn();
+        } catch {}
+      });
+    };
+  }, [handleNewNote, setTheme]);
+
   // Global keyboard shortcuts (Cmd+N, Cmd+P, Cmd+, Cmd+W, nav)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -169,6 +201,11 @@ function App() {
           // flush dirty before close is handled by EditorSurface on activePath change
           useTabStore.getState().closeTab(active);
         }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setSidebarCollapsed((v) => !v);
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
@@ -203,7 +240,19 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
+      {!sidebarCollapsed && <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />}
+      {sidebarCollapsed && (
+        <button
+          className="sidebar-collapsed-toggle"
+          onClick={() => setSidebarCollapsed(false)}
+          title="Show Sidebar (⌘B)"
+          aria-label="Show Sidebar"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
+        </button>
+      )}
       <main className="main-container">
         <TabBar onNewNote={handleNewNote} />
         <ConflictBanner />

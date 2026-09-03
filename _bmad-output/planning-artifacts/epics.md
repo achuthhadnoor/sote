@@ -2,6 +2,8 @@
 stepsCompleted:
   - step-01-validate-prerequisites
   - step-02-design-epics
+  - step-03-create-stories
+  - step-04-final-validation
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md
   - _bmad-output/planning-artifacts/architecture/architecture-snipnote-2026-09-02/ARCHITECTURE-SPINE.md
@@ -338,6 +340,155 @@ So that I can jump between recently referenced notes effortlessly.
 As a user,
 I want to see real-time word, character, and paragraph counts in the Status Bar,
 So that I have continuous unobtrusive insight into my writing progress.
+
+**Acceptance Criteria:**
+
+**Given** an open note with content in the Editor,
+**When** the user types or loads a note,
+**Then** the Status Bar updates within 50ms to show `X words | Y characters | Z paragraphs` (paragraph = blank-line block).
+**And** the Status Bar remains `status-translucent` over vibrant, `11px` `muted-fg` right-aligned with `Raw/Rich` toggle at far right.
+
+## Epic 5: Native Desktop Polish
+
+Users feel snipnote as a native macOS/Win app: real App Menu, traffic-lights `Overlay` + `FullScreen`, `Reveal in Finder`/`Quick Look`/`Share`, `Context Menus`, drag & drop, `Find` `⌘F`, spellcheck, file association, overlay scrollbars + spring motion, notifications, `SF Symbols`, `VoiceOver`/`High Contrast`, `Sparkle` update + `Launch at Login`, haptics — all polished without cloud.
+**FRs covered:** FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-22, FR-23, FR-24, FR-25, FR-26, FR-27, FR-28
+
+### Story 5.1: Native App Menu & Window Chrome
+
+As a user,
+I want a native `App Menu` and proper window chrome with traffic-lights `Overlay` and `FullScreen` `^⌘F` support,
+So that snipnote feels at home beside Finder/Explorer and respects window management.
+
+**Acceptance Criteria:**
+
+**Given** `src-tauri/tauri.conf.json:12` `transparent:true` + `macOSPrivateApi:true` + `titleBarStyle Overlay` + `EffectsBuilder` vibrant already, and `tauri-plugin-menu` installed,
+**When** the user opens the `App Menu`,
+**Then** `File` shows `New` `⌘N` draft, `Open Vault…` `⌘O`, `Save` `⌘S` (auto-save), `Close Tab` `⌘W`; `Edit` shows `Undo` `⌘Z`/`Redo` `⇧⌘Z`/`Cut`/`Copy`/`Paste`/`Select All`; `View` shows `Toggle Sidebar`/`Appearance` `Light/Dark/System` (syncs `useThemeStore`); `Window` shows `Minimize` `⌘M`/`Zoom`/`FullScreen` `^⌘F` with `Split View`/`Spaces`/`Stage Manager` support; `Help` + `Services`/`Hide` `⌘H`/`Quit` `⌘Q` are present.
+**And** `FullScreen` toggles via `Window` → `FullScreen` and `^⌘F` without layout break.
+
+### Story 5.2: Dock & Recent Documents + Single Instance & Deep Link
+
+As a user,
+I want `Dock` `Recent Vaults`, `Dock menu`, badge/progress, and `snipnote://open?path=` to open in the existing window,
+So that I can jump back to vaults and open files from Finder/CLI without duplicate windows.
+
+**Acceptance Criteria:**
+
+**Given** an open vault,
+**When** the user opens another vault,
+**Then** `Recent Vaults` via `NSDocumentController`/`tauri-plugin-menu` lists it under `File` → `Open Recent`.
+**Given** the app in `Dock`,
+**When** the user right-clicks the Dock icon,
+**Then** `Dock menu` shows `New Note`/`Open Vault` (via `tauri-plugin`).
+**Given** a `snipnote://open?path=/vault/note.md` URL or `open` of `*.md` with `snipnote` as default app,
+**When** invoked while an instance is running,
+**Then** `Single Instance` (`tauri-plugin-single-instance`) focuses the existing window and `selectNote(path,name)` opens the file as tab (no second window).
+
+### Story 5.3: Context Menus + Reveal/Quick Look/Share
+
+As a user,
+I want `right-click` `Context Menus` on File Tree and Editor with `Reveal`, `Quick Look`, and `Share`,
+So that I can act on files without leaving the vault.
+
+**Acceptance Criteria:**
+
+**Given** a File Tree row `right-click`,
+**When** the `ContextMenu` (`tauri-plugin-context-menu` or DOM `onContextMenu` + `Menu`) opens,
+**Then** it shows `Reveal in Finder`/`Show in Explorer` (`opener reveal`), `Open with default app`, `Rename` (inline), `Delete` (move to trash), `New File/Folder`, `Copy Path`, `Copy Relative Path`.
+**Given** an Editor `right-click`,
+**When** invoked,
+**Then** it shows `Cut`/`Copy`/`Paste`/`Select All`/`Inspect`.
+**Given** a file selected and `Space` pressed,
+**When** triggered,
+**Then** `Quick Look` (`qlmanage`/`opener`) previews the file; `Share` sheet is available via `opener`.
+
+### Story 5.4: Drag & Drop & File Association
+
+As a user,
+I want to drag files between Finder and vault and have `*.md` double-click open in snipnote,
+So that vault management feels native.
+
+**Acceptance Criteria:**
+
+**Given** a Finder drag of files onto the vault window,
+**When** dropped,
+**Then** files are copied into the vault root (or dragged folder) and appear in File Tree within 500ms (via `scan_directory` refresh).
+**Given** a vault note drag started in File Tree,
+**When** dropped onto Finder/Desktop,
+**Then** `NSFilePromise`/`tauri drag` provides `VaultNode.path` as file promise and creates the file at drop location.
+**Given** `*.md`/`*.markdown` double-click in Finder with `snipnote` set as default (`CFBundleDocumentTypes` in `tauri.conf.json`),
+**When** opened,
+**Then** the existing window `selectNote` opens it as tab.
+
+### Story 5.5: Find/Replace in Editor
+
+As a user,
+I want `⌘F` find bar in the Editor,
+So that I can locate text without leaving the note.
+
+**Acceptance Criteria:**
+
+**Given** an open note with content and `⌘F` pressed,
+**When** triggered,
+**Then** a floating find bar (above Status Bar, `Esc` closes, `Enter`/`⇧Enter` next/prev) highlights matches in `ProseMirror` via `DecorationSet` and scrolls to them.
+**And** `⇧⌘F` toggles replace input; `Find in Vault` remains future (filename `⌘P` stays).
+
+### Story 5.6: SpellCheck & Overlay Scrollbars/Motion
+
+As a user,
+I want `SpellCheck` and native scrollbars/motion that respect OS settings,
+So that typing feels native and accessible.
+
+**Acceptance Criteria:**
+
+**Given** `webview` `spellcheck: true` + `NSSpellChecker` autocorrect toggle in Settings (`tauri-plugin` + `SettingsDialog` switch),
+**When** typing,
+**Then** misspellings underline and `right-click` shows suggestions; toggle persists in `localStorage`.
+**Given** `prefers-reduced-motion`/`prefers-reduced-transparency`,
+**When** OS settings enabled,
+**Then** palette/outline spring `0.2,0,0,1` is disabled and vibrant falls back to opaque hexes (`src/App.css:43`).
+
+### Story 5.7: Notifications + SF Symbols + Visual Polish
+
+As a user,
+I want native notifications when `claude` writes while snipnote is hidden and `SF Symbols` where appropriate,
+So that I stay aware without losing native look.
+
+**Acceptance Criteria:**
+
+**Given** `vault-changed` fires while window is hidden/minimized and active note is dirty,
+**When** detected,
+**Then** `NSUserNotification`/Win Toast (`tauri-plugin-notification`) shows `File changed on disk` (in addition to inline banner when visible); clicking focuses window and shows banner.
+**Given** macOS,
+**When** rendering folder/file icons,
+**Then** `SF Symbols` (`folder`, `doc.richtext`, `magnifyingglass`, `gearshape`) via `SF Symbol` font or `NSImage` replace custom SVG fallback (keep SVG fallback for Win/Linux).
+
+### Story 5.8: Accessibility
+
+As a user relying on `VoiceOver`/`Full Keyboard Access`/`High Contrast`,
+I want full `a11y` support,
+So that snipnote is usable without a mouse.
+
+**Acceptance Criteria:**
+
+**Given** `VoiceOver` rotor,
+**When** navigating,
+**Then** headings are reachable via outline `role=navigation` (done) + `aria-*` on File Tree (`role=tree` `aria-expanded`/`selected`) and `TabBar` (`role=tablist`/`aria-selected` done) and `CommandPalette` (`aria-live`) + `StatusBar` live region.
+**And** `Full Keyboard Access` `Tab` order: `Sidebar Search` → `File Tree` (roving `tabindex`) → `Library` → `TabBar` `+` → `Editor` → `StatusBar` `Raw` toggle → `Settings` (all `Tab`-reachable, `Esc` returns to Editor).
+**And** `High Contrast` `prefers-contrast` increases border contrast (`--border` `2px`).
+
+### Story 5.9: Distribution: Auto-update, Launch at Login, Haptics
+
+As a user,
+I want `Sparkle` auto-update, `Launch at Login`, and subtle haptics,
+So that snipnote stays fresh and feels tactile.
+
+**Acceptance Criteria:**
+
+**Given** `tauri-plugin-updater` (`Sparkle` on macOS) configured + `Settings` `Launch at Login` toggle (`tauri-plugin-autostart`),
+**When** an update is available or toggle switched,
+**Then** `Check for Updates` shows progress, `Launch at Login` persists via `autostart` plugin and survives reboot.
+**And** `Haptics` (`NSHapticFeedbackManager` `alignment`) fires on `Toggle Sidebar`/`Settings` open and `NSSound.beep` on save error (via `tauri-plugin` or `navigator.vibrate` fallback).
 
 
 

@@ -160,6 +160,27 @@ html, body, #root {
   color: var(--muted-fg);
 }
 
+.sidebar-collapsed-toggle {
+  width: 32px;
+  min-width: 32px;
+  height: 100%;
+  border: none;
+  border-right: 1px solid var(--border-translucent);
+  background: var(--sidebar-translucent);
+  color: var(--muted-fg);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sidebar-collapsed-toggle:hover {
+  color: var(--fg);
+  background: var(--hover-translucent);
+}
+
 /* Right Panel — Terminal / Browser / Canvas (vibrant) */
 .right-panel {
   width: 420px;
