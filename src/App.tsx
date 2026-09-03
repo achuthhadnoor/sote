@@ -157,12 +157,13 @@ function App() {
     selectNote(candidatePath, candidateName, { isNew: true });
   };
 
-  // Native menu event listeners (from Rust on_menu_event)
+  // Native menu / deep-link / single-instance listeners
   useEffect(() => {
     const unlisteners: Array<() => void> = [];
     const setup = async () => {
       unlisteners.push(await listen("menu:new_note", () => handleNewNote()));
       unlisteners.push(await listen("menu:open_vault", () => useVaultStore.getState().openVaultDialog()));
+      unlisteners.push(await listen<string>("menu:open_recent", (e) => useVaultStore.getState().loadVault(e.payload)));
       unlisteners.push(
         await listen("menu:close_tab", () => {
           const active = useTabStore.getState().activePath;
@@ -174,6 +175,38 @@ function App() {
       unlisteners.push(await listen("menu:theme_dark", () => setTheme("dark")));
       unlisteners.push(await listen("menu:theme_system", () => setTheme("system")));
       unlisteners.push(await listen("menu:about", () => setIsSettingsOpen(true)));
+      // single-instance second launch with file/vault path
+      unlisteners.push(
+        await listen<string>("single-instance:open", (e) => {
+          const p = e.payload;
+          const name = p.split("/").pop() || "Note";
+          const vault = p.substring(0, p.lastIndexOf("/"));
+          const currentVault = useVaultStore.getState().vaultPath;
+          if (!currentVault || !p.startsWith(currentVault)) {
+            useVaultStore.getState().loadVault(vault).then(() => useTabStore.getState().selectNote(p, name)).catch(() => useTabStore.getState().selectNote(p, name));
+          } else {
+            useTabStore.getState().selectNote(p, name);
+          }
+        })
+      );
+      unlisteners.push(await listen<string>("single-instance:open-vault", (e) => useVaultStore.getState().loadVault(e.payload)));
+      // deep link snipnote://open?path=... or vault=...
+      unlisteners.push(
+        await listen<string>("deep-link:open", (e) => {
+          const p = e.payload;
+          const name = p.split("/").pop() || "Note";
+          // if vault not yet loaded, try to load its parent dir as vault
+          const vault = p.substring(0, p.lastIndexOf("/"));
+          const currentVault = useVaultStore.getState().vaultPath;
+          if (!currentVault || !p.startsWith(currentVault)) {
+            // try to load parent as vault if it exists
+            useVaultStore.getState().loadVault(vault).then(() => useTabStore.getState().selectNote(p, name)).catch(() => useTabStore.getState().selectNote(p, name));
+          } else {
+            useTabStore.getState().selectNote(p, name);
+          }
+        })
+      );
+      unlisteners.push(await listen<string>("deep-link:open-vault", (e) => useVaultStore.getState().loadVault(e.payload)));
     };
     setup();
     return () => {
@@ -184,6 +217,12 @@ function App() {
       });
     };
   }, [handleNewNote, setTheme]);
+
+  // Keep Recent Vaults menu in sync (also handles Dock Recent)
+  useEffect(() => {
+    if (!vaultPath) return;
+    invoke("add_recent_vault", { vaultPath }).catch(() => {});
+  }, [vaultPath]);
 
   // Global keyboard shortcuts (Cmd+N, Cmd+P, Cmd+, Cmd+W, nav)
   useEffect(() => {
