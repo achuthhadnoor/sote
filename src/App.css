@@ -852,9 +852,9 @@ html, body, #root {
   box-shadow: 0 0 0 2px rgba(255,255,255,0.06);
 }
 
-/* Floating outline — horizontal dashes at right center, expands on hover */
+/* Floating outline — horizontal dashes at right center, expands on hover — fixed so it does not scroll with markdown */
 .outline-floating {
-  position: absolute;
+  position: fixed;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
@@ -863,6 +863,7 @@ html, body, #root {
   z-index: 5;
   /* larger hover area */
   padding: 12px 0 12px 12px;
+  pointer-events: auto;
 }
 
 .outline-dashes {

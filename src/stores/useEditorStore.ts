@@ -13,6 +13,7 @@ interface EditorState {
   error: string | null;
   hasConflict: boolean;
   reloadCount: number;
+  isRawMode: boolean;
   loadNote: (path: string) => Promise<string>;
   updateBody: (body: string) => void;
   updateFrontmatter: (frontmatter: string | null) => void;
@@ -22,6 +23,8 @@ interface EditorState {
   setConflict: (val: boolean) => void;
   resolveConflictReload: (path: string) => Promise<string>;
   resolveConflictKeepMine: () => void;
+  toggleRawMode: () => void;
+  setRawMode: (val: boolean) => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -35,6 +38,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   error: null,
   hasConflict: false,
   reloadCount: 0,
+  isRawMode: false,
 
   loadNote: async (path: string) => {
     set({ isLoading: true, error: null });
@@ -159,5 +163,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   resolveConflictKeepMine: () => {
     set({ hasConflict: false });
+  },
+
+  toggleRawMode: () => {
+    set((s) => ({ isRawMode: !s.isRawMode }));
+  },
+
+  setRawMode: (val: boolean) => {
+    set({ isRawMode: val });
   },
 }));
