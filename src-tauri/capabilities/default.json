@@ -7,6 +7,8 @@
   ],
   "permissions": [
     "core:default",
+    "core:menu:default",
+    "core:menu:allow-popup",
     "opener:default",
     "dialog:default",
     "notification:default",

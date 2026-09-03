@@ -3,8 +3,9 @@ import { VaultNode } from "../../types/vault";
 import { useTabStore } from "../../stores/useTabStore";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { FileContextMenu } from "./FileContextMenu";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
+import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 
 interface FileTreeProps {
   nodes: VaultNode[];
@@ -45,34 +46,7 @@ interface FileTreeNodeProps {
   onContextMenu: (e: React.MouseEvent, node: VaultNode) => void;
 }
 
-const isMacOS = () =>
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || (navigator as any).userAgent || "");
-
-const SFSymbol: React.FC<{ name: string; fallback: React.ReactNode }> = ({ name, fallback }) => {
-  if (!isMacOS()) return <>{fallback}</>;
-  // SF Symbol names mapping to emoji-like glyphs that render with San Francisco on macOS
-  const map: Record<string, string> = {
-    folder: "📁",
-    "folder.fill": "📁",
-    "doc.richtext": "📄",
-    magnifyingglass: "🔍",
-    gearshape: "⚙️",
-    "gearshape.fill": "⚙️",
-    doc: "📄",
-  };
-  const glyph = map[name] || name;
-  return (
-    <span className="sf-symbol" data-sf-symbol={name} aria-hidden="true">
-      {glyph}
-    </span>
-  );
-};
-
-const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => {
-  if (isMacOS()) {
-    return <SFSymbol name={open ? "folder.fill" : "folder"} fallback={null} />;
-  }
-  return (
+const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => (
   <svg
     width="16"
     height="16"
@@ -102,15 +76,11 @@ const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => {
     />
     {open && <path d="M3 9.5H21" stroke="currentColor" strokeWidth="1.2" opacity="0.5" />}
   </svg>
-  );
-};
+);
 
 const FileIcon: React.FC<{ name: string }> = ({ name }) => {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   const isMd = ext === "md" || ext === "markdown";
-  if (isMacOS()) {
-    return <SFSymbol name={isMd ? "doc.richtext" : "doc"} fallback={<span className="sf-symbol">📄</span>} />;
-  }
   return (
     <svg
       width="16"
@@ -205,6 +175,150 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
     } catch {}
   };
 
+  const handleFolderContextMenuNative = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const vaultPath = useVaultStore.getState().vaultPath;
+    const loadVault = useVaultStore.getState().loadVault;
+    const isMac = typeof navigator !== "undefined" && navigator.platform.includes("Mac");
+    try {
+      const reveal = await MenuItem.new({
+        id: "reveal",
+        text: `Reveal in ${isMac ? "Finder" : "Explorer"}`,
+        action: async () => {
+          try {
+            await revealItemInDir(node.path);
+          } catch (err) {
+            console.error("Reveal failed", err);
+          }
+        },
+      });
+      const open = await MenuItem.new({
+        id: "open",
+        text: "Open with Default App",
+        action: async () => {
+          try {
+            await openPath(node.path);
+          } catch {}
+        },
+      });
+      const sep1 = await PredefinedMenuItem.new({ text: "Separator" } as any);
+      const renameItem = await MenuItem.new({
+        id: "rename",
+        text: "Rename…",
+        action: async () => {
+          const current = node.name;
+          const next = window.prompt(`Rename "${current}" to:`, current);
+          if (!next || next === current || !next.trim()) return;
+          try {
+            const newPath = await invoke<string>("rename_path", { oldPath: node.path, newName: next.trim() });
+            const tabs = useTabStore.getState().tabs;
+            const tab = tabs.find((t) => t.path === node.path);
+            if (tab) {
+              useTabStore.getState().closeTab(node.path);
+              useTabStore.getState().selectNote(newPath, next.trim());
+            }
+            if (node.isDirectory) {
+              const allTabs = useTabStore.getState().tabs;
+              allTabs.forEach((t) => {
+                if (t.path.startsWith(node.path + "/")) {
+                  const newTabPath = t.path.replace(node.path, newPath);
+                  const title = newTabPath.split("/").pop() || t.title;
+                  useTabStore.getState().closeTab(t.path);
+                  useTabStore.getState().selectNote(newTabPath, title);
+                }
+              });
+            }
+            if (vaultPath) await loadVault(vaultPath);
+          } catch (e: any) {
+            alert(`Rename failed: ${e?.message || e}`);
+          }
+        },
+      });
+      const del = await MenuItem.new({
+        id: "delete",
+        text: "Delete",
+        action: async () => {
+          const ok = window.confirm(`Delete "${node.name}"? This cannot be undone.`);
+          if (!ok) return;
+          try {
+            await invoke("delete_path", { path: node.path });
+            const tabs = useTabStore.getState().tabs;
+            tabs.forEach((t) => {
+              if (t.path === node.path || t.path.startsWith(node.path + "/")) {
+                useTabStore.getState().closeTab(t.path);
+              }
+            });
+            if (vaultPath) await loadVault(vaultPath);
+          } catch (e: any) {
+            alert(`Delete failed: ${e?.message || e}`);
+          }
+        },
+      });
+      const sep2 = await PredefinedMenuItem.new({ text: "Separator" } as any);
+      const copyPath = await MenuItem.new({
+        id: "copyPath",
+        text: "Copy Path",
+        action: async () => {
+          try {
+            await navigator.clipboard.writeText(node.path);
+          } catch {}
+        },
+      });
+      const copyRel = await MenuItem.new({
+        id: "copyRel",
+        text: "Copy Relative Path",
+        action: async () => {
+          const vp = useVaultStore.getState().vaultPath;
+          const rel = vp && node.path.startsWith(vp) ? node.path.slice(vp.length).replace(/^\/+/, "") : node.path;
+          try {
+            await navigator.clipboard.writeText(rel);
+          } catch {}
+        },
+      });
+      const sep3 = await PredefinedMenuItem.new({ text: "Separator" } as any);
+      const newFile = await MenuItem.new({
+        id: "newFile",
+        text: "New File…",
+        action: async () => {
+          const name = window.prompt("New file name (e.g. Note.md):", "Untitled.md");
+          if (!name || !name.trim()) return;
+          try {
+            const dirPath = node.path;
+            const newPath = await invoke<string>("create_file_at_path", { dirPath, fileName: name.trim() });
+            if (vaultPath) await loadVault(vaultPath);
+            const title = newPath.split("/").pop() || name;
+            useTabStore.getState().selectNote(newPath, title);
+          } catch (e: any) {
+            alert(`Create file failed: ${e?.message || e}`);
+          }
+        },
+      });
+      const newFolder = await MenuItem.new({
+        id: "newFolder",
+        text: "New Folder…",
+        action: async () => {
+          const name = window.prompt("New folder name:", "New Folder");
+          if (!name || !name.trim()) return;
+          try {
+            const dirPath = node.path;
+            await invoke<string>("create_folder_at_path", { dirPath, folderName: name.trim() });
+            if (vaultPath) await loadVault(vaultPath);
+          } catch (e: any) {
+            alert(`Create folder failed: ${e?.message || e}`);
+          }
+        },
+      });
+      const menu = await Menu.new({
+        items: [reveal, open, sep1, renameItem, del, sep2, copyPath, copyRel, sep3, newFile, newFolder],
+      });
+      await menu.popup();
+    } catch (err) {
+      console.error("Native folder menu failed, fallback to custom", err);
+      onContextMenu(e, node);
+    }
+  };
+
   if (node.isDirectory) {
     return (
       <div className="tree-dir-item">
@@ -213,7 +327,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
           draggable
           onDragStart={handleDragStart}
           onClick={() => setIsOpen((prev) => !prev)}
-          onContextMenu={(e) => onContextMenu(e, node)}
+          onContextMenu={handleFolderContextMenuNative}
           onDragOver={handleFolderDragOver}
           onDragLeave={handleFolderDragLeave}
           onDragEnd={handleFolderDragEnd}
