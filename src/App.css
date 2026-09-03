@@ -498,10 +498,18 @@ html, body, #root {
   padding: 20px;
   display: flex;
   justify-content: flex-start;
-  overflow-x: auto;
-  overflow-y: auto;
+  align-items: flex-start;
+  overflow: hidden;
+  height: 560px;
   background-color: #FAFAFA;
   transition: background-color 0.15s ease;
+  position: relative;
+}
+
+.mermaid-preview-container.is-fit {
+  height: auto;
+  max-height: 80vh;
+  overflow: auto;
 }
 
 .mermaid-preview-container.mermaid-dark {
