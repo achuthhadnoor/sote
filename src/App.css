@@ -1036,12 +1036,17 @@ html, body, #root {
   margin-bottom: 0;
 }
 
-.ProseMirror ul[data-type="taskList"] {
+.ProseMirror ul[data-type="taskList"],
+.ProseMirror [data-type="taskList"],
+.ProseMirror .taskList {
   list-style: none !important;
   padding-left: 0 !important;
 }
 
-.ProseMirror li[data-type="taskItem"] {
+.ProseMirror li[data-type="taskItem"],
+.ProseMirror li[data-checked],
+.ProseMirror .taskItem,
+.ProseMirror li.taskItem {
   display: flex !important;
   flex-direction: row !important;
   align-items: flex-start !important;
@@ -1049,7 +1054,9 @@ html, body, #root {
   list-style: none !important;
 }
 
-.ProseMirror li[data-type="taskItem"] > label {
+.ProseMirror li[data-type="taskItem"] > label,
+.ProseMirror li[data-checked] > label,
+.ProseMirror .taskItem > label {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -1058,17 +1065,23 @@ html, body, #root {
   cursor: pointer;
 }
 
-.ProseMirror li[data-type="taskItem"] > div {
+.ProseMirror li[data-type="taskItem"] > div,
+.ProseMirror li[data-checked] > div,
+.ProseMirror .taskItem > div {
   flex: 1 1 0%;
   min-width: 0;
   margin: 0;
 }
 
-.ProseMirror li[data-type="taskItem"] > div > p {
+.ProseMirror li[data-type="taskItem"] > div > p,
+.ProseMirror li[data-checked] > div > p,
+.ProseMirror .taskItem > div > p {
   margin: 0 !important;
 }
 
-.ProseMirror li[data-type="taskItem"] > div > p + p {
+.ProseMirror li[data-type="taskItem"] > div > p + p,
+.ProseMirror li[data-checked] > div > p + p,
+.ProseMirror .taskItem > div > p + p {
   margin-top: 4px !important;
 }
 
