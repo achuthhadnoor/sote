@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Theme, useThemeStore } from "../../stores/useThemeStore";
+import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 
 interface Props {
   isOpen: boolean;
@@ -9,6 +10,8 @@ interface Props {
 export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
+  const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
+  const setSpellCheckEnabled = useSpellCheckStore((s) => s.setEnabled);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -82,6 +85,35 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
 
             <div className="settings-hint">
               Shortcut: <kbd className="settings-kbd">⌘,</kbd> or <kbd className="settings-kbd">Ctrl ,</kbd> to open settings. Theme persists in localStorage <code>snipnote-theme</code>.
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <h3 className="settings-section-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7V17M20 7V17M8 7V17M12 7V17M16 7V17M4 12H20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M9 9L15 15M15 9L9 15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
+              </svg>
+              Writing
+            </h3>
+            <p className="settings-section-desc">
+              Editor spellcheck uses your OS dictionary. Toggle persists in <code>snipnote-spellcheck</code>.
+            </p>
+            <div className="settings-options">
+              <button
+                className="settings-option"
+                onClick={() => setSpellCheckEnabled(!spellCheckEnabled)}
+                aria-pressed={spellCheckEnabled}
+                aria-label="Spellcheck toggle"
+              >
+                <div className="settings-option-main">
+                  <span className="settings-option-label">Spellcheck</span>
+                  <span className="settings-option-desc">Underline misspellings and show suggestions on right-click</span>
+                </div>
+                <span className={`settings-toggle ${spellCheckEnabled ? "is-on" : ""}`} aria-hidden="true">
+                  <span className="settings-toggle-knob" />
+                </span>
+              </button>
             </div>
           </section>
 

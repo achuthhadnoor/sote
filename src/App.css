@@ -2571,6 +2571,39 @@ html, body, #root {
   display: block;
 }
 
+.settings-toggle {
+  width: 36px;
+  height: 22px;
+  border-radius: 9999px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.settings-toggle.is-on {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.settings-toggle-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  transform: translateX(0);
+  transition: transform 0.15s ease;
+}
+
+.settings-toggle.is-on .settings-toggle-knob {
+  transform: translateX(14px);
+}
+
 .settings-hint {
   font-size: 11px;
   color: var(--muted-fg);
@@ -2610,6 +2643,46 @@ html, body, #root {
 
 .settings-done-btn {
   min-width: 72px;
+}
+
+/* Reduced motion / transparency — respect OS accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --bg-translucent: var(--bg);
+    --sidebar-translucent: var(--sidebar);
+    --border-translucent: var(--border);
+    --muted-translucent: var(--muted);
+    --accent-translucent: var(--accent);
+    --status-translucent: var(--status-bar);
+    --hover-translucent: var(--muted);
+  }
+  [data-theme="dark"] {
+    --bg-translucent: var(--bg);
+    --sidebar-translucent: var(--sidebar);
+    --border-translucent: var(--border);
+    --muted-translucent: var(--muted);
+    --accent-translucent: var(--accent);
+    --status-translucent: var(--status-bar);
+    --hover-translucent: var(--muted);
+  }
+  .settings-overlay,
+  .palette-overlay,
+  .find-bar,
+  .file-context-menu,
+  .outline-dashes,
+  .outline-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
 
 

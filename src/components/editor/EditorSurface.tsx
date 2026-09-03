@@ -14,6 +14,7 @@ import { FindBar } from "./FindBar";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
+import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 
 export const EditorSurface: React.FC = () => {
   const vaultPath = useVaultStore((state) => state.vaultPath);
@@ -38,6 +39,7 @@ export const EditorSurface: React.FC = () => {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isFindOpen, setIsFindOpen] = useState(false);
   const [showReplace, setShowReplace] = useState(false);
+  const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
 
   const handlePostSave = async (path: string, wasNew: boolean) => {
     // wasNew draft now has content and was saved -> promote to real file
@@ -69,45 +71,6 @@ export const EditorSurface: React.FC = () => {
     }, 500);
   };
 
-  // Find bar shortcuts: Cmd+F open, Shift+Cmd+F toggle replace, Esc handled in FindBar
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-      const mod = isMac ? e.metaKey : e.ctrlKey;
-      if (!mod) return;
-      if (!activePath) return;
-      if (e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        if (e.shiftKey) {
-          setIsFindOpen(true);
-          setShowReplace((prev) => !prev);
-        } else {
-          setIsFindOpen(true);
-          // keep replace state as is
-        }
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activePath]);
-
-  const handleFindClose = () => {
-    setIsFindOpen(false);
-    // clear highlights
-    (editor as any)?.chain()?.clearSearch?.()?.run();
-    // return focus to editor
-    setTimeout(() => editor?.commands.focus(), 30);
-  };
-
-  // Clear find when switching notes or toggling raw mode
-  useEffect(() => {
-    if (isFindOpen) {
-      setIsFindOpen(false);
-      (editor as any)?.chain()?.clearSearch?.()?.run();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePath, isRawMode]);
-
   const editor = useEditor({
     contentType: "markdown",
     extensions: [
@@ -138,6 +101,7 @@ export const EditorSurface: React.FC = () => {
     editorProps: {
       attributes: {
         class: "snipnote-editor-content",
+        spellcheck: spellCheckEnabled ? "true" : "false",
       },
       handleDrop: (view: any, event: DragEvent, _slice: any, _moved: boolean) => {
         const files = (event as any).dataTransfer?.files as FileList | undefined;
@@ -199,6 +163,47 @@ export const EditorSurface: React.FC = () => {
       triggerAutoSave();
     },
   });
+
+  // Find bar shortcuts: Cmd+F open, Shift+Cmd+F toggle replace
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (!mod) return;
+      if (!activePath) return;
+      if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setIsFindOpen(true);
+          setShowReplace((prev) => !prev);
+        } else {
+          setIsFindOpen(true);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activePath]);
+
+  const handleFindClose = () => {
+    setIsFindOpen(false);
+    (editor as any)?.chain()?.clearSearch?.()?.run();
+    setTimeout(() => editor?.commands.focus(), 30);
+  };
+
+  useEffect(() => {
+    if (editor?.view?.dom) {
+      editor.view.dom.setAttribute("spellcheck", spellCheckEnabled ? "true" : "false");
+    }
+  }, [spellCheckEnabled, editor]);
+
+  useEffect(() => {
+    if (isFindOpen) {
+      setIsFindOpen(false);
+      (editor as any)?.chain()?.clearSearch?.()?.run();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePath, isRawMode]);
 
   // Flush save on window blur or beforeunload (respects draft-no-content guard)
   useEffect(() => {
@@ -354,7 +359,7 @@ export const EditorSurface: React.FC = () => {
               triggerAutoSave();
             }}
             placeholder="Raw markdown…"
-            spellCheck={false}
+            spellCheck={spellCheckEnabled}
             autoFocus
           />
         ) : (
