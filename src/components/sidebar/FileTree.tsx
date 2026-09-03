@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { VaultNode } from "../../types/vault";
 import { useTabStore } from "../../stores/useTabStore";
+import { useVaultStore } from "../../stores/useVaultStore";
 import { FileContextMenu } from "./FileContextMenu";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
 
 interface FileTreeProps {
   nodes: VaultNode[];
@@ -113,6 +115,7 @@ const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
 
 const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu }) => {
   const [isOpen, setIsOpen] = useState(level === 0);
+  const [isDragOver, setIsDragOver] = useState(false);
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
 
@@ -124,13 +127,67 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    // Provide file path for drag-out to Finder/Desktop (copy)
+    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData("text/plain", node.path);
+    // Also set DownloadURL for browsers that support it
+    try {
+      e.dataTransfer.setData("DownloadURL", `application/octet-stream:${node.name}:${node.path}`);
+    } catch {}
+  };
+
+  const handleFolderDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+    setIsDragOver(true);
+  };
+
+  const handleFolderDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleFolderDragEnd = () => setIsDragOver(false);
+
+  const handleFolderDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const vp = useVaultStore.getState().vaultPath;
+    if (!vp) return;
+    // HTML5 fallback: try to get paths from dataTransfer (Tauri's onDragDropEvent is primary in App.tsx)
+    const files = Array.from(e.dataTransfer.files) as unknown as Array<File & { path?: string }>;
+    if (files.length === 0) return;
+    const valid = files.map((f) => (f as any).path as string | undefined).filter((p): p is string => !!p && typeof p === "string");
+    if (valid.length === 0) return;
+    await Promise.allSettled(
+      valid.map((srcPath) =>
+        invoke("copy_external_file", { srcPath, destDir: node.path }).catch((err) => {
+          console.error("copy_external_file failed", err);
+        })
+      )
+    );
+    try {
+      await useVaultStore.getState().loadVault(vp);
+    } catch {}
+  };
+
   if (node.isDirectory) {
     return (
       <div className="tree-dir-item">
         <div
-          className="tree-row tree-dir-row"
+          className={`tree-row tree-dir-row ${isDragOver ? "drag-over" : ""}`}
+          draggable
+          onDragStart={handleDragStart}
           onClick={() => setIsOpen((prev) => !prev)}
           onContextMenu={(e) => onContextMenu(e, node)}
+          onDragOver={handleFolderDragOver}
+          onDragLeave={handleFolderDragLeave}
+          onDragEnd={handleFolderDragEnd}
+          onDrop={handleFolderDrop}
+          data-folder-path={node.path}
           title={node.path}
           tabIndex={0}
           onKeyDown={handleKeyDown}
@@ -151,6 +208,8 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, onContextMenu 
   return (
     <div
       className={`tree-row tree-file-row ${isActive ? "active-row" : ""}`}
+      draggable
+      onDragStart={handleDragStart}
       onClick={() => selectNote(node.path, node.name)}
       onContextMenu={(e) => onContextMenu(e, node)}
       onKeyDown={handleKeyDown}

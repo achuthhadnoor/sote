@@ -188,6 +188,7 @@ pub fn run() {
             storage::delete_path,
             storage::create_file_at_path,
             storage::create_folder_at_path,
+            storage::copy_external_file,
             session::get_session,
             session::save_session,
             watcher::watch_vault,

@@ -224,6 +224,81 @@ function App() {
     invoke("add_recent_vault", { vaultPath }).catch(() => {});
   }, [vaultPath]);
 
+  // Drag & Drop: Finder → vault (Tauri onDragDropEvent is primary; HTML5 fallback on app-shell)
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    const setupDrag = async () => {
+      try {
+        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
+          if (event.payload.type === "drop") {
+            const paths = (event.payload as { type: "drop"; paths: string[]; position: { x: number; y: number } }).paths;
+            const vp = useVaultStore.getState().vaultPath;
+            if (!vp || paths.length === 0) return;
+            // Detect folder drop target via element at position
+            let destDir = vp;
+            try {
+              const pos = (event.payload as any).position as { x: number; y: number };
+              const el = document.elementFromPoint(pos.x, pos.y);
+              const folderEl = el?.closest("[data-folder-path]") as HTMLElement | null;
+              if (folderEl?.dataset.folderPath) {
+                destDir = folderEl.dataset.folderPath;
+              }
+            } catch {}
+            // Await all copies before refreshing to avoid race
+            const results = await Promise.allSettled(
+              paths.map((p) => invoke("copy_external_file", { srcPath: p, destDir }).catch((e) => { console.error("copy_external_file failed", e); throw e; }))
+            );
+            void results;
+            // Refresh tree within 500ms per AC — await vault reload
+            try {
+              await useVaultStore.getState().loadVault(vp);
+            } catch {}
+          }
+        });
+      } catch (e) {
+        // Webview API not available (e.g. in browser dev mode)
+      }
+    };
+    setupDrag();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  const handleAppDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleAppDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const vp = useVaultStore.getState().vaultPath;
+    if (!vp) return;
+    // HTML5 fallback: only works if browser exposes path (Tauri may not); primary is onDragDropEvent above
+    // If Tauri's onDragDropEvent already handled this drop, dataTransfer.files will be empty or lack path — avoid double copy
+    const files = Array.from(e.dataTransfer.files) as Array<File & { path?: string }>;
+    if (files.length === 0) return;
+    const validPaths: Array<{ srcPath: string; destDir: string }> = [];
+    for (const f of files) {
+      const srcPath = (f as any).path as string | undefined;
+      if (!srcPath || typeof srcPath !== "string") continue;
+      validPaths.push({ srcPath, destDir: vp });
+    }
+    if (validPaths.length === 0) return;
+    await Promise.allSettled(
+      validPaths.map(({ srcPath, destDir }) =>
+        invoke("copy_external_file", { srcPath, destDir }).catch((err) => {
+          console.error("copy_external_file fallback failed", err);
+        })
+      )
+    );
+    try {
+      await useVaultStore.getState().loadVault(vp);
+    } catch {}
+  };
+
   // Global keyboard shortcuts (Cmd+N, Cmd+P, Cmd+, Cmd+W, nav)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -278,7 +353,7 @@ function App() {
   }, [selectNote]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
       {!sidebarCollapsed && <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />}
       {sidebarCollapsed && (
         <button

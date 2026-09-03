@@ -1231,6 +1231,12 @@ html, body, #root {
   font-weight: 500;
 }
 
+.tree-row.drag-over {
+  background-color: var(--accent-translucent);
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
+
 .tree-chevron {
   width: 14px;
   height: 14px;

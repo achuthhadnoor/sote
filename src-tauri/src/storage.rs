@@ -325,6 +325,112 @@ pub fn create_folder_at_path(dir_path: String, folder_name: String) -> Result<St
     Ok(new_folder.to_string_lossy().to_string())
 }
 
+/// Tauri command to copy an external file into the vault (for drag & drop from Finder).
+#[tauri::command]
+pub fn copy_external_file(
+    state: tauri::State<'_, crate::watcher::VaultWatcherState>,
+    src_path: String,
+    dest_dir: String,
+) -> Result<String, String> {
+    let src = PathBuf::from(&src_path);
+    if !src.exists() {
+        return Err(format!("Source does not exist: {:?}", src));
+    }
+    let dest = PathBuf::from(&dest_dir);
+    if !dest.is_dir() {
+        return Err(format!("Destination not a directory: {:?}", dest));
+    }
+    let file_name = src
+        .file_name()
+        .ok_or_else(|| "Invalid source file name".to_string())?
+        .to_string_lossy()
+        .to_string();
+    let mut candidate = dest.join(&file_name);
+    // handle name collision: file.md -> file 1.md
+    if candidate.exists() {
+        let file_path = Path::new(&file_name);
+        let ext = file_path
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy()))
+            .unwrap_or_default();
+        // file_stem returns None for dotfiles like `.gitignore`; fall back to full name
+        let stem_raw = file_path
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let stem = if stem_raw.is_empty() {
+            // dotfile or empty stem - use full file_name without extension handling already done via ext
+            if ext.is_empty() {
+                file_name.clone()
+            } else {
+                file_name.trim_end_matches(&ext).to_string()
+            }
+        } else {
+            stem_raw
+        };
+        let stem = if stem.is_empty() { file_name.clone() } else { stem };
+        let mut idx = 1;
+        loop {
+            let new_name = format!("{} {}{}", stem, idx, ext);
+            let p = dest.join(&new_name);
+            if !p.exists() {
+                candidate = p;
+                break;
+            }
+            idx += 1;
+            if idx > 10000 {
+                return Err("Too many collisions, aborting".to_string());
+            }
+        }
+    }
+    // Prevent copying a directory into itself or its descendant (infinite recursion)
+    if src.is_dir() {
+        let src_canon = src.canonicalize().unwrap_or_else(|_| src.clone());
+        let dest_canon = dest.canonicalize().unwrap_or_else(|_| dest.clone());
+        let cand_canon = candidate.clone();
+        if dest_canon.starts_with(&src_canon) || cand_canon.starts_with(&src_canon) {
+            return Err("Cannot copy a directory into itself".to_string());
+        }
+        copy_dir_recursive(&src, &candidate).map_err(|e| e.to_string())?;
+        // Record directory copy for echo suppression as well
+        state.echo_cache.record_write(&candidate);
+    } else {
+        // Reject special file types: symlinks, fifos, sockets, devices
+        let meta = std::fs::symlink_metadata(&src).map_err(|e| e.to_string())?;
+        if meta.file_type().is_symlink() {
+            return Err("Symlink copy not supported".to_string());
+        }
+        if !meta.is_file() {
+            return Err("Source is not a regular file".to_string());
+        }
+        fs::copy(&src, &candidate).map_err(|e| e.to_string())?;
+        state.echo_cache.record_write(&candidate);
+    }
+    Ok(candidate.to_string_lossy().to_string())
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        // Skip symlinks to avoid escaping vault or cycles
+        let meta = std::fs::symlink_metadata(&src_path)?;
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        let ty = meta.file_type();
+        let dst_path = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else if ty.is_file() {
+            fs::copy(&src_path, &dst_path)?;
+        }
+        // Skip other types (fifo, socket, device, etc.)
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
