@@ -8,6 +8,7 @@ import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { CustomCodeBlock } from "./extensions/CustomCodeBlock";
 import { FrontmatterTable } from "./FrontmatterTable";
+import { MarkdownOutline } from "./MarkdownOutline";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
@@ -23,6 +24,8 @@ export const EditorSurface: React.FC = () => {
   const isLoading = useEditorStore((state) => state.isLoading);
   const error = useEditorStore((state) => state.error);
   const reloadCount = useEditorStore((state) => state.reloadCount);
+  const isRawMode = useEditorStore((state) => state.isRawMode);
+  const body = useEditorStore((state) => state.body);
 
   const activeTab = tabs.find((t) => t.path === activePath);
   const isNewDraft = !!activeTab?.isNew;
@@ -237,6 +240,24 @@ export const EditorSurface: React.FC = () => {
     };
   }, [activePath, isNewDraft, reloadCount, editor, loadNote, saveNow]);
 
+  // When toggling from raw → rich, sync editor content from body
+  const prevRawRef = useRef(isRawMode);
+  useEffect(() => {
+    const wasRaw = prevRawRef.current;
+    prevRawRef.current = isRawMode;
+    if (wasRaw && !isRawMode && editor) {
+      const ed = editor as any;
+      try {
+        if (ed.markdown?.parse) {
+          const parsedDoc = ed.markdown.parse(body || "");
+          editor.commands.setContent(parsedDoc);
+        } else {
+          (editor.commands as any).setContent(body || "", { contentType: "markdown" });
+        }
+      } catch {}
+    }
+  }, [isRawMode, body, editor]);
+
   if (!vaultPath) {
     return (
       <section className="editor-surface-container">
@@ -280,8 +301,24 @@ export const EditorSurface: React.FC = () => {
           </div>
         )}
         <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
-        <EditorContent editor={editor} />
+        {isRawMode ? (
+          <textarea
+            className="raw-editor"
+            value={body}
+            onChange={(e) => {
+              updateBody(e.target.value);
+              triggerAutoSave();
+            }}
+            placeholder="Raw markdown…"
+            spellCheck={false}
+            autoFocus
+          />
+        ) : (
+          <EditorContent editor={editor} />
+        )}
       </div>
+      {/* Floating outline — horizontal dashes at right center, expand on hover */}
+      <MarkdownOutline editor={editor} body={body} isRawMode={isRawMode} />
     </section>
   );
 };
