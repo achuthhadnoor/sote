@@ -7,6 +7,7 @@ import { ConflictBanner } from "./components/editor/ConflictBanner";
 import { EditorSurface } from "./components/editor/EditorSurface";
 import { StatusBar } from "./components/editor/StatusBar";
 import { CommandPalette } from "./components/palette/CommandPalette";
+import { RightPanel } from "./components/rightPanel/RightPanel";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
@@ -142,6 +143,7 @@ function App() {
         <EditorSurface />
         <StatusBar />
       </main>
+      <RightPanel />
       <CommandPalette
         isOpen={isPaletteOpen}
         onClose={() => setIsPaletteOpen(false)}

@@ -15,7 +15,9 @@ sources:
 
 ## Foundation
 
-**Form-factor:** Single-surface desktop (Tauri v2 + React 19 + Vite), full-size window, macOS primary (Win/Linux builds ready but not QA'd per PRD Open Question 5). No mobile/web in v1. `DESIGN.md` is the visual identity reference — monochrome LocalEditor palette (`{colors.sidebar}` `#F8F8F9`, `{colors.background}` `#FFFFFF`, `{colors.border}` `#EAEAEA`, `{colors.primary}` `#0F0F0F`). This spine is how it works; DESIGN.md is how it looks. Single Vault open at a time in v1 [ASSUMPTION]. No accounts, no cloud, no sync — files never leave disk. Auto-update deferred.
+**Form-factor:** Single-surface desktop (Tauri v2 + React 19 + Vite), full-size **vibrant** window — macOS `Sidebar` vibrancy + Windows 11 `Mica` via `EffectsBuilder` only — macOS primary (Win/Linux builds ready but not QA'd per PRD Open Question 5). No mobile/web in v1. `DESIGN.md` is the visual identity reference — monochrome LocalEditor palette (`{colors.sidebar}` `#F8F8F9`→`rgba(248,248,249,0.68)` on vibrancy, `{colors.background}` `#FFFFFF`→`rgba(255,255,255,0.78)`, `{colors.border}` `#EAEAEA`→`rgba(234,234,234,0.85)`; `DESIGN.md` §Colors / §Elevation & Depth define translucent variants). This spine is how it works; DESIGN.md is how it looks. Single Vault open at a time in v1 [ASSUMPTION]. No accounts, no cloud, no sync — files never leave disk. Auto-update deferred.
+
+**Window-material premise:** The window is `transparent:true` + `macOSPrivateApi:true` (see `src-tauri/tauri.conf.json:12`) and the Rust setup applies `tauri::window::EffectsBuilder::new().effects([Effect::Sidebar, Effect::Mica]).state(EffectState::Active).radius(12.0).build()` via `window.set_effects(...)` — macOS consumes `Sidebar`, Windows consumes `Mica`, other platforms ignore both and fall back to opaque fills. HTML `html, body, #root` are `transparent` so the native blur shows through `rgba`-translucent surfaces. No `window-vibrancy` crate — EffectsBuilder is the only path per user constraint.
 
 ## Information Architecture
 
@@ -135,5 +137,17 @@ Failure: Vault folder missing (moved/deleted) on launch → Welcome surface with
 
 ## Responsive & Platform
 
-Desktop only, single full-size window. No responsive breakpoints beyond window resize. Min `800×600` per `src-tauri/tauri.conf.json:15`, content reflows via centered `760px` max-width — gutters grow/shrink as window widens/narrows, File Tree and Sidebar remain fixed `260px`. Not a responsive web product like Drift example; this section exists to lock "desktop-only, not responsive web" as the platform posture.
+Desktop only, single full-size **vibrant** window. No responsive breakpoints beyond window resize. Min `800×600` per `src-tauri/tauri.conf.json:15`, content reflows via centered `760px` max-width — gutters grow/shrink as window widens/narrows, File Tree and Sidebar remain fixed `260px`. Not a responsive web product like Drift example; this section exists to lock "desktop-only, not responsive web" as the platform posture.
+
+**Vibrant / Mica platform behavior (EffectsBuilder only):**
+
+| Platform | Effect via `EffectsBuilder` | Window config | Visual | Fallback |
+|---|---|---|---|---|
+| **macOS 10.14+** | `Effect::Sidebar` + `EffectState::Active` + `radius(12.0)` (`src-tauri/src/lib.rs:12` `.setup` + `window.set_effects`) | `transparent:true`, `macOSPrivateApi:true`, `tauri` feature `macos-private-api` | Translucent `rgba(248,248,249,0.68)` sidebar + `rgba(255,255,255,0.78)` editor over `NSVisualEffectView` Sidebar material — wallpaper tint + blur shows through, rounded corners 12px, traffic lights float over vibrancy | If material unavailable (old macOS / permission), renders as opaque `#F8F8F9` / `#FFFFFF` — no functional loss |
+| **Windows 11 22H1+** | `Effect::Mica` (system `light`/`dark` adaptive) | `transparent:true` | Same translucent fills over Desktop Window Manager `Mica` — subtle desktop tint + noise behind content; border still `rgba(234,234,234,0.85)` | On Windows 10 or older 11 builds, `Mica` is ignored and falls back to opaque fills; no `Blur`/`Acrylic` fallback is applied per "EffectsBuilder just" constraint |
+| **Linux / unsupported** | (ignored) | `transparent:true` ignored by compositor | Solid fills `#FFFFFF` / `#F8F8F9` exactly as pre-vibrant spec | — |
+
+Constraints: vibrancy is window-level, not per-component — CSS `backdrop-filter` is not used; the native material is the blur. Surfaces directly over the material use the `rgba` variants from `DESIGN.md` §Colors; sheets that must read as elevated (Command Palette, dialogs) stay **opaque white** so they pop above the material. Text tokens never go translucent, so AA contrast holds even over wallpaper. `html, body, #root` are `transparent` on all platforms; the opaque fallback is applied at `.app-shell`/`.sidebar`/`.main-container` level, not at the document root, so the material region is contiguous. Resizing/dragging stays GPU-composited by the OS; no JS blur is involved.
+
+**Why Sidebar + Mica:** `Sidebar` is Apple's Finder-sidebar material — slightly translucent, wallpaper-aware, works light-first — matching snipnote's sidebar-heavy layout better than `HudWindow` (too dark) or `WindowBackground` (too opaque). `Mica` is the Windows 11 system material that tints with the desktop wallpaper and respects light/dark — matching snipnote's light-first posture without requiring explicit `MicaLight`/`MicaDark` variants. `Tabbed`/`Acrylic`/`Blur` are intentionally not used per the "EffectsBuilder just, vibrant + Mica only" request.
 

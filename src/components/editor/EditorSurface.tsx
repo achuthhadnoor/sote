@@ -4,6 +4,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import { Markdown } from "@tiptap/markdown";
 import { CustomCodeBlock } from "./extensions/CustomCodeBlock";
+import { FrontmatterTable } from "./FrontmatterTable";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
@@ -23,6 +24,17 @@ export const EditorSurface: React.FC = () => {
   activePathRef.current = activePath;
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerAutoSave = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      if (activePathRef.current) {
+        saveNow(activePathRef.current);
+      }
+    }, 500);
+  };
 
   const editor = useEditor({
     contentType: "markdown",
@@ -50,16 +62,7 @@ export const EditorSurface: React.FC = () => {
         ? ed.getMarkdown()
         : ed.storage?.markdown?.manager?.serialize?.(editor.getJSON()) || "";
       updateBody(md);
-
-      // 500ms debounced auto-save
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      debounceTimerRef.current = setTimeout(() => {
-        if (activePathRef.current) {
-          saveNow(activePathRef.current);
-        }
-      }, 500);
+      triggerAutoSave();
     },
   });
 
@@ -160,6 +163,7 @@ export const EditorSurface: React.FC = () => {
             Failed to read note: {error}
           </div>
         )}
+        <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
         <EditorContent editor={editor} />
       </div>
     </section>

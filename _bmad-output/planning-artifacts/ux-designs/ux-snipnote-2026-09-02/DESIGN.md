@@ -98,20 +98,24 @@ snipnote is the editor you keep meaning to build — lightweight, local, and cal
 
 snipnote inherits the LocalEditor aesthetic wholesale: white editor, faint `sidebar` gray (`#F8F8F9`), hairline `border` (`#EAEAEA`), neutral typography, and black `primary` for the single decisive action per surface. This DESIGN.md specifies only the brand-layer deltas needed for a Tauri/desktop reading surface; all unlisted components inherit the minimal defaults. [ASSUMPTION: Light-first for v1; dark mode deferred but tokens are ready to invert `background`/`foreground`/`sidebar`.]
 
+**Window material (new):** The Tauri window itself is native-vibrant: **macOS `Sidebar` vibrancy** via `tauri::window::Effect::Sidebar` and **Windows 11 `Mica`** via `Effect::Mica`, both applied through **`EffectsBuilder::new().effects([Effect::Sidebar, Effect::Mica])`** (platform ignores the irrelevant effect). The window is `transparent:true` + `macOSPrivateApi:true` + `tauri` feature `macos-private-api`; HTML `html, body` is `transparent` so the native material shows through translucent surface fills. On platforms without effects (Linux, older Windows) the same tokens fall back to opaque fills. No `window-vibrancy` crate is added — EffectsBuilder is the single implementation path per user request.
+
 ## Colors
 
-Palette is **monochrome + one semantic link blue**, lifted from LocalEditor.app screenshots (white canvas, #F8F8F9 sidebar, #EAEAEA hairlines, black primary, muted #6B7280 secondary text).
+Palette is **monochrome + one semantic link blue**, lifted from LocalEditor.app screenshots (white canvas, #F8F8F9 sidebar, #EAEAEA hairlines, black primary, muted #6B7280 secondary text). On vibrant/Mica windows the fills become translucent so the native material shows through; opaque hexes remain the fallback.
 
-- **Background (`#FFFFFF`) / Foreground (`#0F0F0F`)** — Editor canvas. Maximum contrast, no tint. LocalEditor renders markdown like a real page on white; snipnote does the same.
-- **Sidebar (`#F8F8F9`) / Sidebar Foreground (`#0F0F0F`)** — The LocalEditor Projects pane is a touch darker than the editor, not a strong contrast. Sidebar sits in this token, separated by a 1px `border`.
-- **Muted (`#F6F6F7`) / Muted Foreground (`#6B7280`)** — File tree secondary text, Status Bar, inactive states, Library footer. LocalEditor's file list uses this exact quiet gray.
-- **Border / Input (`#EAEAEA`)** — Hairline separators: Sidebar–Editor split, Tab Bar bottom, Status Bar top, command palette outline. LocalEditor's divider is this faint.
-- **Primary (`#0F0F0F`) / Primary Foreground (`#FFFFFF`)** — The single decisive action per surface (Open Vault, Create Note). Not a brand color — it's near-black for contrast, as LocalEditor's CTA is black.
-- **Accent (`#F3F4F6`) / Accent Foreground (`#111827`)** — Active File Highlight in File Tree and hover row. LocalEditor highlights the selected file with this light gray, not a saturated accent.
-- **Link (`#2563EB`)** — The only chromatic token. Inline markdown links. All other chrome is achromatic.
-- **Destructive (`#EF4444`) / Success (`#10B981`)** — Banner errors and silent-save confirmations only. Never for chrome.
+- **Background (`#FFFFFF` → `rgba(255,255,255,0.78)` on vibrancy)** / Foreground (`#0F0F0F`) — Editor canvas. Opaque white on fallback/Linux; `rgba(255,255,255,0.78)` on macOS `Sidebar` + Windows `Mica` so wallpaper/material tints the canvas without washing text. Foreground stays `#0F0F0F` for AA contrast against the translucent white.
+- **Sidebar (`#F8F8F9` → `rgba(248,248,249,0.68)` on vibrancy)** / Sidebar Foreground (`#0F0F0F`) — Sidebar sits in this token, separated by a 1px `border`. Translucent on vibrancy lets the `Sidebar` material (macOS) / `Mica` (Windows) read as a slightly darker column, matching Finder/Explorer. Fallback is solid `#F8F8F9`.
+- **Muted (`#F6F6F7` → `rgba(246,246,247,0.72)`) / Muted Foreground (`#6B7280`)** — File tree secondary text, Status Bar, inactive states, Library footer. Translucent on vibrancy to avoid an opaque band over the material.
+- **Border / Input (`#EAEAEA` → `rgba(234,234,234,0.85)` on vibrancy)** — Hairline separators: Sidebar–Editor split, Tab Bar bottom, Status Bar top, command palette outline. On vibrancy the border stays hairline but at `0.85` alpha so it does not look like a solid stroke over blur.
+- **Primary (`#0F0F0F`) / Primary Foreground (`#FFFFFF`)** — Opaque always. Vibrancy never tints the CTA — near-black stays decisive.
+- **Accent (`#F3F4F6` → `rgba(243,244,246,0.76)`) / Accent Foreground (`#111827`)** — Active File Highlight in File Tree and hover row. Translucent accent lets material show while still marking selection.
+- **Link (`#2563EB`)** — Opaque always. The only chromatic token. Inline markdown links. All other chrome is achromatic.
+- **Destructive (`#EF4444`) / Success (`#10B981`)** — Opaque always. Banner errors and silent-save confirmations only. Never for chrome.
 
-Avoid: saturated accent navs, gradient surfaces, colored sidebars, more than one chromatic token (link blue only), Mote-style dark `#0a0a0a` + orange — snipnote is light-first like LocalEditor.
+Translucency rule: any surface whose CSS is directly over the vibrancy (`sidebar`, `main-container`, `tab-bar`, `status-bar`) uses the `rgba` variant when `@supports (backdrop-filter: blur(1px))` or when `window.set_effects` is active; fallback `@supports not` uses the solid hex. Text tokens never go translucent.
+
+Avoid: saturated accent navs, gradient surfaces, colored sidebars, more than one chromatic token (link blue only), Mote-style dark `#0a0a0a` + orange — snipnote is light-first like LocalEditor. Also avoid making the editor canvas too transparent (`<0.68`) — text contrast must stay AA.
 
 ## Typography
 
@@ -138,11 +142,12 @@ Sidebar nav is always visible in v1 full-size window — no Sheet/collapse until
 
 ## Elevation & Depth
 
-Almost flat, like LocalEditor. No card shadows in the main surface — the hierarchy is built from background contrast (white editor vs `#F8F8F9` sidebar) and hairline borders, not elevation.
+Almost flat, like LocalEditor, now with a **material** layer underneath. No card shadows in the main surface — hierarchy is built from translucent fills + native vibrancy/Mica + hairline borders, not elevation.
 
-- **Flat (0):** Editor, Sidebar, File Tree rows, Tab Bar, Status Bar — all flat with borders.
-- **Raised (1):** Command palette (`⌘P` / `⌘K` in later increments) — `white` + `12px` radius + `0 8px 32px rgba(0,0,0,0.08)` + `0 1px 2px rgba(0,0,0,0.06)`. This is the only elevated surface in v1. Matches LocalEditor's `Jump to anything…` palette which floats above content.
-- **Banner (inline):** File-changed banner docks under Tab Bar, not as toast — `border` + `muted` background, no shadow.
+- **Material (-1):** The OS-provided vibrancy/Mica itself. Applied at window level via `EffectsBuilder` (`Effect::Sidebar` on macOS, `Effect::Mica` on Windows 11, `EffectState::Active`, `radius: 12.0` on macOS). Window is `transparent:true` so CSS translucency reveals this layer. Not a CSS shadow — it is the native blur + wallpaper tint + noise that gives depth without shadow cost.
+- **Flat (0):** Editor, Sidebar, File Tree rows, Tab Bar, Status Bar — flat with borders, but fills are now `rgba(..., 0.68–0.78)` over the material so separation is felt as material variation, not just color step. On fallback (no material) they render as solid hexes — visually identical to pre-vibrant spec.
+- **Raised (1):** Command palette (`⌘P` / `⌘K` in later increments) — `white` + `12px` radius + `0 8px 32px rgba(0,0,0,0.08)` + `0 1px 2px rgba(0,0,0,0.06)`. The only elevated surface. On vibrancy builds it stays opaque `white` (not translucent) so it reads as a sheet above the material. Matches LocalEditor's `Jump to anything…` palette.
+- **Banner (inline):** File-changed banner docks under Tab Bar, not as toast — `border` + `muted` background (`rgba(246,246,247,0.72)` on vibrancy, solid fallback), no shadow.
 
 ## Shapes
 
@@ -157,14 +162,15 @@ Subtly rounded, not pill-driven — LocalEditor's controls are softly rectangula
 
 v1 uses a minimal component set — no design system inheritance beyond these. LocalEditor's component language is the reference: plain lists, subtle highlights, one black primary action.
 
-- **Sidebar** — `{colors.sidebar}` fill. Full-height, `260px`. No shadow, 1px `border` right. Active row = `{colors.accent}` fill + `8px` radius, no left accent bar. Hover = slightly darker `#EDEEF0` [ASSUMPTION].
-- **File Tree Row** — `13px sans-sm`, `6px` vertical padding, `8px` horizontal. Folder rows show chevron + name; file rows show `.md` file name only (no icons in v1 [ASSUMPTION]). Active row uses `sidebar-active` tokens.
-- **Search (⌘P)** — Sidebar-top input + global palette. In Sidebar: `F6F6F7` input with `6px` radius, placeholder "Search notes…" + `⌘P` kbd hint in `muted-foreground` `11px` mono. When invoked via `⌘P`, same component floats as `command-palette` (elevated, `12px`, max 480×320) with fuzzy file-name results. [ASSUMPTION: palette is the `⌘P` surface, not in-place sidebar filtering.]
-- **Tab Bar** — `40px` high, `white` + bottom `border`. Left: back/forward arrows (`16px` icon, `muted-foreground` inactive). Center: active Note name (`14px` sans, `600`). Right: `+` (16px, `muted-foreground`, hover `foreground`). Tabs: single active visible in v1; multi-tab row is a visual but only one active at a time per PRD FR-9. [ASSUMPTION]
-- **Editor Surface** — `white`, centered `760px` content, `24px` gutters, `24px` top padding. Headings/bold/links/bullets render live per FR-6. Links use `{colors.link}` underline on hover only. Code blocks: `muted` background + `6px` radius + mono.
-- **Status Bar** — `status-bar` tokens, `24px`, right-aligned `sans-sm` `11px` `muted-foreground`. Shows `words | chars | paragraphs` live. No interactive elements in v1.
-- **Banner (File Changed)** — Inline under Tab Bar: `muted` background, `border`, `12px` horizontal padding, `8px` vertical, `6px` radius, `13px` text + two text buttons "Reload" (primary text = link) and "Keep mine" (muted). Dismissible. Non-blocking.
-- **Button (primary)** — `{colors.primary}` fill, `{colors.primary-foreground}` text, `8px` radius, `14px` sans 500, `32px` height. Used for Open Vault / Create.
+- **Sidebar** — `rgba(248,248,249,0.68)` on vibrancy (fallback `{colors.sidebar}` `#F8F8F9`). Full-height, `260px`. No shadow, 1px `rgba(234,234,234,0.85)` border right (fallback `{colors.border}`). Active row = `rgba(243,244,246,0.76)` + `8px` radius, no left accent bar. Hover = `rgba(237,238,240,0.72)` (fallback `#EDEEF0`) [ASSUMPTION]. The translucency lets `Effect::Sidebar` / `Effect::Mica` show through as the column's material.
+- **File Tree Row** — `13px sans-sm`, `6px` vertical padding, `8px` horizontal. Folder rows show chevron + name; file rows show `.md` file name only (no icons in v1 [ASSUMPTION]). Active row uses `sidebar-active` tokens (translucent accent on vibrancy, opaque fallback).
+- **Search (⌘P)** — Sidebar-top input + global palette. In Sidebar: `rgba(246,246,247,0.72)` input (fallback `F6F6F7`) with `6px` radius, placeholder "Search notes…" + `⌘P` kbd hint in `muted-foreground` `11px` mono. When invoked via `⌘P`, same component floats as `command-palette` (elevated, `12px`, max 480×320) — **palette stays opaque `white`** (not translucent) so it reads as a sheet above the vibrancy. Fuzzy file-name results. [ASSUMPTION: palette is the `⌘P` surface, not in-place sidebar filtering.]
+- **Tab Bar** — `40px` high, `rgba(255,255,255,0.78)` on vibrancy (fallback `white`) + bottom `rgba(234,234,234,0.85)` border. Left: back/forward arrows (`16px` icon, `muted-foreground` inactive). Center: active Note name (`14px` sans, `600`). Right: `+` (16px, `muted-foreground`, hover `foreground`). Tabs: single active visible in v1; multi-tab row is a visual but only one active at a time per PRD FR-9. [ASSUMPTION]
+- **Editor Surface** — `rgba(255,255,255,0.78)` on vibrancy (fallback `white`), centered `760px` content, `24px` gutters, `24px` top padding. The surrounding `.app-shell` is `transparent` so the effect is window-wide; the editor's translucent white keeps reading contrast while showing Mica/wallpaper tint. Headings/bold/links/bullets render live per FR-6. Links use `{colors.link}` underline on hover only. Code blocks: `rgba(246,246,247,0.72)` (fallback `muted`) + `6px` radius + mono.
+- **Status Bar** — `rgba(250,250,250,0.72)` on vibrancy (fallback `status-bar` `#FAFAFA`) + top `rgba(234,234,234,0.85)` border, `24px`, right-aligned `sans-sm` `11px` `muted-foreground`. Shows `words | chars | paragraphs` live. No interactive elements in v1. Translucent so material shows at the bottom edge, like Finder's status bar.
+- **Banner (File Changed)** — Inline under Tab Bar: `rgba(246,246,247,0.72)` background (fallback `muted`), `border`, `12px` horizontal padding, `8px` vertical, `6px` radius, `13px` text + two text buttons "Reload" (primary text = link) and "Keep mine" (muted). Dismissible. Non-blocking.
+- **Button (primary)** — `{colors.primary}` fill, `{colors.primary-foreground}` text, `8px` radius, `14px` sans 500, `32px` height. Opaque always — never translucent. Used for Open Vault / Create.
+- **Window Chrome** — Native traffic lights / Win32 caption remain OS-drawn over the vibrant window. Corner radius is set via `EffectsBuilder::radius(12.0)` on macOS (ignored on Windows). No custom title bar in v1 — vibrancy is the only chrome change.
 
 ## Do's and Don'ts
 

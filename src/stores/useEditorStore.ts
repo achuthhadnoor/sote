@@ -4,6 +4,7 @@ import { NoteEnvelope } from "../types/note";
 
 interface EditorState {
   frontmatter: string | null;
+  lastSavedFrontmatter: string | null;
   body: string;
   lastSavedBody: string;
   isDirty: boolean;
@@ -14,6 +15,7 @@ interface EditorState {
   reloadCount: number;
   loadNote: (path: string) => Promise<string>;
   updateBody: (body: string) => void;
+  updateFrontmatter: (frontmatter: string | null) => void;
   saveNow: (filePath: string) => Promise<void>;
   setSaved: () => void;
   clearNote: () => void;
@@ -24,6 +26,7 @@ interface EditorState {
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   frontmatter: null,
+  lastSavedFrontmatter: null,
   body: "",
   lastSavedBody: "",
   isDirty: false,
@@ -42,6 +45,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       set({
         frontmatter: envelope.frontmatter,
+        lastSavedFrontmatter: envelope.frontmatter,
         body: envelope.body,
         lastSavedBody: envelope.body,
         isDirty: false,
@@ -62,10 +66,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   updateBody: (body: string) => {
-    const { lastSavedBody } = get();
+    const { lastSavedBody, frontmatter, lastSavedFrontmatter } = get();
     set({
       body,
-      isDirty: body !== lastSavedBody,
+      isDirty: body !== lastSavedBody || frontmatter !== lastSavedFrontmatter,
+    });
+  },
+
+  updateFrontmatter: (frontmatter: string | null) => {
+    const { body, lastSavedBody, lastSavedFrontmatter } = get();
+    set({
+      frontmatter,
+      isDirty: body !== lastSavedBody || frontmatter !== lastSavedFrontmatter,
     });
   },
 
@@ -86,9 +98,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       // Buffer snapshot concurrency guard:
       // If user typed during write, current body will differ from snapshotBody
-      if (get().body === snapshotBody) {
+      if (get().body === snapshotBody && get().frontmatter === snapshotFrontmatter) {
         set({
           lastSavedBody: snapshotBody,
+          lastSavedFrontmatter: snapshotFrontmatter,
           isDirty: false,
           isSaving: false,
           error: null,
@@ -105,9 +118,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setSaved: () => {
-    const { body } = get();
+    const { body, frontmatter } = get();
     set({
       lastSavedBody: body,
+      lastSavedFrontmatter: frontmatter,
       isDirty: false,
     });
   },
@@ -115,6 +129,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearNote: () => {
     set({
       frontmatter: null,
+      lastSavedFrontmatter: null,
       body: "",
       lastSavedBody: "",
       isDirty: false,
