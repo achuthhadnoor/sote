@@ -37,17 +37,17 @@
 }
 
 :root {
-  /* macOS-aligned Design Tokens — light */
+  /* Neutral Quiet Luxury — light (zinc) */
   --bg: #ffffff5f;
-  --fg: #0F0F0F;
-  --sidebar: #F8F8F9;
-  --sidebar-fg: #0F0F0F;
-  --border: #EAEAEA;
-  --input: #EAEAEA;
-  --primary: #0F0F0F;
-  --primary-fg: #FFFFFF;
-  --muted: #F6F6F7;
-  --muted-fg: #6B7280;
+  --fg: #09090B;
+  --sidebar: #FAFAFA;
+  --sidebar-fg: #09090B;
+  --border: #E4E4E7;
+  --input: #E4E4E7;
+  --primary: #18181B;
+  --primary-fg: #FAFAFA;
+  --muted: #F4F4F5;
+  --muted-fg: #71717A;
   /* Accent / selection — macOS system color with blue fallback (matches Finder).
      Hover stays neutral gray; selection uses accent to respect System Settings > Appearance. */
   --accent: #007AFF;
@@ -64,12 +64,12 @@
   /* Vibrant / Mica translucent variants (over EffectsBuilder Sidebar + Mica).
      Fallback is solid hex above; translucent used when window is transparent. */
   --bg-translucent: rgba(255, 255, 255, 0.78);
-  --sidebar-translucent: rgba(248, 248, 249, 0.68);
-  --border-translucent: rgba(234, 234, 234, 0.85);
-  --muted-translucent: rgba(246, 246, 247, 0.72);
+  --sidebar-translucent: rgba(250, 250, 250, 0.68);
+  --border-translucent: rgba(228, 228, 231, 0.85);
+  --muted-translucent: rgba(244, 244, 245, 0.72);
   --accent-translucent: rgba(0, 122, 255, 0.18);
   --status-translucent: rgba(250, 250, 250, 0.72);
-  --hover-translucent: rgba(237, 238, 240, 0.72);
+  --hover-translucent: rgba(244, 244, 245, 0.7);
 
   /* Typography — SF Pro first for native macOS feel, Inter as fallback */
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
@@ -94,18 +94,18 @@
   --code-header-bg: #F1F1F3;
 }
 
-/* Dark theme — macOS-aligned (accent = system blue #0A84FF fallback) */
+/* Dark theme — Neutral Quiet Luxury (zinc-950) */
 [data-theme="dark"] {
-  --bg: #14141668;
-  --fg: #EDEEF0;
-  --sidebar: #1A1A1E;
-  --sidebar-fg: #EDEEF0;
-  --border: #2A2A2E;
-  --input: #2A2A2E;
-  --primary: #EDEEF0;
-  --primary-fg: #0F0F0F;
-  --muted: #1E1E22;
-  --muted-fg: #9AA0A8;
+  --bg: #09090B68;
+  --fg: #FAFAFA;
+  --sidebar: #18181B;
+  --sidebar-fg: #FAFAFA;
+  --border: #27272A;
+  --input: #27272A;
+  --primary: #FAFAFA;
+  --primary-fg: #18181B;
+  --muted: #27272A;
+  --muted-fg: #A1A1AA;
   --accent: #0A84FF;
   --accent-fg: #FFFFFF;
   --accent-strong: #0A84FF;
@@ -116,13 +116,13 @@
   --selection-bg: rgba(10, 132, 255, 0.38);
   --selection-fg: #FFFFFF;
 
-  --bg-translucent: rgba(20, 20, 22, 0.72);
-  --sidebar-translucent: rgba(26, 26, 30, 0.68);
-  --border-translucent: rgba(42, 42, 46, 0.9);
-  --muted-translucent: rgba(30, 30, 34, 0.72);
+  --bg-translucent: rgba(9, 9, 11, 0.72);
+  --sidebar-translucent: rgba(24, 24, 27, 0.68);
+  --border-translucent: rgba(39, 39, 42, 0.9);
+  --muted-translucent: rgba(39, 39, 42, 0.72);
   --accent-translucent: rgba(10, 132, 255, 0.28);
   --status-translucent: rgba(24, 24, 27, 0.72);
-  --hover-translucent: rgba(42, 42, 46, 0.6);
+  --hover-translucent: rgba(39, 39, 42, 0.6);
 
   --inline-code-bg: rgba(255,255,255,0.06);
   --inline-code-border: rgba(255,255,255,0.08);
