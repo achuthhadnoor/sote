@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { FileTree } from "./FileTree";
-import { FileContextMenu } from "./FileContextMenu";
+import { showNativeContextMenu } from "../../utils/nativeContextMenu";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
@@ -9,15 +9,15 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   const { vaultPath, tree, isLoading, error, openVaultDialog } = useVaultStore();
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
   const folderName = vaultPath ? vaultPath.split("/").pop() || vaultPath : null;
 
-  const handleEmptyContextMenu = (e: React.MouseEvent) => {
-    // only if clicking on the container itself (empty area below tree)
+  const handleEmptyContextMenu = async (e: React.MouseEvent) => {
+    // only if clicking on the container itself (empty area below tree) — native menu
     if (e.target === e.currentTarget) {
       e.preventDefault();
-      setMenu({ x: e.clientX, y: e.clientY });
+      e.stopPropagation();
+      await showNativeContextMenu(null, e);
     }
   };
 
@@ -71,7 +71,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
 
         {!isLoading && tree.length > 0 && <FileTree nodes={tree} />}
       </div>
-      {menu && <FileContextMenu node={null} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
 
       <div className="sidebar-footer">
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px", display: "inline-flex", alignItems: "center", gap: 6 }}>
