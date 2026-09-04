@@ -2041,6 +2041,35 @@ html, body, #root {
 .ProseMirror td:last-child { border-right: none; }
 .ProseMirror tr:last-child td { border-bottom: none; }
 
+/* Custom table block container */
+.snipnote-table-container table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0;
+  font-size: 13px;
+}
+.snipnote-table-container th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border-translucent);
+  color: var(--fg);
+  font-size: 12px;
+}
+.snipnote-table-container th:last-child { border-right: none; }
+.snipnote-table-container td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-translucent);
+  border-right: 1px solid var(--border-translucent);
+  vertical-align: top;
+}
+.snipnote-table-container td:last-child { border-right: none; }
+.snipnote-table-container tr:last-child td { border-bottom: none; }
+.snipnote-table-container tr:hover td { background: var(--muted-translucent); }
+
 /* Strong / emphasis polish */
 .ProseMirror strong { font-weight: 650; color: var(--fg); }
 .ProseMirror em { font-style: italic; }

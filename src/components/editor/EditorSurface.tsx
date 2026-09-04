@@ -7,9 +7,11 @@ import TaskItem from "@tiptap/extension-task-item";
 import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { CustomCodeBlock } from "./extensions/CustomCodeBlock";
+import { CustomTableBlock } from "./extensions/CustomTableBlock";
 import { SearchHighlight } from "./extensions/SearchHighlight";
 import { FrontmatterTable } from "./FrontmatterTable";
 import { MarkdownOutline } from "./MarkdownOutline";
+import { healEscapedMarkdown } from "../../utils/markdownUtils";
 import { FindBar } from "./FindBar";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
@@ -69,6 +71,7 @@ export const EditorSurface: React.FC = () => {
   activePathRef.current = activePath;
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isProgrammaticUpdateRef = useRef(false);
   const [isFindOpen, setIsFindOpen] = useState(false);
   const [showReplace, setShowReplace] = useState(false);
   const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
@@ -114,6 +117,7 @@ export const EditorSurface: React.FC = () => {
         },
       }),
       CustomCodeBlock,
+      CustomTableBlock,
       SearchHighlight,
       Link.configure({
         openOnClick: false,
@@ -164,30 +168,58 @@ export const EditorSurface: React.FC = () => {
       },
       handlePaste: (_view: any, event: ClipboardEvent, _slice: any) => {
         const cd = event.clipboardData as DataTransfer | null;
-        const items = cd?.items;
-        if (!items) return false;
-        const hasImageItem = Array.from(items).some((it: any) => it.type.startsWith("image/"));
-        if (!hasImageItem) return false;
-        const files = Array.from(cd?.files ?? []).filter((f: File) => f.type.startsWith("image/"));
-        if (files.length === 0) return false;
-        event.preventDefault();
-        files.forEach((file: File) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const src = reader.result as string;
-            const e = editor as any;
-            if (!e) return;
-            e.chain().focus().setImage({ src, alt: file.name }).run();
+        if (!cd) return false;
+
+        // 1. Handle image paste
+        const items = cd.items;
+        const hasImageItem = items && Array.from(items).some((it: any) => it.type.startsWith("image/"));
+        if (hasImageItem) {
+          const files = Array.from(cd?.files ?? []).filter((f: File) => f.type.startsWith("image/"));
+          if (files.length > 0) {
+            event.preventDefault();
+            files.forEach((file: File) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const src = reader.result as string;
+                const e = editor as any;
+                if (!e) return;
+                e.chain().focus().setImage({ src, alt: file.name }).run();
+                const md = typeof e.getMarkdown === "function" ? e.getMarkdown() : "";
+                updateBody(md);
+                triggerAutoSave();
+              };
+              reader.readAsDataURL(file);
+            });
+            return true;
+          }
+        }
+
+        // 2. Handle markdown text paste
+        const text = cd.getData("text/plain");
+        const html = cd.getData("text/html");
+        // Intercept plain text paste if it contains markdown formatting syntax or if no HTML present
+        if (text && (!html || /[*_`#~\[\]>|\n]/.test(text))) {
+          event.preventDefault();
+          const cleanText = healEscapedMarkdown(text);
+          const e = editor as any;
+          if (e) {
+            try {
+              e.commands.insertContent(cleanText, { contentType: "markdown" });
+            } catch {
+              e.commands.insertContent(text);
+            }
             const md = typeof e.getMarkdown === "function" ? e.getMarkdown() : "";
             updateBody(md);
             triggerAutoSave();
-          };
-          reader.readAsDataURL(file);
-        });
-        return true;
+          }
+          return true;
+        }
+
+        return false;
       },
     },
     onUpdate: ({ editor }) => {
+      if (isProgrammaticUpdateRef.current) return;
       const ed = editor as any;
       const md = typeof ed.getMarkdown === "function"
         ? ed.getMarkdown()
@@ -355,6 +387,7 @@ export const EditorSurface: React.FC = () => {
 
     // Draft new note: no file on disk yet, init empty
     if (isNewDraft) {
+      isProgrammaticUpdateRef.current = true;
       useEditorStore.setState({
         frontmatter: null,
         lastSavedFrontmatter: null,
@@ -365,7 +398,10 @@ export const EditorSurface: React.FC = () => {
         error: null,
         hasConflict: false,
       } as any);
-      editor.commands.setContent("");
+      editor.commands.setContent("", { emitUpdate: false } as any);
+      setTimeout(() => {
+        isProgrammaticUpdateRef.current = false;
+      }, 50);
       return;
     }
 
@@ -373,12 +409,20 @@ export const EditorSurface: React.FC = () => {
     loadNote(activePath)
       .then((body) => {
         if (!cancelled && editor) {
-          const ed = editor as any;
-          if (ed.markdown?.parse) {
-            const parsedDoc = ed.markdown.parse(body);
-            editor.commands.setContent(parsedDoc);
-          } else {
-            (editor.commands as any).setContent(body, { contentType: "markdown" });
+          isProgrammaticUpdateRef.current = true;
+          try {
+            const cleanBody = healEscapedMarkdown(body);
+            const ed = editor as any;
+            if (ed.markdown?.parse) {
+              const parsedDoc = ed.markdown.parse(cleanBody);
+              editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
+            } else {
+              (editor.commands as any).setContent(cleanBody, { contentType: "markdown", emitUpdate: false });
+            }
+          } finally {
+            setTimeout(() => {
+              isProgrammaticUpdateRef.current = false;
+            }, 50);
           }
         }
       })
@@ -397,15 +441,22 @@ export const EditorSurface: React.FC = () => {
     const wasRaw = prevRawRef.current;
     prevRawRef.current = isRawMode;
     if (wasRaw && !isRawMode && editor) {
+      isProgrammaticUpdateRef.current = true;
       const ed = editor as any;
       try {
+        const cleanBody = healEscapedMarkdown(body || "");
         if (ed.markdown?.parse) {
-          const parsedDoc = ed.markdown.parse(body || "");
-          editor.commands.setContent(parsedDoc);
+          const parsedDoc = ed.markdown.parse(cleanBody);
+          editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
         } else {
-          (editor.commands as any).setContent(body || "", { contentType: "markdown" });
+          (editor.commands as any).setContent(cleanBody, { contentType: "markdown", emitUpdate: false });
         }
       } catch {}
+      finally {
+        setTimeout(() => {
+          isProgrammaticUpdateRef.current = false;
+        }, 50);
+      }
     }
   }, [isRawMode, body, editor]);
 
