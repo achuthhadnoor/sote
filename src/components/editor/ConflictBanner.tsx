@@ -1,6 +1,9 @@
 import React from "react";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { useTabStore } from "../../stores/useTabStore";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 export const ConflictBanner: React.FC = () => {
   const hasConflict = useEditorStore((state) => state.hasConflict);
@@ -17,27 +20,30 @@ export const ConflictBanner: React.FC = () => {
   }
 
   return (
-    <aside className="conflict-banner" role="alert">
-      <div className="conflict-message">
-        <span className="conflict-icon">⚠️</span>
-        <span>File changed on disk</span>
-      </div>
-      <div className="conflict-actions">
-        <button
-          type="button"
-          className="btn-conflict-reload"
-          onClick={() => resolveConflictReload(activePath)}
-        >
-          Reload
-        </button>
-        <button
-          type="button"
-          className="btn-conflict-keep"
-          onClick={resolveConflictKeepMine}
-        >
-          Keep mine
-        </button>
-      </div>
-    </aside>
+    <div className="mx-6 mt-2.5">
+      <Alert className="flex items-center justify-between gap-3 bg-[var(--muted-translucent)] border-[var(--border-translucent)] py-2.5 px-3.5 rounded-md">
+        <AlertDescription className="flex items-center gap-2 text-[13px] font-medium">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          File changed on disk
+        </AlertDescription>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            className="h-7 px-3 text-xs"
+            onClick={() => resolveConflictReload(activePath)}
+          >
+            Reload
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-3 text-xs bg-transparent"
+            onClick={resolveConflictKeepMine}
+          >
+            Keep mine
+          </Button>
+        </div>
+      </Alert>
+    </div>
   );
 };

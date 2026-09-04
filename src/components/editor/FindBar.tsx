@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Editor } from "@tiptap/react";
 import { useEditorStore } from "../../stores/useEditorStore";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search, ChevronUp, ChevronDown, X } from "lucide-react";
 
 interface FindBarProps {
   editor: Editor | null;
@@ -229,48 +233,44 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
   if (!isOpen) return null;
 
   return (
-    <div className="find-bar" role="search" aria-label="Find in editor">
-      <div className="find-bar-row">
-        <div className="find-input-group">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="find-icon">
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M16 16L20 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-          <input
+    <Card className="find-bar absolute bottom-9 left-1/2 -translate-x-1/2 w-[560px] max-w-[90%] p-2.5 flex flex-col gap-2 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[8px] animate-in fade-in zoom-in-95" role="search" aria-label="Find in editor">
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2 rounded-md border border-transparent bg-muted/70 px-2 py-1 focus-within:border-ring focus-within:bg-background transition-colors">
+          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <Input
             ref={inputRef}
-            className="find-input"
+            className="h-auto border-0 bg-transparent p-0 text-[13px] shadow-none focus-visible:ring-0"
             placeholder="Find"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             aria-label="Find"
           />
-          <span className="find-count" aria-live="polite">
+          <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap" aria-live="polite">
             {displayCount}
           </span>
         </div>
-        <div className="find-actions">
-          <button className="find-btn" onClick={goPrev} disabled={matchCount === 0} title="Previous (Shift+Enter)" aria-label="Previous match">
-            ↑
-          </button>
-          <button className="find-btn" onClick={goNext} disabled={matchCount === 0} title="Next (Enter)" aria-label="Next match">
-            ↓
-          </button>
-          <button className="find-btn" onClick={onToggleReplace} title="Toggle Replace (Shift+Cmd+F)" aria-label="Toggle replace">
-            {/* replace icon */}
-            <span style={{ fontSize: "11px" }}>⇧</span>
-          </button>
-          <button className="find-close" onClick={onClose} title="Close (Esc)" aria-label="Close find bar">
-            ×
-          </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goPrev} disabled={matchCount === 0} title="Previous (Shift+Enter)" aria-label="Previous match">
+            <ChevronUp className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goNext} disabled={matchCount === 0} title="Next (Enter)" aria-label="Next match">
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleReplace} title="Toggle Replace" aria-label="Toggle replace">
+            <span className="text-[11px]">⇧</span>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} title="Close (Esc)" aria-label="Close find bar">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
       {showReplace && (
-        <div className="find-bar-row">
-          <div className="find-input-group">
-            <input
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-2 rounded-md border border-transparent bg-muted/70 px-2 py-1 focus-within:border-ring focus-within:bg-background">
+            <Input
               ref={replaceInputRef}
-              className="find-input"
+              className="h-auto border-0 bg-transparent p-0 text-[13px] shadow-none focus-visible:ring-0"
               placeholder="Replace"
               value={replaceQuery}
               onChange={(e) => setReplaceQuery(e.target.value)}
@@ -283,16 +283,16 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
               aria-label="Replace"
             />
           </div>
-          <div className="find-actions">
-            <button className="find-replace-btn" onClick={handleReplace} disabled={matchCount === 0 || !query}>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-7 px-3 text-xs" onClick={handleReplace} disabled={matchCount === 0 || !query}>
               Replace
-            </button>
-            <button className="find-replace-btn" onClick={handleReplaceAll} disabled={matchCount === 0 || !query}>
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 px-3 text-xs" onClick={handleReplaceAll} disabled={matchCount === 0 || !query}>
               Replace All
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 };

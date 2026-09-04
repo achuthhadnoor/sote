@@ -16,6 +16,8 @@ import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 function resolveMarkdownLink(href: string, activePath: string | null, vaultPath: string | null): string | null {
   const clean = href.split("#")[0].split("?")[0].trim();
@@ -411,12 +413,10 @@ export const EditorSurface: React.FC = () => {
     return (
       <section className="editor-surface-container">
         <div className="editor-canvas">
-          <div className="empty-state">
-            <h1 className="empty-title">snipnote</h1>
-            <p>The full-size local Markdown companion for Claude Code.</p>
-            <button className="btn-primary" onClick={openVaultDialog}>
-              Open Local Vault
-            </button>
+          <div className="empty-state flex flex-col items-center justify-center gap-3 py-12 text-center">
+            <h1 className="empty-title text-[18px] font-semibold">snipnote</h1>
+            <p className="text-sm text-muted-foreground">The full-size local Markdown companion for Claude Code.</p>
+            <Button onClick={openVaultDialog} className="mt-2">Open Local Vault</Button>
           </div>
         </div>
       </section>
@@ -427,9 +427,9 @@ export const EditorSurface: React.FC = () => {
     return (
       <section className="editor-surface-container">
         <div className="editor-canvas">
-          <div className="empty-state">
-            <h2 className="empty-title">No Note Selected</h2>
-            <p>Select a markdown note from the sidebar or click + to start writing.</p>
+          <div className="empty-state flex flex-col items-center justify-center gap-3 py-12 text-center">
+            <h2 className="empty-title text-[18px] font-semibold">No Note Selected</h2>
+            <p className="text-sm text-muted-foreground">Select a markdown note from the sidebar or click + to start writing.</p>
           </div>
         </div>
       </section>
@@ -451,8 +451,8 @@ export const EditorSurface: React.FC = () => {
         )}
         <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
         {isRawMode ? (
-          <textarea
-            className="raw-editor"
+          <Textarea
+            className="raw-editor min-h-[420px] flex-1 font-mono text-[13px] leading-[1.6] bg-background border focus-visible:ring-1 focus-visible:ring-ring"
             value={body}
             onChange={(e) => {
               updateBody(e.target.value);

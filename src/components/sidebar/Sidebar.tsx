@@ -2,6 +2,10 @@ import React from "react";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { FileTree } from "./FileTree";
 import { showNativeContextMenu } from "../../utils/nativeContextMenu";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Settings } from "lucide-react";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
@@ -24,52 +28,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <input
-          type="text"
-          className="sidebar-search-input"
+        <Input
+          className="sidebar-search-input h-[26px] bg-[var(--muted-translucent)] border-transparent focus-visible:ring-1 focus-visible:ring-ring text-[13px]"
           placeholder="Search notes... (⌘P)"
           readOnly
         />
       </div>
 
-      <div className="sidebar-tree-container" onContextMenu={handleEmptyContextMenu}>
-        {isLoading && (
-          <div className="sidebar-empty-hint">Scanning vault...</div>
-        )}
+      <div className="sidebar-tree-container flex flex-col overflow-hidden p-0" onContextMenu={handleEmptyContextMenu}>
+        <ScrollArea className="flex-1 h-full [&>div>div]:!block">
+          <div className="p-2">
+          {isLoading && (
+            <div className="sidebar-empty-hint">Scanning vault...</div>
+          )}
 
-        {error && (
-          <div className="sidebar-empty-hint" style={{ color: "var(--destructive)" }}>
-            Error: {error}
+          {error && (
+            <div className="sidebar-empty-hint" style={{ color: "var(--destructive)" }}>
+              Error: {error}
+            </div>
+          )}
+
+          {!isLoading && !error && tree.length === 0 && (
+            <div className="sidebar-empty-hint">
+              {vaultPath ? (
+                "No markdown files found in this vault."
+              ) : (
+                <>
+                  No vault opened.<br />
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={openVaultDialog}
+                    className="mt-2 h-auto p-0 text-[13px] text-[var(--link)]"
+                  >
+                    Select a folder
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
+          {!isLoading && tree.length > 0 && <FileTree nodes={tree} />}
           </div>
-        )}
-
-        {!isLoading && !error && tree.length === 0 && (
-          <div className="sidebar-empty-hint">
-            {vaultPath ? (
-              "No markdown files found in this vault."
-            ) : (
-              <>
-                No vault opened.<br />
-                <button
-                  onClick={openVaultDialog}
-                  style={{
-                    marginTop: "8px",
-                    background: "none",
-                    border: "none",
-                    color: "var(--link)",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    fontSize: "13px",
-                  }}
-                >
-                  Select a folder
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {!isLoading && tree.length > 0 && <FileTree nodes={tree} />}
+        </ScrollArea>
       </div>
 
       <div className="sidebar-footer">
@@ -80,51 +81,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             </svg>
             {folderName ?? "Library"}
           </span>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <button
+        <div className="inline-flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={openVaultDialog}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--fg)",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-            }}
+            className="h-7 px-2 text-[13px] font-medium text-foreground hover:bg-[var(--hover-translucent)]"
             title={vaultPath || "Open vault"}
           >
             {vaultPath ? "Switch" : "Open..."}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onOpenSettings?.()}
             title="Settings (⌘,)"
             aria-label="Open settings"
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              border: "1px solid transparent",
-              background: "transparent",
-              color: "var(--muted-fg)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "var(--hover-translucent)";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--fg)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--muted-fg)";
-            }}
+            className="h-[22px] w-[22px] rounded-[6px] text-muted-foreground hover:bg-[var(--hover-translucent)] hover:text-foreground"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M19.4 14.9a7.5 7.5 0 0 0 .1-1.8l1.7-1.3-1.7-3-1.9.4a7.3 7.3 0 0 0-1.6-.9L14.9 6h-3.4L10.2 8.3a7.3 7.3 0 0 0-1.6.9L6.7 8.8l-1.7 3 1.7 1.3a7.5 7.5 0 0 0 .1 1.8L5.1 16.2l1.7 3 1.9-.4c.5.4 1 .7 1.6.9l1.2 2.3h3.4l1.2-2.3c.6-.2 1.1-.5 1.6-.9l1.9.4 1.7-3-1.9-1.3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-            </svg>
-          </button>
+            <Settings className="h-[14px] w-[14px]" />
+          </Button>
         </div>
       </div>
     </aside>

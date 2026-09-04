@@ -5,6 +5,14 @@ import {
   serializeYamlFrontmatter,
   FrontmatterProperty,
 } from "../../utils/frontmatterParser";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 
 interface FrontmatterTableProps {
   onAutoSaveTrigger?: () => void;
@@ -23,7 +31,6 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
   const [newValue, setNewValue] = useState("");
   const [isAddingProperty, setIsAddingProperty] = useState(false);
 
-  // Sync rawText whenever store frontmatter changes from outside
   useEffect(() => {
     setRawText(frontmatter || "");
   }, [frontmatter]);
@@ -138,74 +145,63 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
 
   if (!frontmatter && properties.length === 0) {
     return (
-      <div className="frontmatter-add-banner">
-        <button
-          type="button"
-          className="btn-add-frontmatter"
-          onClick={handleInitFrontmatter}
-          title="Add YAML metadata properties to this note"
-        >
-          + Add Properties
-        </button>
+      <div className="mb-3 flex">
+        <Button variant="outline" size="sm" onClick={handleInitFrontmatter} className="border-dashed text-xs h-7">
+          <Plus className="mr-1 h-3 w-3" /> Add Properties
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="frontmatter-container">
-      <div className="frontmatter-header">
-        <div
-          className="frontmatter-title-group"
+    <Card className="mb-6 overflow-hidden shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 bg-muted/50 px-3 py-2 border-b">
+        <button
+          className="flex items-center gap-2 text-sm font-medium hover:text-foreground transition-colors"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
-          <span className="frontmatter-collapse-icon">
-            {isCollapsed ? "▶" : "▼"}
-          </span>
-          <span className="frontmatter-title">Properties</span>
-          <span className="frontmatter-count-badge">{properties.length}</span>
-        </div>
+          {isCollapsed ? <ChevronRight className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+          Properties
+          <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-mono">{properties.length}</Badge>
+        </button>
 
-        <div className="frontmatter-header-actions">
-          {!isCollapsed && (
-            <>
-              <button
-                type="button"
-                className={`frontmatter-tab-btn ${
-                  viewMode === "table" ? "active" : ""
-                }`}
-                onClick={() => setViewMode("table")}
+        {!isCollapsed && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-6 px-2 text-[11px]"
+              onClick={() => setViewMode("table")}
+            >
+              Table
+            </Button>
+            <Button
+              variant={viewMode === "raw" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-6 px-2 text-[11px]"
+              onClick={() => setViewMode("raw")}
+            >
+              Raw YAML
+            </Button>
+            {viewMode === "table" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-[11px] ml-1"
+                onClick={() => setIsAddingProperty(!isAddingProperty)}
               >
-                Table
-              </button>
-              <button
-                type="button"
-                className={`frontmatter-tab-btn ${
-                  viewMode === "raw" ? "active" : ""
-                }`}
-                onClick={() => setViewMode("raw")}
-              >
-                Raw YAML
-              </button>
-
-              {viewMode === "table" && (
-                <button
-                  type="button"
-                  className="frontmatter-action-btn"
-                  onClick={() => setIsAddingProperty(!isAddingProperty)}
-                >
-                  {isAddingProperty ? "Cancel" : "+ Add"}
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+                {isAddingProperty ? "Cancel" : "+ Add"}
+              </Button>
+            )}
+          </div>
+        )}
+      </CardHeader>
 
       {!isCollapsed && (
-        <div className="frontmatter-body">
+        <CardContent className="p-0">
           {viewMode === "raw" ? (
-            <textarea
-              className="frontmatter-raw-textarea"
+            <Textarea
+              className="frontmatter-raw-textarea min-h-[120px] w-full rounded-none border-0 font-mono text-xs leading-5 focus-visible:ring-0 p-3"
               value={rawText}
               onChange={handleRawChange}
               placeholder="key: value..."
@@ -213,17 +209,17 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
               spellCheck={false}
             />
           ) : (
-            <div className="frontmatter-table-wrapper">
-              <table className="frontmatter-table">
-                <tbody>
+            <>
+              <Table className="text-xs">
+                <TableBody>
                   {properties.map((prop, idx) => (
-                    <tr key={`${prop.key}-${idx}`} className="frontmatter-row">
-                      <td className="frontmatter-key-cell">
-                        <span className="frontmatter-key-label" title={prop.key}>
+                    <TableRow key={`${prop.key}-${idx}`} className="hover:bg-muted/30">
+                      <TableCell className="w-[160px] max-w-[200px] border-r bg-muted/20 p-2 align-top">
+                        <span className="font-mono text-[11px] font-medium text-muted-foreground truncate block" title={prop.key}>
                           {prop.key}
                         </span>
-                      </td>
-                      <td className="frontmatter-val-cell">
+                      </TableCell>
+                      <TableCell className="p-2 align-middle">
                         <PropertyValueRenderer
                           prop={prop}
                           onUpdate={(newVal) => handleValueChange(idx, newVal)}
@@ -233,52 +229,51 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
                             handleRemoveListItem(idx, itemIdx)
                           }
                         />
-                      </td>
-                      <td className="frontmatter-action-cell">
-                        <button
-                          type="button"
-                          className="frontmatter-del-btn"
+                      </TableCell>
+                      <TableCell className="w-[36px] p-1 text-center align-middle">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-60 hover:opacity-100 hover:text-destructive hover:bg-destructive/10"
                           onClick={() => handleDeleteProperty(idx)}
                           title={`Delete ${prop.key}`}
                         >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
 
               {isAddingProperty && (
                 <form
-                  className="frontmatter-new-prop-form"
+                  className="flex gap-2 border-t bg-muted/30 p-2"
                   onSubmit={handleAddNewProperty}
                 >
-                  <input
-                    type="text"
-                    className="frontmatter-input frontmatter-input-key"
-                    placeholder="Property name (e.g. tags, author)"
+                  <Input
+                    placeholder="Property name"
                     value={newKey}
                     onChange={(e) => setNewKey(e.target.value)}
+                    className="h-7 w-[150px] font-mono text-xs"
                     autoFocus
                   />
-                  <input
-                    type="text"
-                    className="frontmatter-input frontmatter-input-val"
-                    placeholder="Value (e.g. 'Draft', '[a, b]', 'true', '42')"
+                  <Input
+                    placeholder="Value"
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
+                    className="h-7 flex-1 text-xs"
                   />
-                  <button type="submit" className="frontmatter-submit-btn">
+                  <Button type="submit" size="sm" className="h-7 px-3 text-xs">
                     Add
-                  </button>
+                  </Button>
                 </form>
               )}
-            </div>
+            </>
           )}
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 };
 
@@ -306,43 +301,34 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
     setTextDraft(String(prop.value ?? ""));
   }, [prop.value]);
 
-  // Boolean Toggle
   if (prop.type === "boolean" || typeof prop.value === "boolean") {
     return (
-      <button
-        type="button"
-        className={`frontmatter-boolean-toggle ${
-          prop.value ? "is-true" : "is-false"
-        }`}
-        onClick={onToggleBoolean}
-      >
-        <span className="toggle-dot" />
-        <span className="toggle-text">{prop.value ? "true" : "false"}</span>
-      </button>
+      <div className="flex items-center gap-2">
+        <Switch checked={!!prop.value} onCheckedChange={onToggleBoolean} />
+        <span className="font-mono text-xs">{prop.value ? "true" : "false"}</span>
+      </div>
     );
   }
 
-  // Array / List representation as Chips
   if (Array.isArray(prop.value)) {
     return (
-      <div className="frontmatter-chip-list">
+      <div className="flex flex-wrap gap-1.5 items-center">
         {prop.value.map((item, i) => (
-          <span key={i} className="frontmatter-chip">
-            <span className="chip-text">{String(item)}</span>
+          <Badge key={i} variant="secondary" className="gap-1 pr-1 font-mono text-[11px]">
+            <span>{String(item)}</span>
             <button
               type="button"
-              className="chip-remove-btn"
+              className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
               onClick={() => onRemoveListItem(i)}
             >
-              ×
+              <X className="h-3 w-3" />
             </button>
-          </span>
+          </Badge>
         ))}
 
         {isAddingChip ? (
-          <input
-            type="text"
-            className="frontmatter-chip-input"
+          <Input
+            className="h-6 w-[90px] text-xs"
             value={newChipText}
             onChange={(e) => setNewChipText(e.target.value)}
             onKeyDown={(e) => {
@@ -369,38 +355,36 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
             autoFocus
           />
         ) : (
-          <button
-            type="button"
-            className="frontmatter-add-chip-btn"
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 border-dashed px-2 text-[11px]"
             onClick={() => setIsAddingChip(true)}
           >
             + item
-          </button>
+          </Button>
         )}
       </div>
     );
   }
 
-  // Nested Object
   if (typeof prop.value === "object" && prop.value !== null) {
     return (
-      <div className="frontmatter-nested-object">
+      <div className="flex flex-col gap-1 font-mono text-[11px]">
         {Object.entries(prop.value).map(([subK, subV]) => (
-          <div key={subK} className="nested-item">
-            <span className="nested-key">{subK}:</span>
-            <span className="nested-val">{String(subV)}</span>
+          <div key={subK} className="flex gap-1.5">
+            <span className="text-muted-foreground font-medium">{subK}:</span>
+            <span>{String(subV)}</span>
           </div>
         ))}
       </div>
     );
   }
 
-  // Number / String
   if (isEditingText) {
     return (
-      <input
-        type="text"
-        className="frontmatter-inline-input"
+      <Input
+        className="h-7 text-xs"
         value={textDraft}
         onChange={(e) => setTextDraft(e.target.value)}
         onBlur={() => {
@@ -431,12 +415,12 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
 
   return (
     <div
-      className="frontmatter-val-display"
+      className="min-h-[20px] cursor-pointer text-xs leading-5 hover:bg-muted/40 rounded px-1 -mx-1 break-words"
       onClick={() => setIsEditingText(true)}
       title="Click to edit value"
     >
       {String(prop.value ?? "") || (
-        <span className="frontmatter-empty-val">empty</span>
+        <span className="italic text-muted-foreground text-[11px]">empty</span>
       )}
     </div>
   );

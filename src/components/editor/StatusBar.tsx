@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { useTabStore } from "../../stores/useTabStore";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const StatusBar: React.FC = () => {
   const body = useEditorStore((state) => state.body);
@@ -28,27 +30,31 @@ export const StatusBar: React.FC = () => {
   }, [body, activePath]);
 
   return (
-    <footer className="status-bar" role="status" aria-live="polite" aria-atomic="true">
-      <span className="status-stats" aria-live="polite">
+    <footer className="status-bar flex h-[var(--status-height)] items-center justify-between gap-3 border-t border-[var(--border-translucent)] bg-[var(--status-translucent)] px-2 pl-4 text-[11px] font-mono text-muted-foreground select-none" role="status" aria-live="polite" aria-atomic="true">
+      <span className="status-stats truncate" aria-live="polite">
         {stats.words} words · {stats.characters} characters · {stats.paragraphs} paragraphs
       </span>
-      <button
-        type="button"
-        className={`status-raw-toggle ${isRawMode ? "is-active" : ""}`}
+      <Button
+        variant={isRawMode ? "secondary" : "ghost"}
+        size="sm"
+        className={cn(
+          "h-[20px] px-2 text-[10px] font-medium font-sans gap-1.5 rounded-[var(--radius-sm)] border border-transparent",
+          isRawMode && "bg-background border-border shadow-sm text-foreground",
+          !activePath && "opacity-40 pointer-events-none"
+        )}
         onClick={toggleRawMode}
         title={isRawMode ? "Switch to rich view" : "Show raw markdown"}
         aria-label={isRawMode ? "Switch to rich view" : "Show raw markdown"}
         aria-pressed={isRawMode}
         disabled={!activePath}
       >
-        {/* code/raw icon </> */}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M8 9L4 12L8 15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M16 9L20 12L16 15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M14 5L10 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         <span>{isRawMode ? "Rich" : "Raw"}</span>
-      </button>
+      </Button>
     </footer>
   );
 };

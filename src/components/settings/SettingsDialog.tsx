@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Theme, useThemeStore } from "../../stores/useThemeStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 interface Props {
   isOpen: boolean;
@@ -37,13 +41,11 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
     })();
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const Option = ({ value, label, desc }: { value: Theme; label: string; desc: string }) => {
     const active = theme === value;
     return (
       <button
-        className={`settings-option ${active ? "is-active" : ""}`}
+        className={cn("settings-option", active && "is-active")}
         onClick={() => setTheme(value)}
         aria-pressed={active}
       >
@@ -51,7 +53,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
           <span className="settings-option-label">{label}</span>
           <span className="settings-option-desc">{desc}</span>
         </div>
-        <span className={`settings-radio ${active ? "is-checked" : ""}`} aria-hidden="true">
+        <span className={cn("settings-radio", active && "is-checked")} aria-hidden="true">
           {active && <span className="settings-radio-dot" />}
         </span>
       </button>
@@ -59,25 +61,18 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="settings-overlay" onClick={onClose} role="presentation">
-      <div
-        className="settings-dialog"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Settings"
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="max-w-[560px] p-0 gap-0 bg-background sm:rounded-[12px] shadow-[0_20px_50px_rgba(0,0,0,0.18)] border flex max-h-[80vh] flex-col overflow-hidden"
+        style={{ display: "flex" } as React.CSSProperties}
+        aria-describedby={undefined}
       >
-        <div className="settings-header">
+        <DialogHeader className="settings-header p-[18px_20px_14px_20px] border-b text-left space-y-0">
           <div>
-            <h2 className="settings-title">Settings</h2>
-            <p className="settings-subtitle">Manage appearance and behavior. Press Esc to close.</p>
+            <DialogTitle className="settings-title text-[16px] font-semibold">Settings</DialogTitle>
+            <DialogDescription className="settings-subtitle mt-1 text-[12px] text-muted-foreground">Manage appearance and behavior. Press Esc to close.</DialogDescription>
           </div>
-          <button className="settings-close-btn" onClick={onClose} aria-label="Close settings">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
+        </DialogHeader>
 
         <div className="settings-body">
           <section className="settings-section">
@@ -115,9 +110,12 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
               Editor spellcheck uses your OS dictionary. Toggle persists in <code>snipnote-spellcheck</code>.
             </p>
             <div className="settings-options">
-              <button
-                className="settings-option"
+              <div
+                className="settings-option flex items-center justify-between"
+                role="button"
+                tabIndex={0}
                 onClick={() => setSpellCheckEnabled(!spellCheckEnabled)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSpellCheckEnabled(!spellCheckEnabled); }}}
                 aria-pressed={spellCheckEnabled}
                 aria-label="Spellcheck toggle"
               >
@@ -125,10 +123,8 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                   <span className="settings-option-label">Spellcheck</span>
                   <span className="settings-option-desc">Underline misspellings and show suggestions on right-click</span>
                 </div>
-                <span className={`settings-toggle ${spellCheckEnabled ? "is-on" : ""}`} aria-hidden="true">
-                  <span className="settings-toggle-knob" />
-                </span>
-              </button>
+                <Switch checked={spellCheckEnabled} onCheckedChange={setSpellCheckEnabled} onClick={(e) => e.stopPropagation()} aria-hidden="true" />
+              </div>
             </div>
           </section>
 
@@ -176,8 +172,10 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                   {checking ? "Checking…" : "Check"}
                 </span>
               </button>
-              <button
-                className="settings-option"
+              <div
+                className="settings-option flex items-center justify-between"
+                role="button"
+                tabIndex={0}
                 onClick={async () => {
                   try {
                     const { enable, disable, isEnabled } = await import("@tauri-apps/plugin-autostart");
@@ -191,6 +189,16 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                   } catch {}
                   try { (navigator as any).vibrate?.(10); } catch {}
                 }}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    try {
+                      const { enable, disable, isEnabled } = await import("@tauri-apps/plugin-autostart");
+                      if (autostartEnabled) await disable(); else await enable();
+                      setAutostartEnabled(await isEnabled());
+                    } catch {}
+                  }
+                }}
                 aria-pressed={autostartEnabled}
                 aria-label="Launch at login toggle"
               >
@@ -198,10 +206,19 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                   <span className="settings-option-label">Launch at Login</span>
                   <span className="settings-option-desc">Open snipnote when you log in (LaunchAgent)</span>
                 </div>
-                <span className={`settings-toggle ${autostartEnabled ? "is-on" : ""}`} aria-hidden="true">
-                  <span className="settings-toggle-knob" />
-                </span>
-              </button>
+                <Switch
+                  checked={autostartEnabled}
+                  onCheckedChange={async (checked) => {
+                    try {
+                      const { enable, disable, isEnabled } = await import("@tauri-apps/plugin-autostart");
+                      if (checked) await enable(); else await disable();
+                      setAutostartEnabled(await isEnabled());
+                    } catch {}
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-hidden="true"
+                />
+              </div>
             </div>
           </section>
 
@@ -213,13 +230,11 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
           </section>
         </div>
 
-        <div className="settings-footer">
-          <span className="settings-footer-hint">Press ⌘, again to close</span>
-          <button className="btn-primary settings-done-btn" onClick={onClose}>
-            Done
-          </button>
+        <div className="flex items-center justify-between gap-3 border-t bg-muted p-3 px-5">
+          <span className="text-[11px] text-muted-foreground">Press ⌘, again to close</span>
+          <Button onClick={onClose} className="min-w-[72px]">Done</Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

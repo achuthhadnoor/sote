@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { VaultNode } from "../../types/vault";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -14,10 +16,7 @@ interface FlattenedNote {
   relativePath: string;
 }
 
-function flattenVaultTree(
-  nodes: VaultNode[],
-  parentDir: string = ""
-): FlattenedNote[] {
+function flattenVaultTree(nodes: VaultNode[], parentDir: string = ""): FlattenedNote[] {
   const result: FlattenedNote[] = [];
   for (const node of nodes) {
     if (node.isDirectory && node.children) {
@@ -34,144 +33,63 @@ function flattenVaultTree(
   return result;
 }
 
-export const CommandPalette: React.FC<CommandPaletteProps> = ({
-  isOpen,
-  onClose,
-}) => {
+export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   const tree = useVaultStore((state) => state.tree);
   const vaultPath = useVaultStore((state) => state.vaultPath);
   const selectNote = useTabStore((state) => state.selectNote);
-
   const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Flatten vault tree
-  const allNotes = useMemo(() => {
-    return flattenVaultTree(tree);
-  }, [tree]);
+  const allNotes = useMemo(() => flattenVaultTree(tree), [tree]);
 
-  // Filter notes based on query
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return allNotes;
     return allNotes.filter(
-      (note) =>
-        note.name.toLowerCase().includes(q) ||
-        note.relativePath.toLowerCase().includes(q)
+      (note) => note.name.toLowerCase().includes(q) || note.relativePath.toLowerCase().includes(q)
     );
   }, [allNotes, query]);
 
-  // Reset query and selectedIndex when opening
-  useEffect(() => {
-    if (isOpen) {
-      setQuery("");
-      setSelectedIndex(0);
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
-    }
-  }, [isOpen]);
+  if (!vaultPath) return null;
 
-  // Clamp selectedIndex if filtered list shrinks
-  useEffect(() => {
-    if (selectedIndex >= filteredNotes.length) {
-      setSelectedIndex(Math.max(0, filteredNotes.length - 1));
-    }
-  }, [filteredNotes.length, selectedIndex]);
-
-  // Scroll active item into view
-  useEffect(() => {
-    if (itemRefs.current[selectedIndex]) {
-      itemRefs.current[selectedIndex]?.scrollIntoView({
-        block: "nearest",
-      });
-    }
-  }, [selectedIndex]);
-
-  // Keyboard navigation inside palette
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onClose();
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex((prev) =>
-        prev < filteredNotes.length - 1 ? prev + 1 : 0
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex((prev) =>
-        prev > 0 ? prev - 1 : Math.max(0, filteredNotes.length - 1)
-      );
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const target = filteredNotes[selectedIndex];
-      if (target) {
-        selectNote(target.path, target.name);
-        onClose();
-      }
-    }
+  const handleSelect = (note: FlattenedNote) => {
+    selectNote(note.path, note.name);
+    onClose();
+    setQuery("");
   };
 
-  if (!isOpen || !vaultPath) return null;
-
   return (
-    <div
-      className="palette-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command Palette"
-    >
-      <div
-        className="palette-dialog"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { onClose(); setQuery(""); } }}>
+      <DialogContent
+        className="top-[14vh] translate-y-0 max-w-[520px] p-0 gap-0 overflow-hidden border shadow-[0_16px_40px_rgba(0,0,0,0.12)] sm:rounded-[12px]"
+        aria-describedby={undefined}
+        // Tailwind's DialogContent has close button; keep it for accessibility but hide visually if desired
       >
-        <div className="palette-input-wrapper">
-          <input
-            ref={inputRef}
-            type="text"
-            className="palette-search-input"
+        <Command shouldFilter={false} className="rounded-none">
+          <CommandInput
             placeholder="Search notes by name..."
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedIndex(0);
-            }}
+            onValueChange={setQuery}
           />
-        </div>
-
-        <div className="palette-list" role="listbox" aria-live="polite" aria-label="Note results">
-          {filteredNotes.length === 0 ? (
-            <div className="palette-empty">No matching notes found</div>
-          ) : (
-            filteredNotes.map((note, index) => (
-              <div
-                key={note.path}
-                ref={(el) => {
-                  itemRefs.current[index] = el;
-                }}
-                className={`palette-item ${
-                  index === selectedIndex ? "palette-item-selected" : ""
-                }`}
-                role="option"
-                aria-selected={index === selectedIndex}
-                onClick={() => {
-                  selectNote(note.path, note.name);
-                  onClose();
-                }}
-                onMouseEnter={() => setSelectedIndex(index)}
-              >
-                <div className="palette-item-title">{note.name}</div>
-                <div className="palette-item-path">{note.relativePath}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
+          <CommandList className="max-h-[320px] p-1">
+            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">No matching notes found</CommandEmpty>
+            <CommandGroup>
+              {filteredNotes.map((note) => (
+                <CommandItem
+                  key={note.path}
+                  value={`${note.name} ${note.relativePath}`}
+                  onSelect={() => handleSelect(note)}
+                  className="flex justify-between gap-3 px-3 py-2 aria-selected:bg-accent aria-selected:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                >
+                  <span className="text-[13px] font-medium truncate">{note.name}</span>
+                  <span className="text-[11px] font-mono text-muted-foreground truncate max-w-[220px] aria-selected:text-accent-foreground group-aria-selected:text-accent-foreground">
+                    {note.relativePath}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
   );
 };

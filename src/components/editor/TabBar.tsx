@@ -1,6 +1,9 @@
 import React from "react";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 interface TabBarProps {
   onNewNote?: () => void;
@@ -55,59 +58,62 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
   };
 
   return (
-    <header className="tab-bar">
-      <div className="tab-nav-group">
-        <button
-          type="button"
-          className="tab-nav-btn"
+    <header className="tab-bar flex h-[var(--header-height)] items-center gap-3 border-b border-[var(--border-translucent)] bg-[var(--bg-translucent)] px-2 pl-3 select-none overflow-hidden">
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground disabled:opacity-30"
           disabled={!canGoBack}
           onClick={goBack}
           title="Go back (⌘[)"
           aria-label="Go back"
         >
-          ←
-        </button>
-        <button
-          type="button"
-          className="tab-nav-btn"
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground disabled:opacity-30"
           disabled={!canGoForward}
           onClick={goForward}
           title="Go forward (⌘])"
           aria-label="Go forward"
         >
-          →
-        </button>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="tabs-container">
+      <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full">
         {tabs.length === 0 ? (
-          <div className="tab-empty-hint">No open notes</div>
+          <div className="text-xs text-muted-foreground pl-2">No open notes</div>
         ) : (
-          <div
-            className="tabs-scroll"
-            role="tablist"
-            aria-label="Open notes"
-            onKeyDown={(e) => {
-              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
-              const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
-              const activeIdx = tabsEls.findIndex((el) => el.getAttribute("aria-selected") === "true");
-              let nextIdx = activeIdx;
-              if (e.key === "ArrowLeft") nextIdx = Math.max(0, activeIdx - 1);
-              else if (e.key === "ArrowRight") nextIdx = Math.min(tabsEls.length - 1, activeIdx + 1);
-              else if (e.key === "Home") nextIdx = 0;
-              else if (e.key === "End") nextIdx = tabsEls.length - 1;
-              if (nextIdx !== activeIdx && tabsEls[nextIdx]) {
-                e.preventDefault();
-                tabsEls.forEach((el) => (el.tabIndex = -1));
-                tabsEls[nextIdx].tabIndex = 0;
-                tabsEls[nextIdx].focus();
-                const el = tabsEls[nextIdx];
-                const path = el.getAttribute("data-tab-path");
-                const title = el.getAttribute("data-tab-title");
-                if (path && title) handleTabClick(path, title);
-              }
-            }}
-          >
+          <ScrollArea className="flex-1 h-full">
+            <div
+              className="flex items-center gap-1.5 h-full px-0.5 py-1.5"
+              role="tablist"
+              aria-label="Open notes"
+              onKeyDown={(e) => {
+                if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
+                const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
+                const activeIdx = tabsEls.findIndex((el) => el.getAttribute("aria-selected") === "true");
+                let nextIdx = activeIdx;
+                if (e.key === "ArrowLeft") nextIdx = Math.max(0, activeIdx - 1);
+                else if (e.key === "ArrowRight") nextIdx = Math.min(tabsEls.length - 1, activeIdx + 1);
+                else if (e.key === "Home") nextIdx = 0;
+                else if (e.key === "End") nextIdx = tabsEls.length - 1;
+                if (nextIdx !== activeIdx && tabsEls[nextIdx]) {
+                  e.preventDefault();
+                  tabsEls.forEach((el) => (el.tabIndex = -1));
+                  tabsEls[nextIdx].tabIndex = 0;
+                  tabsEls[nextIdx].focus();
+                  const el = tabsEls[nextIdx];
+                  const path = el.getAttribute("data-tab-path");
+                  const title = el.getAttribute("data-tab-title");
+                  if (path && title) handleTabClick(path, title);
+                }
+              }}
+            >
             {tabs.map((tab) => {
               const isActive = tab.path === activePath;
               const isDraft = !!tab.isNew;
@@ -154,19 +160,21 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
                 </button>
               );
             })}
-          </div>
+            </div>
+          </ScrollArea>
         )}
       </div>
 
-      <button
-        type="button"
-        className="tab-action-btn"
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-[26px] w-[26px] shrink-0 rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground"
         onClick={onNewNote}
         title="New note (⌘N)"
         aria-label="New note"
       >
-        +
-      </button>
+        <Plus className="h-4 w-4" />
+      </Button>
     </header>
   );
 };
