@@ -17,7 +17,7 @@ import { useEditorStore } from "../../stores/useEditorStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { RawEditor } from "./RawEditor";
 
 function resolveMarkdownLink(href: string, activePath: string | null, vaultPath: string | null): string | null {
   const clean = href.split("#")[0].split("?")[0].trim();
@@ -451,16 +451,13 @@ export const EditorSurface: React.FC = () => {
         )}
         <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
         {isRawMode ? (
-          <Textarea
-            className="raw-editor min-h-[420px] flex-1 font-mono text-[13px] leading-[1.6] bg-background border focus-visible:ring-1 focus-visible:ring-ring"
+          <RawEditor
             value={body}
-            onChange={(e) => {
-              updateBody(e.target.value);
+            onChange={(val) => {
+              updateBody(val);
               triggerAutoSave();
             }}
-            placeholder="Raw markdown…"
             spellCheck={spellCheckEnabled}
-            autoFocus
           />
         ) : (
           <EditorContent editor={editor} />

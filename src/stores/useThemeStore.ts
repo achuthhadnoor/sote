@@ -6,6 +6,8 @@ interface ThemeState {
   theme: Theme;
   setTheme: (t: Theme) => void;
   effectiveTheme: "light" | "dark";
+  bgOpacity: number;
+  setBgOpacity: (opacity: number) => void;
 }
 
 function getSystemTheme(): "light" | "dark" {
@@ -26,9 +28,23 @@ function loadInitialTheme(): Theme {
   return "system";
 }
 
+function loadInitialBgOpacity(): number {
+  try {
+    const saved = localStorage.getItem("snipnote-bg-opacity");
+    if (saved !== null) {
+      const parsed = Number(saved);
+      if (!isNaN(parsed) && parsed >= 10 && parsed <= 100) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return 85;
+}
+
 export const useThemeStore = create<ThemeState>((set) => ({
   theme: loadInitialTheme(),
   effectiveTheme: computeEffective(loadInitialTheme()),
+  bgOpacity: loadInitialBgOpacity(),
   setTheme: (t) =>
     set(() => {
       try {
@@ -41,6 +57,15 @@ export const useThemeStore = create<ThemeState>((set) => ({
       }
       return { theme: t, effectiveTheme: effective };
     }),
+  setBgOpacity: (opacity) => {
+    try {
+      localStorage.setItem("snipnote-bg-opacity", String(opacity));
+    } catch {}
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty("--bg-opacity", `${opacity / 100}`);
+    }
+    set({ bgOpacity: opacity });
+  },
 }));
 
 // Initialize DOM on load
@@ -49,6 +74,9 @@ if (typeof window !== "undefined") {
   const eff = computeEffective(initial);
   document.documentElement.setAttribute("data-theme", eff);
   document.documentElement.style.colorScheme = eff;
+
+  const initialOpacity = loadInitialBgOpacity();
+  document.documentElement.style.setProperty("--bg-opacity", `${initialOpacity / 100}`);
 
   // Keep effectiveTheme in sync when system changes and mode is system
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

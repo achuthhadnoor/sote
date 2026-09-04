@@ -30,7 +30,7 @@ export const StatusBar: React.FC = () => {
   }, [body, activePath]);
 
   return (
-    <footer className="status-bar flex h-[var(--status-height)] items-center justify-between gap-3 border-t border-[var(--border-translucent)] bg-[var(--status-translucent)] px-2 pl-4 text-[11px] font-mono text-muted-foreground select-none" role="status" aria-live="polite" aria-atomic="true">
+    <footer className="status-bar flex h-[var(--status-height)] items-center justify-between gap-3 border-t border-[var(--border-translucent)] bg-[var(--status-translucent)] px-3 text-[11px] font-mono text-muted-foreground select-none" role="status" aria-live="polite" aria-atomic="true">
       <span className="status-stats truncate" aria-live="polite">
         {stats.words} words · {stats.characters} characters · {stats.paragraphs} paragraphs
       </span>

@@ -247,6 +247,14 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+                .title("snipnote")
+                .inner_size(1280.0, 720.0)
+                .min_inner_size(1100.0, 600.0)
+                .transparent(true)
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .build()?;
+
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 use tauri::Emitter;
@@ -281,15 +289,13 @@ pub fn run() {
 
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             {
-                use tauri::{Manager, window::{Effect, EffectState, EffectsBuilder}};
-                if let Some(window) = app.get_webview_window("main") {
-                    let effects = EffectsBuilder::new()
-                        .effects([Effect::Sidebar, Effect::Mica])
-                        .state(EffectState::Active)
-                        .radius(12.0)
-                        .build();
-                    let _ = window.set_effects(Some(effects));
-                }
+                use tauri::window::{Effect, EffectState, EffectsBuilder};
+                let effects = EffectsBuilder::new()
+                    .effects([Effect::Sidebar, Effect::Mica])
+                    .state(EffectState::Active)
+                    .radius(12.0)
+                    .build();
+                let _ = window.set_effects(Some(effects));
             }
 
             build_and_set_menu(app.handle())?;

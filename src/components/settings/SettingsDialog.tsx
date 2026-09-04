@@ -4,6 +4,7 @@ import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
 export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
+  const bgOpacity = useThemeStore((s) => s.bgOpacity);
+  const setBgOpacity = useThemeStore((s) => s.setBgOpacity);
   const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
   const setSpellCheckEnabled = useSpellCheckStore((s) => s.setEnabled);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
@@ -93,8 +96,35 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
               <Option value="system" label="System" desc="Follow macOS / Windows appearance automatically" />
             </div>
 
+            <div className="settings-opacity-control mt-4 pt-4 border-t border-[var(--border-translucent)]">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <span className="text-[13px] font-medium text-foreground">Background Opacity</span>
+                  <p className="text-[12px] text-muted-foreground">
+                    Adjust the window translucency and vibrancy effect
+                  </p>
+                </div>
+                <span className="text-[12px] font-mono font-medium text-muted-foreground px-2 py-0.5 rounded bg-[var(--muted-translucent)]">
+                  {bgOpacity}%
+                </span>
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <span className="text-[11px] text-muted-foreground shrink-0">Translucent</span>
+                <Slider
+                  value={bgOpacity}
+                  min={10}
+                  max={100}
+                  step={1}
+                  onChange={setBgOpacity}
+                  aria-label="Background Opacity"
+                  className="flex-1"
+                />
+                <span className="text-[11px] text-muted-foreground shrink-0">Opaque</span>
+              </div>
+            </div>
+
             <div className="settings-hint">
-              Shortcut: <kbd className="settings-kbd">⌘,</kbd> or <kbd className="settings-kbd">Ctrl ,</kbd> to open settings. Theme persists in localStorage <code>snipnote-theme</code>.
+              Shortcut: <kbd className="settings-kbd">⌘,</kbd> or <kbd className="settings-kbd">Ctrl ,</kbd> to open settings. Theme and opacity persist automatically.
             </div>
           </section>
 

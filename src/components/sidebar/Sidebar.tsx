@@ -1,17 +1,20 @@
 import React from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { FileTree } from "./FileTree";
 import { showNativeContextMenu } from "../../utils/nativeContextMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Settings } from "lucide-react";
+import { Settings, PanelLeft } from "lucide-react";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
+  onToggleSidebar?: () => void;
+  onOpenPalette?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onToggleSidebar, onOpenPalette }) => {
   const { vaultPath, tree, isLoading, error, openVaultDialog } = useVaultStore();
 
   const folderName = vaultPath ? vaultPath.split("/").pop() || vaultPath : null;
@@ -25,13 +28,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     }
   };
 
+  const handleTopBarDragging = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest('button, input, [role="button"], a')) return;
+    if (e.detail === 2) {
+      getCurrentWindow().toggleMaximize().catch(() => {});
+      return;
+    }
+    getCurrentWindow().startDragging().catch(() => {});
+  };
+
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">
+      <div
+        className="sidebar-top-bar flex h-[var(--header-height)] items-center justify-end px-3 border-b border-[var(--border-translucent)] shrink-0"
+        data-tauri-drag-region
+        onMouseDown={handleTopBarDragging}
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          title="Toggle Sidebar (⌘B)"
+          aria-label="Toggle Sidebar"
+          className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--hover-translucent)] hover:text-foreground"
+        >
+          <PanelLeft className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="sidebar-search-container px-3 py-2 border-b border-[var(--border-translucent)] shrink-0">
         <Input
-          className="sidebar-search-input h-[26px] bg-[var(--muted-translucent)] border-transparent focus-visible:ring-1 focus-visible:ring-ring text-[13px]"
+          className="sidebar-search-input h-[26px] bg-[var(--muted-translucent)] border-transparent focus-visible:ring-1 focus-visible:ring-ring text-[13px] cursor-pointer"
           placeholder="Search notes... (⌘P)"
           readOnly
+          onClick={onOpenPalette}
         />
       </div>
 

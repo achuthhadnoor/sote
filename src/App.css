@@ -37,75 +37,112 @@
 }
 
 :root {
-  /* Neutral Quiet Luxury — light (zinc) */
-  --bg: #ffffff5f;
-  --fg: #09090B;
-  --sidebar: #FAFAFA;
-  --sidebar-fg: #09090B;
-  --border: #E4E4E7;
-  --input: #E4E4E7;
-  --primary: #18181B;
-  --primary-fg: #FAFAFA;
-  --muted: #F4F4F5;
-  --muted-fg: #71717A;
-  /* Accent / selection — macOS system color with blue fallback (matches Finder).
-     Hover stays neutral gray; selection uses accent to respect System Settings > Appearance. */
-  --accent: #007AFF;
+  /* macOS / Cursor Light theme — refined monochrome with subtle hierarchy */
+  --bg: #FFFFFF;
+  --fg: #1F2328;
+  --sidebar: #F6F8FA;
+  --sidebar-fg: #1F2328;
+  --border: #E1E4E8;
+  --input: #E1E4E8;
+  --primary: #1F2328;
+  --primary-fg: #FFFFFF;
+  --muted: #F3F4F6;
+  --muted-fg: #656D76;
+  /* Accent / selection — native macOS system blue */
+  --accent: #0969DA;
   --accent-fg: #FFFFFF;
-  --accent-strong: #007AFF;
-  --accent-subtle: rgba(0, 122, 255, 0.12);
-  --link: #007AFF;
-  --status-bar: #FAFAFA;
-  --destructive: #EF4444;
-  /* Text / editor selection — maps to macOS Highlight color */
-  --selection-bg: #B3D7FF;
-  --selection-fg: #000000;
+  --accent-strong: #0969DA;
+  --accent-subtle: rgba(9, 105, 218, 0.10);
+  --link: #0969DA;
+  --status-bar: #F6F8FA;
+  --destructive: #CF222E;
+  /* Text / editor selection — macOS light blue selection */
+  --selection-bg: #B4D5FE;
+  --selection-fg: #1F2328;
 
-  /* Vibrant / Mica translucent variants (over EffectsBuilder Sidebar + Mica).
-     Fallback is solid hex above; translucent used when window is transparent. */
-  --bg-translucent: rgba(255, 255, 255, 0.78);
-  --sidebar-translucent: rgba(250, 250, 250, 0.68);
-  --border-translucent: rgba(228, 228, 231, 0.85);
-  --muted-translucent: rgba(244, 244, 245, 0.72);
-  --accent-translucent: rgba(0, 122, 255, 0.18);
-  --status-translucent: rgba(250, 250, 250, 0.72);
-  --hover-translucent: rgba(244, 244, 245, 0.7);
+  --bg-opacity: 0.85;
+
+  /* Translucent surfaces computed from --bg-opacity over native Sidebar/Mica */
+  --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
+  --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
+  --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
+  --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
+  --accent-translucent: rgba(9, 105, 218, 0.14);
+  --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
+  --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
 
   /* Typography — SF Pro first for native macOS feel, Inter as fallback */
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
   --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
 
-  /* Spacing & Sizing — tighter prose width for 66-char measure */
-  --sidebar-width: 260px;
+  /* Spacing & Sizing — Cursor density */
+  --sidebar-width: 280px;
   --header-height: 40px;
   --status-height: 28px;
-  --editor-max-width: 680px;
+  --editor-max-width: 720px;
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-lg: 8px;
 
   /* Prose code tokens — subtle layered surfaces */
-  --inline-code-bg: rgba(0,0,0,0.04);
-  --inline-code-border: rgba(0,0,0,0.06);
-  --code-bg: #F7F7F8;
-  --code-fg: #1A1A1E;
-  --code-border: #ECECEF;
-  --code-header-bg: #F1F1F3;
+  --inline-code-bg: rgba(31, 35, 40, 0.06);
+  --inline-code-border: rgba(31, 35, 40, 0.10);
+  --code-bg: #F6F8FA;
+  --code-fg: #1F2328;
+  --code-border: #D0D7DE;
+  --code-header-bg: #EAEFF4;
 }
 
-/* Dark theme — Neutral Quiet Luxury (zinc-950) */
+[data-theme="light"] {
+  --bg: #FFFFFF;
+  --fg: #1F2328;
+  --sidebar: #F6F8FA;
+  --sidebar-fg: #1F2328;
+  --border: #E1E4E8;
+  --input: #E1E4E8;
+  --primary: #1F2328;
+  --primary-fg: #FFFFFF;
+  --muted: #F3F4F6;
+  --muted-fg: #656D76;
+  --accent: #0969DA;
+  --accent-fg: #FFFFFF;
+  --accent-strong: #0969DA;
+  --accent-subtle: rgba(9, 105, 218, 0.10);
+  --link: #0969DA;
+  --status-bar: #F6F8FA;
+  --destructive: #CF222E;
+  --selection-bg: #B4D5FE;
+  --selection-fg: #1F2328;
+
+  --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
+  --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
+  --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
+  --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
+  --accent-translucent: rgba(9, 105, 218, 0.14);
+  --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
+  --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
+
+  --inline-code-bg: rgba(31, 35, 40, 0.06);
+  --inline-code-border: rgba(31, 35, 40, 0.10);
+  --code-bg: #F6F8FA;
+  --code-fg: #1F2328;
+  --code-border: #D0D7DE;
+  --code-header-bg: #EAEFF4;
+}
+
+/* Dark theme — Full Cursor */
 [data-theme="dark"] {
-  --bg: #09090B68;
-  --fg: #FAFAFA;
-  --sidebar: #18181B;
-  --sidebar-fg: #FAFAFA;
-  --border: #27272A;
-  --input: #27272A;
-  --primary: #FAFAFA;
-  --primary-fg: #18181B;
-  --muted: #27272A;
-  --muted-fg: #A1A1AA;
+  --bg: #0E0E0E;
+  --fg: #E4E4E7;
+  --sidebar: #171717;
+  --sidebar-fg: #E4E4E7;
+  --border: #232323;
+  --input: #232323;
+  --primary: #F4F4F5;
+  --primary-fg: #0E0E0E;
+  --muted: #1F1F1F;
+  --muted-fg: #8A8A8A;
   --accent: #0A84FF;
   --accent-fg: #FFFFFF;
   --accent-strong: #0A84FF;
@@ -116,13 +153,13 @@
   --selection-bg: rgba(10, 132, 255, 0.38);
   --selection-fg: #FFFFFF;
 
-  --bg-translucent: rgba(9, 9, 11, 0.72);
-  --sidebar-translucent: rgba(24, 24, 27, 0.68);
-  --border-translucent: rgba(39, 39, 42, 0.9);
-  --muted-translucent: rgba(39, 39, 42, 0.72);
+  --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
+  --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
+  --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
+  --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
   --accent-translucent: rgba(10, 132, 255, 0.28);
-  --status-translucent: rgba(24, 24, 27, 0.72);
-  --hover-translucent: rgba(39, 39, 42, 0.6);
+  --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
+  --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
 
   --inline-code-bg: rgba(255,255,255,0.06);
   --inline-code-border: rgba(255,255,255,0.08);
@@ -837,18 +874,18 @@ html, body, #root {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background-color: var(--bg-translucent);
+  background-color: transparent;
 }
 
 /* Tab Bar — translucent, now with tabs */
 .tab-bar {
   height: var(--header-height);
   border-bottom: 1px solid var(--border-translucent);
-  background-color: var(--bg-translucent);
+  background-color: transparent;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 8px 0 12px;
+  padding: 0 12px;
   user-select: none;
   overflow: hidden;
 }
@@ -1076,30 +1113,92 @@ html, body, #root {
   justify-content: center;
 }
 
-.raw-editor {
+.raw-editor-container {
   width: 100%;
-  min-height: 420px;
+  min-height: 480px;
   flex: 1;
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.raw-editor-container:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+[data-theme="dark"] .raw-editor-container:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.raw-editor-gutter {
+  user-select: none;
+  flex-shrink: 0;
+  padding: 14px 10px 14px 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: right;
+  border-right: 1px solid var(--border-translucent);
+  background: var(--muted-translucent);
+  overflow: hidden;
+  color: var(--muted-fg);
+}
+
+.raw-editor-line-num {
+  cursor: pointer;
+  transition: color 0.1s ease, opacity 0.1s ease;
+  line-height: 1.6;
+}
+
+.raw-editor-line-num.is-active {
+  color: var(--fg);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.raw-editor-line-num:not(.is-active) {
+  opacity: 0.45;
+}
+
+.raw-editor-line-num:hover {
+  opacity: 1;
+  color: var(--fg);
+}
+
+.raw-editor {
+  flex: 1;
+  width: 100%;
+  min-height: 480px;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
   color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: transparent;
+  border: none;
+  border-radius: 0;
   padding: 14px;
-  resize: vertical;
+  resize: none;
   outline: none;
-  white-space: pre-wrap;
-  word-break: break-word;
+  box-shadow: none;
+  white-space: pre;
+  word-break: normal;
+  overflow: auto;
+  tab-size: 2;
 }
 
 .raw-editor:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
+
 [data-theme="dark"] .raw-editor:focus {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent);
+  border: none;
+  box-shadow: none;
 }
 
 /* Floating outline — horizontal dashes at right center, expands on hover — fixed so it does not scroll with markdown */
@@ -1308,7 +1407,7 @@ html, body, #root {
   height: var(--status-height);
   background-color: var(--status-translucent);
   border-top: 1px solid var(--border-translucent);
-  padding: 0 8px 0 16px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1597,32 +1696,54 @@ html, body, #root {
 .ProseMirror h5 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-fg); }
 .ProseMirror h6 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-fg); }
 
-.ProseMirror ul, .ProseMirror ol {
-  padding-left: 1.6em;
-  margin: 0 0 1.1em 0;
-  list-style-position: outside;
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0.6em 0 1em 0;
 }
 
 .ProseMirror ul {
   list-style-type: disc;
 }
-.ProseMirror ul ul { list-style-type: circle; }
-.ProseMirror ul ul ul { list-style-type: square; }
+.ProseMirror ul ul {
+  list-style-type: circle;
+}
+.ProseMirror ul ul ul {
+  list-style-type: square;
+}
 
 .ProseMirror ol {
   list-style-type: decimal;
 }
 
 .ProseMirror li {
-  margin-bottom: 0.35em;
-  padding-left: 0.15em;
-  display: list-item;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+  padding-left: 0.25em;
+  line-height: 1.65;
 }
+
+/* Reset paragraph margins inside list items so items don't look spread out and raw */
+.ProseMirror li > p {
+  margin: 0 !important;
+  display: inline;
+}
+
+.ProseMirror li > p + p {
+  display: block;
+  margin-top: 0.4em !important;
+}
+
 .ProseMirror li::marker {
-  color: var(--muted-fg);
+  color: var(--accent);
   font-weight: 500;
 }
-.ProseMirror ol li::marker {
+
+.ProseMirror ol > li::marker {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--muted-fg);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1630,15 +1751,18 @@ html, body, #root {
 .ProseMirror ol ol,
 .ProseMirror ul ol,
 .ProseMirror ol ul {
-  margin-top: 0.45em;
-  margin-bottom: 0;
+  margin-top: 0.3em;
+  margin-bottom: 0.3em;
+  padding-left: 1.4em;
 }
 
+/* Task lists */
 .ProseMirror ul[data-type="taskList"],
 .ProseMirror [data-type="taskList"],
 .ProseMirror .taskList {
   list-style: none !important;
   padding-left: 0 !important;
+  margin: 0.6em 0 1em 0;
 }
 
 .ProseMirror li[data-type="taskItem"],
@@ -1650,8 +1774,16 @@ html, body, #root {
   align-items: flex-start !important;
   gap: 10px !important;
   list-style: none !important;
-  /* match paragraph rhythm */
+  padding-left: 0 !important;
+  margin-top: 0.3em;
+  margin-bottom: 0.3em;
   line-height: 1.65;
+}
+
+.ProseMirror li[data-type="taskItem"]::marker,
+.ProseMirror li[data-checked]::marker,
+.ProseMirror .taskItem::marker {
+  content: none !important;
 }
 
 .ProseMirror li[data-type="taskItem"] > label,
@@ -1661,8 +1793,8 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 1.65em; /* = text line-height — centers checkbox with first line */
+  width: 18px;
+  height: 1.65em; /* Optical center with line-height */
   margin: 0;
   padding: 0;
   user-select: none;
@@ -1681,6 +1813,7 @@ html, body, #root {
 .ProseMirror li[data-checked] > div > p,
 .ProseMirror .taskItem > div > p {
   margin: 0 !important;
+  display: block;
 }
 
 .ProseMirror li[data-type="taskItem"] > div > p + p,
@@ -1689,17 +1822,49 @@ html, body, #root {
   margin-top: 4px !important;
 }
 
+/* Checked task item strikethrough styling */
+.ProseMirror li[data-checked="true"] > div,
+.ProseMirror li[data-type="taskItem"][data-checked="true"] > div {
+  text-decoration: line-through;
+  color: var(--muted-fg);
+  opacity: 0.75;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
 .ProseMirror input[type="checkbox"] {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  padding: 0;
-  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
   border-radius: 4px;
-  flex-shrink: 0;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
   position: relative;
-  top: 0; /* optically centered via parent flex; no offset */
+  outline: none;
+}
+
+.ProseMirror input[type="checkbox"]:hover {
+  border-color: var(--accent);
+}
+
+.ProseMirror input[type="checkbox"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ProseMirror input[type="checkbox"]:checked::after {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 8px;
+  border: solid #FFFFFF;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg) translate(-0.5px, -0.5px);
 }
 
 .ProseMirror blockquote {
@@ -2366,5 +2531,33 @@ html, body, #root {
   .palette-dialog {
     border-width: 2px !important;
   }
+}
+
+/* Range Slider — custom sleek thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  border: none;
 }
 

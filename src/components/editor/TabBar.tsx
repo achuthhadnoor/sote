@@ -1,4 +1,5 @@
 import React from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { Button } from "@/components/ui/button";
@@ -57,9 +58,28 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
     closeTab(path);
   };
 
+  const handleStartDragging = (e: React.MouseEvent) => {
+    // Only drag on primary click (left mouse button) and if not clicking an interactive child element
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest('button, input, [role="button"], [role="tab"], .tab-item, a')) {
+      return;
+    }
+    // Double click to maximize/unmaximize window (native macOS/Windows behavior)
+    if (e.detail === 2) {
+      getCurrentWindow().toggleMaximize().catch(() => {});
+      return;
+    }
+    getCurrentWindow().startDragging().catch(() => {});
+  };
+
   return (
-    <header className="tab-bar flex h-[var(--header-height)] items-center gap-3 border-b border-[var(--border-translucent)] bg-[var(--bg-translucent)] px-2 pl-3 select-none overflow-hidden">
-      <div className="flex items-center gap-1 shrink-0">
+    <header
+      className="tab-bar flex h-[var(--header-height)] items-center gap-3 border-b border-[var(--border-translucent)] bg-[var(--bg-translucent)] px-3 select-none overflow-hidden"
+      data-tauri-drag-region
+      onMouseDown={handleStartDragging}
+    >
+      <div className="flex items-center gap-1 w-[56px] shrink-0" data-tauri-drag-region>
         <Button
           variant="ghost"
           size="icon"
@@ -84,13 +104,13 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
         </Button>
       </div>
 
-      <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full">
+      <div className="flex-1 min-w-0 flex items-center justify-center overflow-hidden h-full" data-tauri-drag-region>
         {tabs.length === 0 ? (
-          <div className="text-xs text-muted-foreground pl-2">No open notes</div>
+          <div className="text-xs text-muted-foreground text-center">No open notes</div>
         ) : (
-          <ScrollArea className="flex-1 h-full">
+          <ScrollArea className="w-full h-full [&>div>div]:!flex [&>div>div]:!items-center [&>div>div]:!min-w-full [&>div>div]:!h-full">
             <div
-              className="flex items-center gap-1.5 h-full px-0.5 py-1.5"
+              className="flex items-center gap-1.5 h-full px-2 py-1.5 mx-auto w-fit shrink-0"
               role="tablist"
               aria-label="Open notes"
               onKeyDown={(e) => {
@@ -165,16 +185,18 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
         )}
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-[26px] w-[26px] shrink-0 rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground"
-        onClick={onNewNote}
-        title="New note (⌘N)"
-        aria-label="New note"
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center justify-end w-[56px] shrink-0" data-tauri-drag-region>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground"
+          onClick={onNewNote}
+          title="New note (⌘N)"
+          aria-label="New note"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
     </header>
   );
 };

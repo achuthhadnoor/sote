@@ -13,6 +13,7 @@ import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
 import { useThemeStore } from "./stores/useThemeStore";
 import { SessionState } from "./types/session";
+import { PanelLeft } from "lucide-react";
 import "./App.css";
 
 function App() {
@@ -411,7 +412,13 @@ function App() {
 
   return (
     <div className="app-shell" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
-      {!sidebarCollapsed && <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />}
+      {!sidebarCollapsed && (
+        <Sidebar
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onToggleSidebar={() => setSidebarCollapsed(true)}
+          onOpenPalette={() => setIsPaletteOpen(true)}
+        />
+      )}
       {sidebarCollapsed && (
         <button
           className="sidebar-collapsed-toggle"
@@ -419,9 +426,7 @@ function App() {
           title="Show Sidebar (⌘B)"
           aria-label="Show Sidebar"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-          </svg>
+          <PanelLeft className="h-4 w-4" />
         </button>
       )}
       <main className="main-container">
