@@ -17,24 +17,152 @@ import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
 import { RawEditor } from "./RawEditor";
 
-function resolveMarkdownLink(href: string, activePath: string | null, vaultPath: string | null): string | null {
-  const clean = href.split("#")[0].split("?")[0].trim();
-  if (!clean) return null;
-  if (/^(https?:|mailto:|ftp:|\/\/)/i.test(clean)) return null;
-  const lower = clean.toLowerCase();
-  if (!lower.endsWith(".md") && !lower.endsWith(".markdown")) return null;
-  if (!vaultPath) return null;
-  let target: string;
-  if (clean.startsWith("/")) {
-    target = vaultPath.replace(/\/+$/, "") + clean;
-  } else {
-    const dir = activePath ? activePath.substring(0, activePath.lastIndexOf("/")) : vaultPath;
-    target = (dir.replace(/\/+$/, "") || vaultPath) + "/" + clean;
+/**
+ * Determines if a given href is an external web link that should open in the system default browser.
+ */
+function isExternalWebLink(href: string): boolean {
+  const trimmed = href.trim();
+  if (/^(https?:|mailto:|tel:|ftp:|\/\/)/i.test(trimmed)) return true;
+  if (/^www\./i.test(trimmed)) return true;
+  const lower = trimmed.toLowerCase();
+  if (lower.endsWith(".md") || lower.endsWith(".markdown")) return false;
+  if (trimmed.startsWith("./") || trimmed.startsWith("../") || trimmed.startsWith("/") || trimmed.startsWith("#")) {
+    return false;
   }
+  // Detect domain pattern like example.com, github.com/user/repo
+  if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*(?:\.(?:com|org|net|io|dev|ai|app|co|me|edu|gov|uk|de|ca|jp|fr|au|in|info|biz|tv|cc|tech|xyz|online|site|page|link))(?::\d+)?(?:[/?#].*)?$/i.test(trimmed)) {
+    return true;
+  }
+  if (/^localhost(:\d+)?(?:[/?#].*)?$/i.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Opens any external link or non-markdown file in the system default browser or default application.
+ */
+async function openInExternalBrowser(href: string, activePath: string | null, vaultPath: string | null): Promise<void> {
+  let target = href.trim();
+  if (!target) return;
+
+  // 1. Normalize protocol-relative or extensionless web domains
+  if (target.startsWith("//")) {
+    target = `https:${target}`;
+  } else if (/^www\./i.test(target) || isExternalWebLink(target)) {
+    if (!/^[a-zA-Z0-9+.-]+:\/\//.test(target) && !/^mailto:/i.test(target) && !/^tel:/i.test(target)) {
+      target = `https://${target}`;
+    }
+  }
+
+  // 2. If it's a web/email/phone URL, open in default browser using openUrl
+  if (/^(https?:|mailto:|tel:)/i.test(target)) {
+    try {
+      await openUrl(target);
+      return;
+    } catch (err) {
+      console.warn("openUrl failed, attempting window.open fallback:", err);
+      try {
+        window.open(target, "_blank", "noopener,noreferrer");
+      } catch (e) {
+        console.error("Failed to open web link:", e);
+      }
+      return;
+    }
+  }
+
+  // 3. For local non-markdown files (e.g. PDF, image, etc.), resolve path and open with system default app
+  let filePath = target.replace(/^file:\/\//i, "");
+  filePath = filePath.split("#")[0].split("?")[0].trim();
+  try {
+    filePath = decodeURIComponent(filePath);
+  } catch {}
+
+  if (vaultPath && !filePath.startsWith("/") && !/^[a-zA-Z0-9+.-]+:\/\//.test(filePath)) {
+    const dir = activePath ? activePath.substring(0, activePath.lastIndexOf("/")) : vaultPath;
+    const normalizedDir = (dir || vaultPath).replace(/\/+$/, "");
+    filePath = `${normalizedDir}/${filePath}`;
+  }
+
+  // 4. Open local files via openPath (which opens the file in default OS application / browser)
+  try {
+    await openPath(filePath);
+    return;
+  } catch (err) {
+    console.error("openPath failed for local file:", filePath, err);
+  }
+}
+
+function resolveMarkdownLink(href: string, activePath: string | null, vaultPath: string | null): string | null {
+  if (!href || !vaultPath) return null;
+
+  // 1. Skip external web links
+  if (isExternalWebLink(href)) return null;
+
+  // 2. Remove file:// protocol if present
+  let clean = href.trim().replace(/^file:\/\//i, "");
+
+  // 3. Remove hash anchors and query params
+  clean = clean.split("#")[0].split("?")[0].trim();
+  if (!clean) return null;
+
+  // 4. Skip external schemes
+  if (/^[a-zA-Z0-9+.-]+:\/\//.test(clean) || /^(mailto:|tel:|ftp:)/i.test(clean)) return null;
+
+  // 5. URL decode (e.g. %20 -> space)
+  try {
+    clean = decodeURIComponent(clean);
+  } catch {}
+
+  // 6. Check extension - skip known non-markdown files
+  const lower = clean.toLowerCase();
+  const knownNonMd = [
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp",
+    ".pdf", ".mp4", ".mov", ".zip", ".tar", ".gz",
+    ".json", ".rs", ".ts", ".tsx", ".js", ".jsx",
+    ".html", ".css", ".scss", ".wasm",
+  ];
+  if (knownNonMd.some((ext) => lower.endsWith(ext))) {
+    return null;
+  }
+
+  // If no extension at all, append .md
+  if (!lower.endsWith(".md") && !lower.endsWith(".markdown")) {
+    clean = clean + ".md";
+  }
+
+  // 7. Target path calculation
+  let target: string;
+  const normalizedVault = vaultPath.replace(/\/+$/, "");
+
+  if (clean.startsWith(normalizedVault)) {
+    // Already an absolute path inside the vault
+    target = clean;
+  } else if (clean.startsWith("/")) {
+    // Check if it is an absolute path on filesystem
+    if (
+      clean.startsWith("/Users/") ||
+      clean.startsWith("/home/") ||
+      clean.startsWith("/Volumes/") ||
+      clean.startsWith("/var/") ||
+      clean.startsWith("/tmp/")
+    ) {
+      target = clean;
+    } else {
+      // Relative to vault root (e.g. /docs/intro.md)
+      target = normalizedVault + clean;
+    }
+  } else {
+    // Relative to active note's directory
+    const dir = activePath ? activePath.substring(0, activePath.lastIndexOf("/")) : normalizedVault;
+    target = (dir.replace(/\/+$/, "") || normalizedVault) + "/" + clean;
+  }
+
+  // 8. Normalize path (resolve . and ..)
   const parts: string[] = [];
   for (const p of target.split("/")) {
     if (p === "" || p === ".") {
@@ -49,6 +177,71 @@ function resolveMarkdownLink(href: string, activePath: string | null, vaultPath:
   }
   return parts.join("/") || "/";
 }
+
+function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean {
+  if (e.button !== 0) return false;
+  const target = (e.target as HTMLElement)?.closest?.("a") as HTMLAnchorElement | null;
+  if (!target) return false;
+  const hrefAttr = target.getAttribute("href");
+  if (!hrefAttr) return false;
+  const href = hrefAttr.trim();
+  if (!href) return false;
+
+  // 1. In-page hash anchor (e.g. #heading)
+  if (href.startsWith("#")) {
+    e.preventDefault();
+    e.stopPropagation();
+    const slug = href.slice(1).toLowerCase();
+    if (dom) {
+      const headings = Array.from(dom.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+      const match = headings.find(
+        (h) => h.textContent?.trim().toLowerCase().replace(/\s+/g, "-") === slug
+      );
+      if (match) {
+        match.scrollIntoView({ behavior: "smooth", block: "start" });
+        return true;
+      }
+    }
+    return true;
+  }
+
+  const vaultPath = useVaultStore.getState().vaultPath;
+  const curActive = useTabStore.getState().activePath;
+
+  // 2. Explicit external web link -> open in external browser
+  if (isExternalWebLink(href)) {
+    e.preventDefault();
+    e.stopPropagation();
+    openInExternalBrowser(href, curActive, vaultPath).catch((err) =>
+      console.error("Failed to open external link:", err)
+    );
+    return true;
+  }
+
+  // 3. Markdown note inside vault -> open in Snipnote tab
+  const resolved = resolveMarkdownLink(href, curActive, vaultPath);
+  if (resolved) {
+    e.preventDefault();
+    e.stopPropagation();
+    const name = resolved.split("/").pop() || "Note";
+    const isMod = e.metaKey || e.ctrlKey;
+    if (isMod) {
+      useTabStore.getState().openInNewBackgroundTab(resolved, name);
+    } else {
+      useTabStore.getState().selectNote(resolved, name);
+    }
+    return true;
+  }
+
+  // 4. All other links (non-markdown files, custom schemes, etc.) -> open in external browser / default app
+  e.preventDefault();
+  e.stopPropagation();
+  openInExternalBrowser(href, curActive, vaultPath).catch((err) =>
+    console.error("Failed to open link:", err)
+  );
+  return true;
+}
+
 
 export const EditorSurface: React.FC = () => {
   const vaultPath = useVaultStore((state) => state.vaultPath);
@@ -217,6 +410,11 @@ export const EditorSurface: React.FC = () => {
 
         return false;
       },
+      handleClick: (view: any, _pos: number, event: MouseEvent) => {
+        if (event.defaultPrevented) return true;
+        const dom = (view?.dom as HTMLElement | undefined) ?? null;
+        return handleEditorLinkClick(event, dom);
+      },
     },
     onUpdate: ({ editor }) => {
       if (isProgrammaticUpdateRef.current) return;
@@ -295,7 +493,7 @@ export const EditorSurface: React.FC = () => {
     return () => window.removeEventListener("keydown", onEsc);
   }, [editor, isFindOpen]);
 
-  // Click on .md links → open in snipnote (normal) or new background tab (Cmd/Ctrl+Click); external links via opener
+  // Capture-phase fallback for links: in-page anchors, markdown notes, and external browser links
   useEffect(() => {
     if (!editor) return;
     let dom: HTMLElement | null = null;
@@ -306,37 +504,11 @@ export const EditorSurface: React.FC = () => {
     }
     if (!dom) return;
     const handler = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.("a") as HTMLAnchorElement | null;
-      if (!target) return;
-      const hrefAttr = target.getAttribute("href");
-      if (!hrefAttr) return;
-      const href = hrefAttr.trim();
-      if (!href) return;
-      // External -> opener
-      if (/^(https?:|mailto:|ftp:|\/\/)/i.test(href)) {
-        e.preventDefault();
-        openPath(href).catch(() => {});
-        return;
-      }
-      const cleanCheck = href.split("#")[0].split("?")[0].toLowerCase();
-      const isMd = cleanCheck.endsWith(".md") || cleanCheck.endsWith(".markdown");
-      if (!isMd) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const vaultPath = useVaultStore.getState().vaultPath;
-      const curActive = useTabStore.getState().activePath;
-      const resolved = resolveMarkdownLink(href, curActive, vaultPath);
-      if (!resolved) return;
-      const name = resolved.split("/").pop() || "Note";
-      const isMod = (e as MouseEvent & { metaKey: boolean; ctrlKey: boolean }).metaKey || (e as any).ctrlKey;
-      if (isMod) {
-        useTabStore.getState().openInNewBackgroundTab(resolved, name);
-      } else {
-        useTabStore.getState().selectNote(resolved, name);
-      }
+      if (e.defaultPrevented) return;
+      handleEditorLinkClick(e, dom);
     };
-    dom.addEventListener("click", handler);
-    return () => dom?.removeEventListener("click", handler);
+    dom.addEventListener("click", handler, true);
+    return () => dom?.removeEventListener("click", handler, true);
   }, [editor]);
 
   // Flush save on window blur or beforeunload (respects draft-no-content guard)

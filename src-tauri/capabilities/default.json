@@ -12,6 +12,8 @@
     "core:menu:default",
     "core:menu:allow-popup",
     "opener:default",
+    "opener:allow-open-url",
+    "opener:allow-open-path",
     "dialog:default",
     "notification:default",
     "notification:allow-is-permission-granted",
