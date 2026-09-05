@@ -20,6 +20,23 @@ function computeEffective(theme: Theme): "light" | "dark" {
   return theme;
 }
 
+/** Apply the theme to the DOM instantly — transitions are suspended for one
+ * frame so nothing visibly cross-fades (see html.theming in App.css). */
+function applyThemeToDom(effective: "light" | "dark") {
+  if (typeof document === "undefined") return;
+  const el = document.documentElement;
+  el.classList.add("theming");
+  el.setAttribute("data-theme", effective);
+  el.style.colorScheme = effective;
+  // Force style recalc while transitions are off, then re-enable next frame.
+  void el.offsetHeight;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      el.classList.remove("theming");
+    });
+  });
+}
+
 function loadInitialTheme(): Theme {
   try {
     const saved = localStorage.getItem("snipnote-theme") as Theme | null;
@@ -51,10 +68,7 @@ export const useThemeStore = create<ThemeState>((set) => ({
         localStorage.setItem("snipnote-theme", t);
       } catch {}
       const effective = computeEffective(t);
-      if (typeof document !== "undefined") {
-        document.documentElement.setAttribute("data-theme", effective);
-        document.documentElement.style.colorScheme = effective;
-      }
+      applyThemeToDom(effective);
       return { theme: t, effectiveTheme: effective };
     }),
   setBgOpacity: (opacity) => {
@@ -83,8 +97,7 @@ if (typeof window !== "undefined") {
     const { theme } = useThemeStore.getState();
     if (theme === "system") {
       const next = getSystemTheme();
-      document.documentElement.setAttribute("data-theme", next);
-      document.documentElement.style.colorScheme = next;
+      applyThemeToDom(next);
       useThemeStore.setState({ effectiveTheme: next });
     }
   });

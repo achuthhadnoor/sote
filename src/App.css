@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* App theme is driven by [data-theme] (see useThemeStore) — make Tailwind's
+   dark: variant follow it instead of the OS prefers-color-scheme query. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* While the theme is being swapped, kill all transitions so the entire UI
+   flips instantly instead of cross-fading piece by piece. The store adds this
+   class for exactly one frame around the data-theme change (hover transitions
+   are unaffected the rest of the time). */
+html.theming *,
+html.theming *::before,
+html.theming *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
 /* Tailwind v4 theme bridge — maps shadcn tokens to existing macOS vibrant tokens */
 @theme inline {
   --color-background: var(--bg);
@@ -48,16 +63,16 @@
   --primary-fg: #FFFFFF;
   --muted: #F3F4F6;
   --muted-fg: #656D76;
-  /* Accent / selection — native macOS system blue */
-  --accent: #0969DA;
+  /* Monochrome Accent & Hierarchy */
+  --accent: #1F2328;
   --accent-fg: #FFFFFF;
-  --accent-strong: #0969DA;
-  --accent-subtle: rgba(9, 105, 218, 0.10);
-  --link: #0969DA;
+  --accent-strong: #000000;
+  --accent-subtle: rgba(31, 35, 40, 0.08);
+  --link: #1F2328;
   --status-bar: #F6F8FA;
   --destructive: #CF222E;
-  /* Text / editor selection — macOS light blue selection */
-  --selection-bg: #B4D5FE;
+  /* Text / editor selection — neutral graphite selection */
+  --selection-bg: #E1E4E8;
   --selection-fg: #1F2328;
 
   --bg-opacity: 0.85;
@@ -67,7 +82,7 @@
   --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
   --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
   --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
-  --accent-translucent: rgba(9, 105, 218, 0.14);
+  --accent-translucent: rgba(31, 35, 40, 0.10);
   --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
   --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
 
@@ -105,21 +120,21 @@
   --primary-fg: #FFFFFF;
   --muted: #F3F4F6;
   --muted-fg: #656D76;
-  --accent: #0969DA;
+  --accent: #1F2328;
   --accent-fg: #FFFFFF;
-  --accent-strong: #0969DA;
-  --accent-subtle: rgba(9, 105, 218, 0.10);
-  --link: #0969DA;
+  --accent-strong: #000000;
+  --accent-subtle: rgba(31, 35, 40, 0.08);
+  --link: #1F2328;
   --status-bar: #F6F8FA;
   --destructive: #CF222E;
-  --selection-bg: #B4D5FE;
+  --selection-bg: #E1E4E8;
   --selection-fg: #1F2328;
 
   --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
   --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
   --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
   --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
-  --accent-translucent: rgba(9, 105, 218, 0.14);
+  --accent-translucent: rgba(31, 35, 40, 0.10);
   --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
   --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
 
@@ -131,7 +146,7 @@
   --code-header-bg: #EAEFF4;
 }
 
-/* Dark theme — Full Cursor */
+/* Dark theme — Full Cursor Monochrome */
 [data-theme="dark"] {
   --bg: #0E0E0E;
   --fg: #E4E4E7;
@@ -143,21 +158,21 @@
   --primary-fg: #0E0E0E;
   --muted: #1F1F1F;
   --muted-fg: #8A8A8A;
-  --accent: #0A84FF;
-  --accent-fg: #FFFFFF;
-  --accent-strong: #0A84FF;
-  --accent-subtle: rgba(10, 132, 255, 0.18);
-  --link: #409CFF;
+  --accent: #F4F4F5;
+  --accent-fg: #0E0E0E;
+  --accent-strong: #FFFFFF;
+  --accent-subtle: rgba(244, 244, 245, 0.12);
+  --link: #F4F4F5;
   --status-bar: #18181B;
   --destructive: #F87171;
-  --selection-bg: rgba(10, 132, 255, 0.38);
+  --selection-bg: rgba(255, 255, 255, 0.18);
   --selection-fg: #FFFFFF;
 
   --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
   --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
   --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
   --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
-  --accent-translucent: rgba(10, 132, 255, 0.28);
+  --accent-translucent: rgba(244, 244, 245, 0.14);
   --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
   --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
 
@@ -167,37 +182,6 @@
   --code-fg: #EDEEF0;
   --code-border: #2A2A2E;
   --code-header-bg: #252529;
-}
-
-/* System accent / highlight — respect macOS Settings > Appearance > Accent & Highlight
-   Works in Tauri WebView (WebKit) on macOS 13+. Falls back to blue above when unsupported. */
-@supports (color: AccentColor) {
-  :root {
-    --accent: AccentColor;
-    --accent-fg: AccentColorText;
-    --accent-strong: AccentColor;
-    --link: AccentColor;
-    --selection-bg: Highlight;
-    --selection-fg: HighlightText;
-  }
-  [data-theme="dark"] {
-    --accent: AccentColor;
-    --accent-fg: AccentColorText;
-    --accent-strong: AccentColor;
-    --link: AccentColor;
-    --selection-bg: Highlight;
-    --selection-fg: HighlightText;
-  }
-}
-@supports (background: color-mix(in srgb, AccentColor 50%, white)) {
-  :root {
-    --accent-translucent: color-mix(in srgb, AccentColor 18%, transparent);
-    --accent-subtle: color-mix(in srgb, AccentColor 12%, transparent);
-  }
-  [data-theme="dark"] {
-    --accent-translucent: color-mix(in srgb, AccentColor 28%, transparent);
-    --accent-subtle: color-mix(in srgb, AccentColor 20%, transparent);
-  }
 }
 
 * {
@@ -2139,19 +2123,19 @@ html, body, #root {
   align-items: flex-start;
   overflow: hidden;
   height: 560px;
-  background-color: #FAFAFA;
+  background-color: transparent;
   transition: background-color 0.15s ease;
   position: relative;
 }
 
 .mermaid-preview-container.is-fit {
   height: auto;
-  max-height: 80vh;
-  overflow: auto;
+  max-height: none;
+  overflow: hidden;
 }
 
 .mermaid-preview-container.mermaid-dark {
-  background-color: #0F172A;
+  background-color: transparent;
 }
 
 .mermaid-svg-surface {
@@ -2176,6 +2160,25 @@ html, body, #root {
 .mermaid-svg-surface.natural-width svg {
   max-width: none !important;
   height: auto;
+}
+
+/* Monochrome guard: svg inherits the app surface, all diagram text uses app fg */
+.mermaid-svg-surface svg {
+  background: transparent !important;
+}
+
+.mermaid-svg-surface svg text,
+.mermaid-svg-surface svg tspan,
+.mermaid-svg-surface svg .label,
+.mermaid-svg-surface svg foreignObject div,
+.mermaid-svg-surface svg foreignObject span {
+  fill: var(--fg) !important;
+  color: var(--fg) !important;
+}
+
+.mermaid-svg-surface svg .edgeLabel rect,
+.mermaid-svg-surface svg .labelBox rect {
+  fill: transparent !important;
 }
 
 .mermaid-code-editor {
