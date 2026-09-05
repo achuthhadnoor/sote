@@ -1,9 +1,56 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import mermaid from "mermaid";
+import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+
+/** Human-friendly language labels for common code block languages */
+const LANGUAGE_LABELS: Record<string, string> = {
+  js: "JavaScript",
+  jsx: "JSX",
+  ts: "TypeScript",
+  tsx: "TSX",
+  py: "Python",
+  rb: "Ruby",
+  rs: "Rust",
+  go: "Go",
+  sh: "Shell",
+  bash: "Bash",
+  zsh: "Zsh",
+  yml: "YAML",
+  yaml: "YAML",
+  md: "Markdown",
+  json: "JSON",
+  html: "HTML",
+  css: "CSS",
+  scss: "SCSS",
+  sql: "SQL",
+  graphql: "GraphQL",
+  dockerfile: "Dockerfile",
+  toml: "TOML",
+  swift: "Swift",
+  kotlin: "Kotlin",
+  java: "Java",
+  c: "C",
+  cpp: "C++",
+  cs: "C#",
+  php: "PHP",
+  lua: "Lua",
+  dart: "Dart",
+  r: "R",
+  elixir: "Elixir",
+  haskell: "Haskell",
+  xml: "XML",
+  svg: "SVG",
+};
+
+function getLanguageLabel(lang: string | null | undefined): string {
+  if (!lang) return "Code";
+  const lower = lang.toLowerCase();
+  return LANGUAGE_LABELS[lower] || lang.charAt(0).toUpperCase() + lang.slice(1);
+}
 
 export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   const isMermaid = node.attrs.language === "mermaid";
@@ -15,6 +62,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const dragStartRef = useRef<{
     mouseX: number;
@@ -24,6 +72,26 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   }>({ mouseX: 0, mouseY: 0, panX: 0, panY: 0 });
 
   const rawText = node.textContent.trim();
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(rawText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for environments where clipboard API isn't available
+      const textarea = document.createElement("textarea");
+      textarea.value = rawText;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [rawText]);
 
   const isDarkDetected = useMemo(() => {
     return (
@@ -110,18 +178,49 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
     setPan({ x: 0, y: 0 });
   };
 
+  // ─── Non-mermaid code blocks ────────────────────────────────────────
   if (!isMermaid) {
+    const language = node.attrs.language as string | null;
+    const label = getLanguageLabel(language);
+
     return (
-      <NodeViewWrapper className="code-block-wrapper">
-        <pre>
-          <code>
-            <NodeViewContent as="div" />
-          </code>
-        </pre>
+      <NodeViewWrapper as="div" className="my-[18px]">
+        <Card className="code-block-card overflow-hidden border shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b bg-muted px-3 py-1.5">
+            <Badge variant="secondary" className="text-[11px] font-mono">
+              {label}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[11px] gap-1"
+              onClick={handleCopy}
+              title="Copy code to clipboard"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3 w-3 text-emerald-500" />
+                  <span className="text-emerald-600">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" />
+                  <span>Copy</span>
+                </>
+              )}
+            </Button>
+          </div>
+          <pre>
+            <code>
+              <NodeViewContent as="div" />
+            </code>
+          </pre>
+        </Card>
       </NodeViewWrapper>
     );
   }
 
+  // ─── Mermaid code blocks ────────────────────────────────────────────
   const showCode = isEditing || Boolean(error);
 
   return (
@@ -243,7 +342,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
               dangerouslySetInnerHTML={{ __html: svgHtml }}
             />
           ) : (
-            <div className="p-3 text-[13px] italic text-muted-foreground">Empty Mermaid diagram. Click “Edit Code” to add syntax.</div>
+            <div className="p-3 text-[13px] italic text-muted-foreground">Empty Mermaid diagram. Click &ldquo;Edit Code&rdquo; to add syntax.</div>
           )}
         </div>
       </Card>
