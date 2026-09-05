@@ -303,6 +303,7 @@ export const EditorSurface: React.FC = () => {
 
   const editor = useEditor({
     contentType: "markdown",
+    shouldRerenderOnTransaction: false,
     extensions: [
       StarterKit.configure({
         codeBlock: false,

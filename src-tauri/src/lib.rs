@@ -326,7 +326,7 @@ pub fn run() {
             // mount — whichever runs first wins.)
             if let Some(w) = app.get_webview_window("main") {
                 std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    std::thread::sleep(std::time::Duration::from_millis(100));
                     let _ = w.show();
                 });
             }

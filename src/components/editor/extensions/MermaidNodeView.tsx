@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
-import mermaid from "mermaid";
+
 import {
   Copy,
   Check,
@@ -274,12 +274,22 @@ function buildThemeVariables(palette: Palette, darkMode: boolean): Record<string
 const LIGHT_VARS = buildThemeVariables(APP.light, false);
 const DARK_VARS = buildThemeVariables(APP.dark, true);
 
+let mermaidModule: typeof import("mermaid")["default"] | null = null;
+async function getMermaid() {
+  if (!mermaidModule) {
+    const mod = await import("mermaid");
+    mermaidModule = mod.default || mod;
+  }
+  return mermaidModule;
+}
+
 async function renderDiagram(
   renderId: string,
   text: string,
   themeVars: Record<string, string | boolean>,
   palette: Palette
 ): Promise<string> {
+  const mermaid = await getMermaid();
   mermaid.initialize({
     startOnLoad: false,
     theme: "base",

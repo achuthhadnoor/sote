@@ -14,6 +14,32 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          tiptap: [
+            "@tiptap/core",
+            "@tiptap/react",
+            "@tiptap/starter-kit",
+            "@tiptap/extension-link",
+            "@tiptap/extension-list",
+            "@tiptap/extension-task-list",
+            "@tiptap/extension-task-item",
+            "@tiptap/extension-image",
+            "@tiptap/markdown",
+          ],
+          radix: [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-scroll-area",
+            "@radix-ui/react-switch",
+          ],
+          icons: ["lucide-react"],
+        },
+      },
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
