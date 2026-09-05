@@ -20,6 +20,7 @@ import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
 import { RawEditor } from "./RawEditor";
+import { EditorBubbleMenu } from "./EditorBubbleMenu";
 
 /**
  * Determines if a given href is an external web link that should open in the system default browser.
@@ -683,7 +684,10 @@ export const EditorSurface: React.FC = () => {
             spellCheck={spellCheckEnabled}
           />
         ) : (
-          <EditorContent editor={editor} />
+          <>
+            <EditorBubbleMenu editor={editor} isRawMode={isRawMode} />
+            <EditorContent editor={editor} />
+          </>
         )}
       </div>
       {/* Floating outline — horizontal dashes at right center, expand on hover */}

@@ -2590,3 +2590,20 @@ input[type="range"]::-moz-range-thumb {
   border: none;
 }
 
+/* Floating selection toolbar / Bubble menu */
+.snipnote-bubble-menu {
+  background: var(--bg-translucent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-md);
+  user-select: none;
+  z-index: 100;
+}
+
+[data-theme="dark"] .snipnote-bubble-menu {
+  box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.45), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+}
+
+
