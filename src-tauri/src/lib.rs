@@ -1,3 +1,4 @@
+pub mod boot;
 pub mod session;
 pub mod storage;
 pub mod watcher;
@@ -185,6 +186,7 @@ pub fn run() {
             None,
         ))
         .manage(watcher::VaultWatcherState::default())
+        .manage(boot::BootCache::default())
         .invoke_handler(tauri::generate_handler![
             storage::scan_vault,
             storage::read_file,
@@ -256,6 +258,9 @@ pub fn run() {
                 .min_inner_size(1100.0, 600.0)
                 .transparent(true)
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
+                // Start hidden: the frontend reveals the window after first
+                // paint so users never see an empty webview flash.
+                .visible(false)
                 .build()?;
 
             {
@@ -302,6 +307,29 @@ pub fn run() {
             }
 
             build_and_set_menu(app.handle())?;
+
+            // Preload session + vault tree + open note contents in parallel
+            // with window reveal, so the frontend's first data calls resolve
+            // from ready memory instead of cold disk reads.
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || boot::warm_boot_cache(handle));
+            }
+
+            // The window starts hidden (see `visible(false)` above) so users
+            // never see an empty webview. Reveal it from here after a short
+            // delay: by then the frontend bundle is parsed and the initial
+            // React commit is done, so the window paints with content on
+            // first show. (A native timer is used because rAF/timers are
+            // suspended while the webview is hidden, so the frontend cannot
+            // reliably reveal itself. The frontend also calls show() on
+            // mount — whichever runs first wins.)
+            if let Some(w) = app.get_webview_window("main") {
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    let _ = w.show();
+                });
+            }
 
             Ok(())
         })

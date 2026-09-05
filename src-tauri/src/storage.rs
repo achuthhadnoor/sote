@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -139,7 +140,13 @@ pub fn scan_directory(dir_path: &Path) -> Result<Vec<VaultNode>, String> {
 
 /// Tauri command to scan a local vault directory.
 #[tauri::command]
-pub fn scan_vault(vault_path: String) -> Result<Vec<VaultNode>, String> {
+pub fn scan_vault(app: tauri::AppHandle, vault_path: String) -> Result<Vec<VaultNode>, String> {
+    // Serve preloaded boot data when available (one-shot).
+    if let Some(cache) = app.try_state::<crate::boot::BootCache>() {
+        if let Some(tree) = cache.take_tree(&vault_path) {
+            return Ok(tree);
+        }
+    }
     let path = PathBuf::from(&vault_path);
     let canonical = path
         .canonicalize()
@@ -149,8 +156,19 @@ pub fn scan_vault(vault_path: String) -> Result<Vec<VaultNode>, String> {
 
 /// Tauri command to read a markdown file and return its NoteEnvelope.
 #[tauri::command]
-pub fn read_file(file_path: String) -> Result<NoteEnvelope, String> {
-    let path = PathBuf::from(&file_path);
+pub fn read_file(app: tauri::AppHandle, file_path: String) -> Result<NoteEnvelope, String> {
+    // Serve preloaded boot data when available (one-shot).
+    if let Some(cache) = app.try_state::<crate::boot::BootCache>() {
+        if let Some(env) = cache.take_file(&file_path) {
+            return Ok(env);
+        }
+    }
+    read_file_from_disk(&file_path)
+}
+
+/// Disk read backing `read_file` (also used by tests and boot preload).
+pub fn read_file_from_disk(file_path: &str) -> Result<NoteEnvelope, String> {
+    let path = PathBuf::from(file_path);
     let canonical = path
         .canonicalize()
         .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
@@ -499,7 +517,7 @@ mod tests {
 
         internal_write_file(&file_path, body, frontmatter.as_deref()).unwrap();
 
-        let envelope = read_file(path_str).unwrap();
+        let envelope = read_file_from_disk(&path_str).unwrap();
         assert_eq!(envelope.frontmatter, frontmatter);
         assert_eq!(envelope.body, body);
 

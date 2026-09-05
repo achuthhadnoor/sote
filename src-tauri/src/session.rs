@@ -71,6 +71,12 @@ pub fn sanitize_session(mut session: SessionState) -> SessionState {
 
 #[tauri::command]
 pub fn get_session(app: AppHandle) -> Result<SessionState, String> {
+    // Serve preloaded boot data when available (one-shot).
+    if let Some(cache) = app.try_state::<crate::boot::BootCache>() {
+        if let Some(cached) = cache.take_session() {
+            return Ok(cached);
+        }
+    }
     let session_path = get_session_file_path(&app)?;
     if !session_path.exists() {
         return Ok(SessionState::default());
