@@ -422,11 +422,19 @@ function App() {
   }, [selectNote]);
 
   return (
-    <div className="app-shell" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
-      {/* Sidebar stays mounted so open/close can animate via .sidebar-animated;
+    <div
+      className="flex w-screen h-screen overflow-hidden bg-bg-translucent rounded-xl select-none"
+      onDragOver={handleAppDragOver}
+      onDrop={handleAppDrop}
+    >
+      {/* Sidebar stays mounted so open/close can animate;
           inert + delayed visibility keep hidden controls out of the tab order */}
       <div
-        className={`sidebar-animated${sidebarCollapsed ? " is-collapsed" : ""}`}
+        className={`h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] ${
+          sidebarCollapsed
+            ? "w-0 min-w-0 invisible"
+            : "w-sidebar min-w-sidebar visible"
+        }`}
         inert={sidebarCollapsed}
         aria-hidden={sidebarCollapsed}
       >
@@ -436,7 +444,7 @@ function App() {
           onOpenPalette={() => setIsPaletteOpen(true)}
         />
       </div>
-      <main className="main-container">
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
         <TabBar onNewNote={handleNewNote} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((v) => !v)} />
         <ConflictBanner />
         <EditorSurface />

@@ -11,10 +11,10 @@ export const RightPanel: React.FC = () => {
 
   if (collapsed) {
     return (
-      <aside className="right-panel right-panel-collapsed">
-        <div className="right-panel-collapsed-bar">
+      <aside className="w-11 min-w-11 h-full bg-sidebar-translucent border-l border-border-translucent flex flex-col items-center select-none py-2 shrink-0">
+        <div className="flex flex-col items-center gap-3 w-full">
           <button
-            className="right-panel-collapse-btn"
+            className="w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center text-muted-foreground hover:bg-muted-translucent hover:text-foreground transition-colors cursor-pointer"
             onClick={() => setCollapsed(false)}
             title="Expand panel"
             aria-label="Expand panel"
@@ -23,14 +23,26 @@ export const RightPanel: React.FC = () => {
               <path d="M15 6L9 12L15 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <div className="right-panel-collapsed-icons">
-            <button className="right-panel-icon-btn" onClick={() => { setActiveTab("terminal"); setCollapsed(false); }} title="Terminal">
+          <div className="flex flex-col items-center gap-1.5 w-full">
+            <button
+              className="w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center text-muted-foreground hover:bg-muted-translucent hover:text-foreground transition-colors cursor-pointer"
+              onClick={() => { setActiveTab("terminal"); setCollapsed(false); }}
+              title="Terminal"
+            >
               <TerminalIcon />
             </button>
-            <button className="right-panel-icon-btn" onClick={() => { setActiveTab("browser"); setCollapsed(false); }} title="Browser">
+            <button
+              className="w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center text-muted-foreground hover:bg-muted-translucent hover:text-foreground transition-colors cursor-pointer"
+              onClick={() => { setActiveTab("browser"); setCollapsed(false); }}
+              title="Browser"
+            >
               <BrowserIcon />
             </button>
-            <button className="right-panel-icon-btn" onClick={() => { setActiveTab("canvas"); setCollapsed(false); }} title="Canvas">
+            <button
+              className="w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center text-muted-foreground hover:bg-muted-translucent hover:text-foreground transition-colors cursor-pointer"
+              onClick={() => { setActiveTab("canvas"); setCollapsed(false); }}
+              title="Canvas"
+            >
               <CanvasIcon />
             </button>
           </div>
@@ -40,13 +52,17 @@ export const RightPanel: React.FC = () => {
   }
 
   return (
-    <aside className="right-panel">
-      <div className="right-panel-header">
-        <div className="right-panel-tabs" role="tablist">
+    <aside className="w-[320px] min-w-[280px] max-w-[480px] h-full bg-sidebar-translucent border-l border-border-translucent flex flex-col select-none shrink-0 overflow-hidden">
+      <div className="h-header border-b border-border-translucent px-2 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-1" role="tablist">
           <button
             role="tab"
             aria-selected={activeTab === "terminal"}
-            className={`right-panel-tab ${activeTab === "terminal" ? "is-active" : ""}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+              activeTab === "terminal"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+            }`}
             onClick={() => setActiveTab("terminal")}
           >
             <TerminalIcon />
@@ -55,7 +71,11 @@ export const RightPanel: React.FC = () => {
           <button
             role="tab"
             aria-selected={activeTab === "browser"}
-            className={`right-panel-tab ${activeTab === "browser" ? "is-active" : ""}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+              activeTab === "browser"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+            }`}
             onClick={() => setActiveTab("browser")}
           >
             <BrowserIcon />
@@ -64,7 +84,11 @@ export const RightPanel: React.FC = () => {
           <button
             role="tab"
             aria-selected={activeTab === "canvas"}
-            className={`right-panel-tab ${activeTab === "canvas" ? "is-active" : ""}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+              activeTab === "canvas"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+            }`}
             onClick={() => setActiveTab("canvas")}
           >
             <CanvasIcon />
@@ -72,7 +96,7 @@ export const RightPanel: React.FC = () => {
           </button>
         </div>
         <button
-          className="right-panel-collapse-btn"
+          className="w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center text-muted-foreground hover:bg-muted-translucent hover:text-foreground transition-colors cursor-pointer"
           onClick={() => setCollapsed(true)}
           title="Collapse panel"
           aria-label="Collapse panel"
@@ -82,7 +106,7 @@ export const RightPanel: React.FC = () => {
           </svg>
         </button>
       </div>
-      <div className="right-panel-content">
+      <div className="flex-1 overflow-hidden flex flex-col">
         {activeTab === "terminal" && <TerminalPane />}
         {activeTab === "browser" && <BrowserPane />}
         {activeTab === "canvas" && <CanvasPane />}

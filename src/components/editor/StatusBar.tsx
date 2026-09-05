@@ -30,25 +30,33 @@ export const StatusBar: React.FC = () => {
   }, [body, activePath]);
 
   return (
-    <footer className="status-bar flex h-[var(--status-height)] items-center justify-between gap-3 px-3 text-[11px] font-mono text-muted-foreground select-none" role="status" aria-live="polite" aria-atomic="true">
-      <div className="status-blur" aria-hidden="true" />
-      <div className="status-left flex items-center min-w-0 flex-1 mr-2">
+    <footer
+      className="relative flex h-status items-center justify-between gap-3 px-3 text-[11px] font-mono text-muted-foreground select-none border-t border-border-translucent bg-status-translucent shrink-0"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div
+        className="absolute inset-0 -z-10 pointer-events-none backdrop-blur-[12px]"
+        aria-hidden="true"
+      />
+      <div className="flex items-center min-w-0 flex-1 mr-2">
         {activePath && (
           <span className="truncate" title={activePath}>
             {activePath}
           </span>
         )}
       </div>
-      <div className="status-right flex items-center gap-3 shrink-0">
-        <span className="status-stats truncate" aria-live="polite">
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="truncate" aria-live="polite">
           {stats.words} words · {stats.characters} characters · {stats.paragraphs} paragraphs
         </span>
         <Button
           variant={isRawMode ? "secondary" : "ghost"}
           size="sm"
           className={cn(
-            "h-[20px] px-2 text-[10px] font-medium font-sans gap-1.5 rounded-[var(--radius-sm)] border border-transparent",
-            isRawMode && "bg-background border-border shadow-sm text-foreground",
+            "h-5 px-2 text-[10px] font-medium font-sans gap-1.5 rounded-sm border border-transparent",
+            isRawMode && "bg-background border-border shadow-xs text-foreground",
             !activePath && "opacity-40 pointer-events-none"
           )}
           onClick={toggleRawMode}

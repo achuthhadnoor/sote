@@ -127,41 +127,70 @@ export const CanvasPane: React.FC = () => {
   };
 
   return (
-    <div className="pane-canvas">
-      <div className="canvas-toolbar">
-        <div className="canvas-tool-group" role="group" aria-label="Canvas tools">
-          <button className={`canvas-tool-btn ${tool === "pen" ? "is-active" : ""}`} onClick={() => setTool("pen")} title="Pen">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 20H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M15 4L19 8L8.5 18.5H4V14L15 4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-            </svg>
-            Pen
-          </button>
-          <button className={`canvas-tool-btn ${tool === "rect" ? "is-active" : ""}`} onClick={() => setTool("rect")} title="Rectangle">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="4" y="6" width="16" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-            Rect
-          </button>
-          <button className={`canvas-tool-btn ${tool === "arrow" ? "is-active" : ""}`} onClick={() => setTool("arrow")} title="Arrow">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 12H18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M13 7L18 12L13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Arrow
-          </button>
-        </div>
-        <div className="canvas-actions">
-          <button className="canvas-action-btn" onClick={handleClear}>
+    <div className="flex-1 flex flex-col overflow-hidden bg-sidebar-translucent">
+      <div className="flex flex-col gap-2 p-2 border-b border-border-translucent">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1" role="group" aria-label="Canvas tools">
+            <button
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+                tool === "pen"
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+              }`}
+              onClick={() => setTool("pen")}
+              title="Pen"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 20H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M15 4L19 8L8.5 18.5H4V14L15 4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+              Pen
+            </button>
+            <button
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+                tool === "rect"
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+              }`}
+              onClick={() => setTool("rect")}
+              title="Rectangle"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="4" y="6" width="16" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+              Rect
+            </button>
+            <button
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+                tool === "arrow"
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+              }`}
+              onClick={() => setTool("arrow")}
+              title="Arrow"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 12H18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M13 7L18 12L13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Arrow
+            </button>
+          </div>
+          <button
+            className="text-xs px-2.5 py-1 rounded-[var(--radius-sm)] border border-border-translucent text-foreground hover:bg-muted-translucent transition-colors cursor-pointer"
+            onClick={handleClear}
+          >
             Clear
           </button>
-          <span className="canvas-hint">Excalidraw integration stub — replace canvas with `&lt;Excalidraw /&gt;` when you add `@excalidraw/excalidraw`</span>
+        </div>
+        <div className="text-[10px] text-muted-foreground opacity-75">
+          Excalidraw integration stub — replace canvas with `&lt;Excalidraw /&gt;` when you add `@excalidraw/excalidraw`
         </div>
       </div>
-      <div className="canvas-stage">
+      <div className="flex-1 overflow-hidden relative flex items-center justify-center bg-white p-2">
         <canvas
           ref={canvasRef}
-          className="canvas-element"
+          className="w-full h-full touch-none cursor-crosshair rounded-[var(--radius-sm)] shadow-xs"
           width={600}
           height={400}
           onMouseDown={handlePointerDown}

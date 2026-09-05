@@ -637,10 +637,10 @@ export const EditorSurface: React.FC = () => {
 
   if (!vaultPath) {
     return (
-      <section className="editor-surface-container">
-        <div className="editor-canvas">
-          <div className="empty-state flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <h1 className="empty-title text-[18px] font-semibold">snipnote</h1>
+      <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
+        <div className="w-full max-w-editor m-auto self-center text-[15px] leading-relaxed flex flex-col justify-center">
+          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground min-h-[360px]">
+            <h1 className="text-[18px] font-semibold text-foreground">snipnote</h1>
             <p className="text-sm text-muted-foreground">The full-size local Markdown companion for Claude Code.</p>
             <Button onClick={openVaultDialog} className="mt-2">Open Local Vault</Button>
           </div>
@@ -680,8 +680,8 @@ export const EditorSurface: React.FC = () => {
   }
 
   return (
-    <section className="editor-surface-container">
-      <div className="editor-canvas">
+    <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
+      <div className="w-full max-w-editor m-auto self-center text-[15px] leading-relaxed flex flex-col justify-center">
         {isLoading && (
           <div style={{ padding: "16px 0", color: "var(--muted-fg)", fontSize: "13px" }}>
             Loading note...

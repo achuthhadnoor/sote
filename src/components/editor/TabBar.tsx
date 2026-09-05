@@ -88,11 +88,15 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
 
   return (
     <header
-      className="tab-bar w-full flex h-[var(--header-height)] items-center gap-3 border-b border-[var(--border-translucent)] px-3 select-none"
+      className="sticky top-0 z-20 isolate w-full flex h-header items-center gap-3 border-b border-border-translucent px-3 select-none bg-transparent"
       data-tauri-drag-region
       onMouseDown={handleStartDragging}
     >
-      <div className="tab-bar-blur" aria-hidden="true" />
+      {/* Frosted header blur wash */}
+      <div
+        className="absolute inset-x-0 top-0 -z-10 h-[calc(100%+72px)] pointer-events-none backdrop-blur-[14px] [mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] bg-gradient-to-b from-bg-translucent via-bg-translucent/45 to-transparent"
+        aria-hidden="true"
+      />
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
           titlebar row. macOS reserves the traffic-lights zone on the left
           (only needed when the sidebar is collapsed and the bar reaches the
@@ -102,7 +106,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
           <Button
             variant="ghost"
             size="icon"
-            className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground"
+            className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
             onClick={onToggleSidebar}
             title="Show Sidebar (⌘B)"
             aria-label="Show Sidebar"
@@ -113,7 +117,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
         <Button
           variant="ghost"
           size="icon"
-          className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground disabled:opacity-30"
+          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
           disabled={!canGoBack}
           onClick={goBack}
           title="Go back (⌘[)"
@@ -124,7 +128,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
         <Button
           variant="ghost"
           size="icon"
-          className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground disabled:opacity-30"
+          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
           disabled={!canGoForward}
           onClick={goForward}
           title="Go forward (⌘])"
@@ -177,10 +181,13 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                   tabIndex={isActive ? 0 : -1}
                   data-tab-path={tab.path}
                   data-tab-title={tab.title}
-                  className={`tab-item ${isActive ? "is-active" : ""} ${isDraft ? "is-draft" : ""}`}
+                  className={`group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 rounded-md border border-transparent text-[12.5px] font-medium whitespace-nowrap shrink-0 max-w-[180px] transition-all duration-150 cursor-pointer ${
+                    isActive
+                      ? "bg-background border-border text-foreground shadow-xs"
+                      : "bg-transparent text-muted-foreground hover:bg-hover-translucent hover:text-foreground hover:border-border-translucent"
+                  }`}
                   onClick={() => handleTabClick(tab.path, tab.title)}
                   onFocus={(e) => {
-                    // roving: when tab receives focus via Tab, ensure it becomes roving active
                     const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
                     tabsEls.forEach((el) => (el.tabIndex = -1));
                     (e.currentTarget as HTMLElement).tabIndex = 0;
@@ -188,17 +195,17 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                   title={isDraft ? `${tab.path} — not yet saved` : tab.path}
                 >
                   <FileTabIcon active={isActive} />
-                  <span className="tab-item-title">{tab.title}</span>
-                  {isDraft && !isActive && <span className="tab-draft-dot" title="Not yet saved" />}
-                  {isActive && isDraft && !isDirty && <span className="tab-draft-label">draft</span>}
+                  <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
+                  {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
+                  {isActive && isDraft && !isDirty && <span className="text-[10px] text-muted-foreground italic font-normal shrink-0">draft</span>}
                   {isActive && isDirty && !isSaving && (
-                    <span className="tab-dirty-dot" title="Unsaved changes" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0 group-hover:opacity-0 transition-opacity" title="Unsaved changes" />
                   )}
                   {isActive && isSaving && (
-                    <span className="tab-saving-label">saving…</span>
+                    <span className="text-[10px] text-muted-foreground font-normal shrink-0">saving…</span>
                   )}
                   <span
-                    className="tab-close-btn"
+                    className="absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 bg-gradient-to-r from-transparent via-background/90 to-background"
                     role="button"
                     aria-label={`Close ${tab.title}`}
                     onClick={(e) => handleClose(e, tab.path)}
@@ -222,7 +229,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
         <Button
           variant="ghost"
           size="icon"
-          className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground"
+          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
           onClick={onNewNote}
           title="New note (⌘N)"
           aria-label="New note"

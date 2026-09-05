@@ -86,12 +86,12 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
   };
 
   return (
-    <section className="editor-surface-container">
-      <div className="home-view">
-        <div className="home-search-row">
-          <Search size={15} className="home-search-icon" aria-hidden />
+    <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
+      <div className="w-full max-w-[560px] m-auto self-center flex flex-col gap-5 animate-in fade-in duration-200">
+        <div className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 h-10 shadow-xs focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+          <Search size={15} className="text-muted-foreground shrink-0" aria-hidden />
           <input
-            className="home-search-input"
+            className="flex-1 min-w-0 border-0 outline-hidden bg-transparent text-sm text-foreground font-sans h-full"
             placeholder="Search notes…  (⌘P for palette)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -101,7 +101,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
           />
           {query && (
             <button
-              className="home-search-clear"
+              className="border-0 bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted p-1 rounded-sm cursor-pointer text-xs leading-none"
               onClick={() => setQuery("")}
               aria-label="Clear search"
             >
@@ -111,41 +111,41 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
         </div>
 
         {isSearching ? (
-          <div className="home-section">
-            <div className="home-section-title">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-1">
               {results.length > 0
                 ? `${results.length} result${results.length === 1 ? "" : "s"}`
                 : "No matching notes"}
             </div>
             {results.length > 0 ? (
-              <ul className="home-list" role="listbox" aria-label="Search results">
+              <ul className="list-none m-0 p-0 flex flex-col gap-0.5" role="listbox" aria-label="Search results">
                 {results.map((n) => (
                   <li key={n.path}>
                     <button
-                      className="home-item"
+                      className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-background hover:border-border hover:shadow-xs"
                       onClick={() => openNote(n.path, n.name)}
                       title={n.path}
                     >
-                      <FileText size={15} className="home-item-icon" aria-hidden />
-                      <span className="home-item-text">
-                        <span className="home-item-title">{n.name}</span>
-                        <span className="home-item-path">{n.relativePath}</span>
+                      <FileText size={15} className="text-muted-foreground shrink-0" aria-hidden />
+                      <span className="flex items-baseline gap-2 min-w-0 flex-1">
+                        <span className="text-[13.5px] font-medium text-foreground truncate">{n.name}</span>
+                        <span className="text-[11px] font-mono text-muted-foreground truncate shrink-1 min-w-0">{n.relativePath}</span>
                       </span>
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="home-hint">Try a different name or folder. Press Enter to open the top match.</p>
+              <p className="text-[13px] text-muted-foreground leading-relaxed p-1 m-0">Try a different name or folder. Press Enter to open the top match.</p>
             )}
           </div>
         ) : (
-          <div className="home-section">
-            <div className="home-section-title">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-1">
               <Clock size={13} aria-hidden /> Recent notes
             </div>
             {vaultRecents.length > 0 ? (
-              <ul className="home-list" aria-label="Recently opened notes">
+              <ul className="list-none m-0 p-0 flex flex-col gap-0.5" aria-label="Recently opened notes">
                 {vaultRecents.map((r) => {
                   const known = noteByPath.get(r.path);
                   const title = known?.name ?? r.title;
@@ -153,14 +153,14 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                   return (
                     <li key={r.path}>
                       <button
-                        className="home-item"
+                        className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-background hover:border-border hover:shadow-xs"
                         onClick={() => openNote(r.path, title)}
                         title={r.path}
                       >
-                        <FileText size={15} className="home-item-icon" aria-hidden />
-                        <span className="home-item-text">
-                          <span className="home-item-title">{title}</span>
-                          <span className="home-item-path">{rel}</span>
+                        <FileText size={15} className="text-muted-foreground shrink-0" aria-hidden />
+                        <span className="flex items-baseline gap-2 min-w-0 flex-1">
+                          <span className="text-[13.5px] font-medium text-foreground truncate">{title}</span>
+                          <span className="text-[11px] font-mono text-muted-foreground truncate shrink-1 min-w-0">{rel}</span>
                         </span>
                       </button>
                     </li>
@@ -168,25 +168,25 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                 })}
               </ul>
             ) : (
-              <div className="home-empty">
-                <p className="home-hint">
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[13px] text-muted-foreground leading-relaxed p-1 m-0">
                   {allNotes.length > 0
                     ? "Notes you open will show up here."
                     : "No notes yet — create your first one to get started."}
                 </p>
                 {allNotes.length > 0 && (
-                  <ul className="home-list" aria-label="Notes in vault">
+                  <ul className="list-none m-0 p-0 flex flex-col gap-0.5" aria-label="Notes in vault">
                     {allNotes.slice(0, 8).map((n) => (
                       <li key={n.path}>
                         <button
-                          className="home-item"
+                          className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-background hover:border-border hover:shadow-xs"
                           onClick={() => openNote(n.path, n.name)}
                           title={n.path}
                         >
-                          <FileText size={15} className="home-item-icon" aria-hidden />
-                          <span className="home-item-text">
-                            <span className="home-item-title">{n.name}</span>
-                            <span className="home-item-path">{n.relativePath}</span>
+                          <FileText size={15} className="text-muted-foreground shrink-0" aria-hidden />
+                          <span className="flex items-baseline gap-2 min-w-0 flex-1">
+                            <span className="text-[13.5px] font-medium text-foreground truncate">{n.name}</span>
+                            <span className="text-[11px] font-mono text-muted-foreground truncate shrink-1 min-w-0">{n.relativePath}</span>
                           </span>
                         </button>
                       </li>
@@ -194,7 +194,10 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                   </ul>
                 )}
                 {onNewNote && (
-                  <button className="home-new-btn" onClick={onNewNote}>
+                  <button
+                    className="inline-flex items-center gap-1.5 self-start h-[30px] px-3 rounded-md border border-border bg-background text-foreground text-[13px] font-medium cursor-pointer font-sans mt-1 hover:bg-accent hover:border-accent hover:text-accent-foreground transition-colors"
+                    onClick={onNewNote}
+                  >
                     <Plus size={14} aria-hidden /> New note
                   </button>
                 )}

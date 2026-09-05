@@ -48,16 +48,27 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
     const active = theme === value;
     return (
       <button
-        className={cn("settings-option", active && "is-active")}
+        className={cn(
+          "flex items-center justify-between gap-3 p-3 rounded-lg border text-left cursor-pointer transition-all duration-150",
+          active
+            ? "border-accent bg-accent-subtle shadow-xs"
+            : "border-border bg-background hover:border-foreground/30 hover:bg-muted"
+        )}
         onClick={() => setTheme(value)}
         aria-pressed={active}
       >
-        <div className="settings-option-main">
-          <span className="settings-option-label">{label}</span>
-          <span className="settings-option-desc">{desc}</span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] font-semibold text-foreground">{label}</span>
+          <span className="text-[11px] text-muted-foreground leading-normal">{desc}</span>
         </div>
-        <span className={cn("settings-radio", active && "is-checked")} aria-hidden="true">
-          {active && <span className="settings-radio-dot" />}
+        <span
+          className={cn(
+            "w-[18px] h-[18px] rounded-full border-[1.5px] bg-background inline-flex items-center justify-center shrink-0",
+            active ? "border-accent bg-accent" : "border-border"
+          )}
+          aria-hidden="true"
+        >
+          {active && <span className="w-[7px] h-[7px] rounded-full bg-background block" />}
         </span>
       </button>
     );
@@ -66,37 +77,37 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
-        className="max-w-[560px] p-0 gap-0 bg-background sm:rounded-[12px] shadow-[0_20px_50px_rgba(0,0,0,0.18)] border flex max-h-[80vh] flex-col overflow-hidden"
+        className="max-w-[560px] p-0 gap-0 bg-background sm:rounded-xl shadow-2xl border flex max-h-[80vh] flex-col overflow-hidden"
         style={{ display: "flex" } as React.CSSProperties}
         aria-describedby={undefined}
       >
-        <DialogHeader className="settings-header p-[18px_20px_14px_20px] border-b text-left space-y-0">
+        <DialogHeader className="p-5 pb-3.5 border-b border-border text-left space-y-0">
           <div>
-            <DialogTitle className="settings-title text-[16px] font-semibold">Settings</DialogTitle>
-            <DialogDescription className="settings-subtitle mt-1 text-[12px] text-muted-foreground">Manage appearance and behavior. Press Esc to close.</DialogDescription>
+            <DialogTitle className="text-base font-semibold text-foreground">Settings</DialogTitle>
+            <DialogDescription className="mt-1 text-xs text-muted-foreground">Manage appearance and behavior. Press Esc to close.</DialogDescription>
           </div>
         </DialogHeader>
 
-        <div className="settings-body">
-          <section className="settings-section">
-            <h3 className="settings-section-title">
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5 bg-background">
+          <section className="flex flex-col gap-2.5">
+            <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
                 <path d="M12 1V3M12 21V23M4.2 4.2L5.6 5.6M18.4 18.4L19.8 19.8M1 12H3M21 12H23M4.2 19.8L5.6 18.4M18.4 5.6L19.8 4.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
               Appearance
             </h3>
-            <p className="settings-section-desc">
-              Choose how snipnote looks. <code>System</code> follows your OS light/dark setting and keeps the vibrant Sidebar/Mica in sync.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Choose how snipnote looks. <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">System</code> follows your OS light/dark setting and keeps the vibrant Sidebar/Mica in sync.
             </p>
 
-            <div className="settings-options">
+            <div className="flex flex-col gap-2 mt-1">
               <Option value="light" label="Light" desc="Monochrome white, translucent over Sidebar/Mica" />
               <Option value="dark" label="Dark" desc="Near-black with muted grays, keeps contrast" />
               <Option value="system" label="System" desc="Follow macOS / Windows appearance automatically" />
             </div>
 
-            <div className="settings-opacity-control mt-4 pt-4 border-t border-[var(--border-translucent)]">
+            <div className="mt-4 pt-4 border-t border-border-translucent">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <span className="text-[13px] font-medium text-foreground">Background Opacity</span>
@@ -104,7 +115,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                     Adjust the window translucency and vibrancy effect
                   </p>
                 </div>
-                <span className="text-[12px] font-mono font-medium text-muted-foreground px-2 py-0.5 rounded bg-[var(--muted-translucent)]">
+                <span className="text-[12px] font-mono font-medium text-muted-foreground px-2 py-0.5 rounded bg-muted-translucent">
                   {bgOpacity}%
                 </span>
               </div>
@@ -123,25 +134,25 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <div className="settings-hint">
-              Shortcut: <kbd className="settings-kbd">⌘,</kbd> or <kbd className="settings-kbd">Ctrl ,</kbd> to open settings. Theme and opacity persist automatically.
+            <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 bg-muted-translucent border border-border-translucent rounded-md">
+              Shortcut: <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">⌘,</kbd> or <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">Ctrl ,</kbd> to open settings. Theme and opacity persist automatically.
             </div>
           </section>
 
-          <section className="settings-section">
-            <h3 className="settings-section-title">
+          <section className="flex flex-col gap-2.5">
+            <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M4 7V17M20 7V17M8 7V17M12 7V17M16 7V17M4 12H20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                 <path d="M9 9L15 15M15 9L9 15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
               </svg>
               Writing
             </h3>
-            <p className="settings-section-desc">
-              Editor spellcheck uses your OS dictionary. Toggle persists in <code>snipnote-spellcheck</code>.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Editor spellcheck uses your OS dictionary. Toggle persists in <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">snipnote-spellcheck</code>.
             </p>
-            <div className="settings-options">
+            <div className="flex flex-col gap-2 mt-1">
               <div
-                className="settings-option flex items-center justify-between"
+                className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
                 role="button"
                 tabIndex={0}
                 onClick={() => setSpellCheckEnabled(!spellCheckEnabled)}
@@ -149,29 +160,29 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                 aria-pressed={spellCheckEnabled}
                 aria-label="Spellcheck toggle"
               >
-                <div className="settings-option-main">
-                  <span className="settings-option-label">Spellcheck</span>
-                  <span className="settings-option-desc">Underline misspellings and show suggestions on right-click</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[13px] font-semibold text-foreground">Spellcheck</span>
+                  <span className="text-[11px] text-muted-foreground leading-normal">Underline misspellings and show suggestions on right-click</span>
                 </div>
                 <Switch checked={spellCheckEnabled} onCheckedChange={setSpellCheckEnabled} onClick={(e) => e.stopPropagation()} aria-hidden="true" />
               </div>
             </div>
           </section>
 
-          <section className="settings-section">
-            <h3 className="settings-section-title">
+          <section className="flex flex-col gap-2.5">
+            <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M12 3V13M12 3L7 8M12 3L17 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M4 16V19A2 2 0 0 0 6 21H18A2 2 0 0 0 20 19V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Updates & System
             </h3>
-            <p className="settings-section-desc">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Keep snipnote fresh and launch at login. Checks are manual for v1.
             </p>
-            <div className="settings-options">
+            <div className="flex flex-col gap-2 mt-1">
               <button
-                className="settings-option"
+                className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background text-left cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
                 onClick={async () => {
                   setChecking(true);
                   setUpdateStatus("Checking…");
@@ -194,16 +205,16 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                 disabled={checking}
                 aria-label="Check for updates"
               >
-                <div className="settings-option-main">
-                  <span className="settings-option-label">Check for Updates</span>
-                  <span className="settings-option-desc">{updateStatus || "Manual check via updater plugin"}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[13px] font-semibold text-foreground">Check for Updates</span>
+                  <span className="text-[11px] text-muted-foreground leading-normal">{updateStatus || "Manual check via updater plugin"}</span>
                 </div>
-                <span className="settings-option-hint" aria-hidden="true">
+                <span className="text-xs font-medium text-muted-foreground" aria-hidden="true">
                   {checking ? "Checking…" : "Check"}
                 </span>
               </button>
               <div
-                className="settings-option flex items-center justify-between"
+                className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
                 role="button"
                 tabIndex={0}
                 onClick={async () => {
@@ -232,9 +243,9 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                 aria-pressed={autostartEnabled}
                 aria-label="Launch at login toggle"
               >
-                <div className="settings-option-main">
-                  <span className="settings-option-label">Launch at Login</span>
-                  <span className="settings-option-desc">Open snipnote when you log in (LaunchAgent)</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[13px] font-semibold text-foreground">Launch at Login</span>
+                  <span className="text-[11px] text-muted-foreground leading-normal">Open snipnote when you log in (LaunchAgent)</span>
                 </div>
                 <Switch
                   checked={autostartEnabled}
@@ -252,15 +263,15 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           </section>
 
-          <section className="settings-section">
-            <h3 className="settings-section-title">About</h3>
-            <p className="settings-section-desc">
-              snipnote · local-first markdown companion for Claude Code. Vibrant window via <code>EffectsBuilder</code> (Sidebar on macOS, Mica on Windows).
+          <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">About</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              snipnote · local-first markdown companion for Claude Code. Vibrant window via <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">EffectsBuilder</code> (Sidebar on macOS, Mica on Windows).
             </p>
           </section>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t bg-muted p-3 px-5">
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-muted p-3 px-5">
           <span className="text-[11px] text-muted-foreground">Press ⌘, again to close</span>
           <Button onClick={onClose} className="min-w-[72px]">Done</Button>
         </div>

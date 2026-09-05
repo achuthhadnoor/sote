@@ -172,37 +172,112 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
   };
 
   return (
-    <div ref={ref} className="file-context-menu" style={style} role="menu">
+    <div
+      ref={ref}
+      className="fixed w-[220px] bg-background border border-border rounded-lg shadow-xl p-1.5 flex flex-col gap-0.5 z-[9999] backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
+      style={style}
+      role="menu"
+    >
       {node ? (
         <>
-          <button className="ctx-item" onClick={handleReveal} role="menuitem">
-            <span className="ctx-icon">◧</span> Reveal in {navigator.platform.includes("Mac") ? "Finder" : "Explorer"}
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors group"
+            onClick={handleReveal}
+            role="menuitem"
+          >
+            <span className="w-3.5 inline-flex justify-center opacity-60 text-[11px] group-hover:opacity-100">◧</span> Reveal in {navigator.platform.includes("Mac") ? "Finder" : "Explorer"}
           </button>
-          <button className="ctx-item" onClick={handleOpenWithDefault} role="menuitem">
-            <span className="ctx-icon">↗</span> Open with Default App
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors group"
+            onClick={handleOpenWithDefault}
+            role="menuitem"
+          >
+            <span className="w-3.5 inline-flex justify-center opacity-60 text-[11px] group-hover:opacity-100">↗</span> Open with Default App
           </button>
-          <button className="ctx-item" onClick={handleQuickLook} role="menuitem">
-            <span className="ctx-icon">◎</span> Quick Look <span className="ctx-hint">Space</span>
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors group"
+            onClick={handleQuickLook}
+            role="menuitem"
+          >
+            <span className="w-3.5 inline-flex justify-center opacity-60 text-[11px] group-hover:opacity-100">◎</span> Quick Look <span className="ml-auto text-[10px] text-muted-foreground font-mono group-hover:text-accent-foreground">Space</span>
           </button>
-          <div className="ctx-sep" />
-          <button className="ctx-item" onClick={handleRename} role="menuitem">Rename…</button>
-          <button className="ctx-item ctx-danger" onClick={handleDelete} role="menuitem">Delete</button>
-          <div className="ctx-sep" />
-          <button className="ctx-item" onClick={handleCopyPath} role="menuitem">Copy Path</button>
-          <button className="ctx-item" onClick={handleCopyRelative} role="menuitem">Copy Relative Path</button>
-          <div className="ctx-sep" />
-          <button className="ctx-item" onClick={handleNewFile} role="menuitem">New File…</button>
-          <button className="ctx-item" onClick={handleNewFolder} role="menuitem">New Folder…</button>
+          <div className="h-px bg-border my-1" />
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleRename}
+            role="menuitem"
+          >
+            Rename…
+          </button>
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-destructive text-xs font-normal cursor-pointer font-sans hover:bg-destructive/10 transition-colors"
+            onClick={handleDelete}
+            role="menuitem"
+          >
+            Delete
+          </button>
+          <div className="h-px bg-border my-1" />
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleCopyPath}
+            role="menuitem"
+          >
+            Copy Path
+          </button>
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleCopyRelative}
+            role="menuitem"
+          >
+            Copy Relative Path
+          </button>
+          <div className="h-px bg-border my-1" />
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleNewFile}
+            role="menuitem"
+          >
+            New File…
+          </button>
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleNewFolder}
+            role="menuitem"
+          >
+            New Folder…
+          </button>
         </>
       ) : (
         <>
-          <button className="ctx-item" onClick={handleReveal} role="menuitem">
-            <span className="ctx-icon">◧</span> Reveal Vault in {navigator.platform.includes("Mac") ? "Finder" : "Explorer"}
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors group"
+            onClick={handleReveal}
+            role="menuitem"
+          >
+            <span className="w-3.5 inline-flex justify-center opacity-60 text-[11px] group-hover:opacity-100">◧</span> Reveal Vault in {navigator.platform.includes("Mac") ? "Finder" : "Explorer"}
           </button>
-          <div className="ctx-sep" />
-          <button className="ctx-item" onClick={handleNewFile} role="menuitem">New File…</button>
-          <button className="ctx-item" onClick={handleNewFolder} role="menuitem">New Folder…</button>
-          <button className="ctx-item" onClick={handleCopyPath} role="menuitem">Copy Vault Path</button>
+          <div className="h-px bg-border my-1" />
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleNewFile}
+            role="menuitem"
+          >
+            New File…
+          </button>
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleNewFolder}
+            role="menuitem"
+          >
+            New Folder…
+          </button>
+          <button
+            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm border-0 bg-transparent text-foreground text-xs font-normal cursor-pointer font-sans hover:bg-accent hover:text-accent-foreground transition-colors"
+            onClick={handleCopyPath}
+            role="menuitem"
+          >
+            Copy Vault Path
+          </button>
         </>
       )}
     </div>

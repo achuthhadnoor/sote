@@ -39,18 +39,18 @@ export const TerminalPane: React.FC = () => {
   };
 
   return (
-    <div className="pane-terminal">
-      <div className="terminal-output" ref={scrollRef}>
+    <div className="flex-1 flex flex-col bg-sidebar-translucent p-3 font-mono text-xs overflow-hidden">
+      <div className="flex-1 overflow-y-auto space-y-1 select-text" ref={scrollRef}>
         {lines.map((l, i) => (
-          <div key={i} className="terminal-line">
+          <div key={i} className="leading-relaxed text-foreground opacity-90 break-words">
             {l || "\u00A0"}
           </div>
         ))}
       </div>
-      <form className="terminal-input-row" onSubmit={handleSubmit}>
-        <span className="terminal-prompt">$</span>
+      <form className="mt-2 flex items-center gap-2 border-t border-border-translucent pt-2" onSubmit={handleSubmit}>
+        <span className="text-muted-foreground font-semibold select-none">$</span>
         <input
-          className="terminal-input"
+          className="flex-1 bg-transparent border-0 outline-none text-foreground text-xs font-mono placeholder:text-muted-foreground focus:ring-0"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="type a command…"
@@ -58,7 +58,9 @@ export const TerminalPane: React.FC = () => {
           autoComplete="off"
         />
       </form>
-      <div className="terminal-hint">Local PTY not connected — mock only. Tauri shell plugin will replace this in v4.</div>
+      <div className="mt-1.5 text-[10px] text-muted-foreground opacity-70">
+        Local PTY not connected — mock only. Tauri shell plugin will replace this in v4.
+      </div>
     </div>
   );
 };

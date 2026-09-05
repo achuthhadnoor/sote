@@ -75,11 +75,11 @@ export const RawEditor: React.FC<RawEditorProps> = ({
   }, []);
 
   return (
-    <div className="raw-editor-container">
+    <div className="w-full min-h-[480px] flex-1 flex bg-background border border-border rounded-lg overflow-hidden transition-all duration-150 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
       {/* Line numbers gutter */}
       <div
         ref={gutterRef}
-        className="raw-editor-gutter"
+        className="select-none shrink-0 py-3.5 pl-2 pr-2.5 font-mono text-[13px] leading-relaxed text-right border-r border-border-translucent bg-muted-translucent overflow-hidden text-muted-foreground"
         style={{
           minWidth: `${Math.max(40, String(lineCount).length * 9 + 20)}px`,
         }}
@@ -92,7 +92,10 @@ export const RawEditor: React.FC<RawEditorProps> = ({
           return (
             <div
               key={lineNum}
-              className={cn("raw-editor-line-num", isActive && "is-active")}
+              className={cn(
+                "cursor-pointer leading-relaxed transition-colors duration-100 hover:text-foreground",
+                isActive ? "text-foreground font-semibold opacity-100" : "opacity-45"
+              )}
               onClick={() => handleLineNumberClick(i)}
               title={`Line ${lineNum}`}
             >
@@ -105,7 +108,7 @@ export const RawEditor: React.FC<RawEditorProps> = ({
       {/* Raw textarea */}
       <textarea
         ref={textareaRef}
-        className="raw-editor"
+        className="flex-1 w-full min-h-[480px] font-mono text-[13px] leading-relaxed text-foreground bg-transparent border-0 rounded-none p-3.5 resize-none outline-hidden whitespace-pre overflow-auto tab-2"
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
