@@ -248,7 +248,10 @@ pub fn run() {
         })
         .setup(|app| {
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-                .title("snipnote")
+                // Empty window title: with Overlay style macOS would draw the
+                // title text centered over our custom TabBar. App/menu identity
+                // still comes from productName in tauri.conf.json.
+                .title("")
                 .inner_size(1280.0, 720.0)
                 .min_inner_size(1100.0, 600.0)
                 .transparent(true)

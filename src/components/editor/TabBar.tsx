@@ -4,11 +4,24 @@ import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, PanelLeft, Plus } from "lucide-react";
 
 interface TabBarProps {
   onNewNote?: () => void;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
+
+// Frameless overlay chrome per OS: macOS traffic lights sit top-left,
+// Windows caption buttons sit top-right. Reserve that space as edge padding
+// so no button ever slides underneath.
+const PLATFORM: "mac" | "windows" | "other" = (() => {
+  if (typeof navigator === "undefined") return "other";
+  const ua = navigator.userAgent || "";
+  if (/windows/i.test(ua)) return "windows";
+  if (/macintosh|mac os x/i.test(ua)) return "mac";
+  return "other";
+})();
 
 const FileTabIcon: React.FC<{ active?: boolean }> = ({ active }) => (
   <svg
@@ -34,7 +47,7 @@ const FileTabIcon: React.FC<{ active?: boolean }> = ({ active }) => (
   </svg>
 );
 
-export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
+export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onToggleSidebar }) => {
   const tabs = useTabStore((state) => state.tabs);
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
@@ -79,7 +92,23 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
       data-tauri-drag-region
       onMouseDown={handleStartDragging}
     >
-      <div className="flex items-center gap-1 w-[56px] shrink-0" data-tauri-drag-region>
+      {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
+          titlebar row. macOS reserves the traffic-lights zone on the left
+          (only needed when the sidebar is collapsed and the bar reaches the
+          window edge); Windows needs no left reservation. */}
+      <div className={`flex gap-1 shrink-0 ${sidebarCollapsed ? (PLATFORM === "mac" ? "pl-16 justify-end " : "w-[86px]") : "w-[56px]"}`} data-tauri-drag-region>
+        {sidebarCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-[26px] w-[26px] rounded-[var(--radius-sm)] text-muted-foreground hover:bg-[var(--muted-translucent)] hover:text-foreground"
+            onClick={onToggleSidebar}
+            title="Show Sidebar (⌘B)"
+            aria-label="Show Sidebar"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -104,13 +133,15 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
         </Button>
       </div>
 
-      <div className="flex-1 min-w-0 flex items-center justify-center overflow-hidden h-full" data-tauri-drag-region>
+      {/* Tabs: left-packed after the arrows when collapsed (no dead gap in
+          the middle); centered legacy layout otherwise. */}
+      <div className={`flex-1 min-w-0 flex items-center overflow-hidden h-full ${sidebarCollapsed ? "justify-start" : "justify-center"}`} data-tauri-drag-region>
         {tabs.length === 0 ? (
           <div className="text-xs text-muted-foreground text-center">No open notes</div>
         ) : (
           <ScrollArea className="w-full h-full [&>div>div]:!flex [&>div>div]:!items-center [&>div>div]:!min-w-full [&>div>div]:!h-full">
             <div
-              className="flex items-center gap-1.5 h-full px-2 py-1.5 mx-auto w-fit shrink-0"
+              className={`flex items-center gap-1.5 h-full px-2 py-1.5 w-fit shrink-0 ${sidebarCollapsed ? "" : "mx-auto"}`}
               role="tablist"
               aria-label="Open notes"
               onKeyDown={(e) => {
@@ -185,7 +216,9 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote }) => {
         )}
       </div>
 
-      <div className="flex items-center justify-end w-[56px] shrink-0" data-tauri-drag-region>
+      {/* Right cluster: Windows reserves the caption-buttons zone on the
+          right edge; other platforms need no reservation. */}
+      <div className={`flex items-center justify-end shrink-0 ${PLATFORM === "windows" ? "w-[196px] pr-[140px]" : "w-[56px]"}`} data-tauri-drag-region>
         <Button
           variant="ghost"
           size="icon"

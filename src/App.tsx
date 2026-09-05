@@ -13,7 +13,6 @@ import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
 import { useThemeStore } from "./stores/useThemeStore";
 import { SessionState } from "./types/session";
-import { PanelLeft } from "lucide-react";
 import "./App.css";
 
 function App() {
@@ -412,25 +411,21 @@ function App() {
 
   return (
     <div className="app-shell" onDragOver={handleAppDragOver} onDrop={handleAppDrop}>
-      {!sidebarCollapsed && (
+      {/* Sidebar stays mounted so open/close can animate via .sidebar-animated;
+          inert + delayed visibility keep hidden controls out of the tab order */}
+      <div
+        className={`sidebar-animated${sidebarCollapsed ? " is-collapsed" : ""}`}
+        inert={sidebarCollapsed}
+        aria-hidden={sidebarCollapsed}
+      >
         <Sidebar
           onOpenSettings={() => setIsSettingsOpen(true)}
           onToggleSidebar={() => setSidebarCollapsed(true)}
           onOpenPalette={() => setIsPaletteOpen(true)}
         />
-      )}
-      {sidebarCollapsed && (
-        <button
-          className="sidebar-collapsed-toggle"
-          onClick={() => setSidebarCollapsed(false)}
-          title="Show Sidebar (⌘B)"
-          aria-label="Show Sidebar"
-        >
-          <PanelLeft className="h-4 w-4" />
-        </button>
-      )}
+      </div>
       <main className="main-container">
-        <TabBar onNewNote={handleNewNote} />
+        <TabBar onNewNote={handleNewNote} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((v) => !v)} />
         <ConflictBanner />
         <EditorSurface />
         <StatusBar />

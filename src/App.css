@@ -184,10 +184,12 @@ html.theming *::after {
   --code-header-bg: #252529;
 }
 
+/* NOTE: no global margin/padding reset here — Tailwind's preflight (via
+   `@import "tailwindcss"` above) already resets them. An unlayered
+   `* { margin: 0; padding: 0 }` would beat Tailwind v4's `@layer utilities`
+   in the cascade and silently kill every p-*/m-* utility app-wide. */
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html {
@@ -272,6 +274,36 @@ html, body, #root {
   user-select: none;
 }
 
+/* Sidebar open/close animation — the sidebar stays mounted and this wrapper
+   clips it while animating width 280px <-> 0. The inner .sidebar keeps its
+   fixed width so content slides instead of squishing. Hidden visibility is
+   delayed until the collapse finishes so focus can't land inside while shut
+   (prefers-reduced-motion is covered by the global transition override). */
+.sidebar-animated {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  height: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  visibility: visible;
+  transition:
+    width 0.22s cubic-bezier(0.2, 0, 0, 1),
+    min-width 0.22s cubic-bezier(0.2, 0, 0, 1),
+    visibility 0s 0s;
+}
+.sidebar-animated.is-collapsed {
+  width: 0;
+  min-width: 0;
+  visibility: hidden;
+  transition:
+    width 0.22s cubic-bezier(0.2, 0, 0, 1),
+    min-width 0.22s cubic-bezier(0.2, 0, 0, 1),
+    visibility 0s 0.22s;
+}
+.sidebar-animated.is-collapsed .sidebar {
+  border-right-color: transparent;
+}
+
 .sidebar-header {
   height: var(--header-height);
   padding: 0 12px;
@@ -320,27 +352,6 @@ html, body, #root {
   border-top: 1px solid var(--border-translucent);
   font-size: 13px;
   color: var(--muted-fg);
-}
-
-.sidebar-collapsed-toggle {
-  width: 32px;
-  min-width: 32px;
-  height: 100%;
-  border: none;
-  border-right: 1px solid var(--border-translucent);
-  background: var(--sidebar-translucent);
-  color: var(--muted-fg);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 12px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.sidebar-collapsed-toggle:hover {
-  color: var(--fg);
-  background: var(--hover-translucent);
 }
 
 /* File Context Menu — native feel, vibrant */
@@ -1386,11 +1397,14 @@ html, body, #root {
   opacity: 0.9;
 }
 
-/* Status Bar — translucent with raw toggle at right corner */
+/* Status Bar — no solid background; a progressive blur fading up over the
+   scrolled content, with a soft tint settling in toward the bottom edge. */
 .status-bar {
+  position: relative;
+  isolation: isolate;
   height: var(--status-height);
-  background-color: var(--status-translucent);
-  border-top: 1px solid var(--border-translucent);
+  background-color: transparent;
+  border-top: none;
   padding: 0 12px;
   display: flex;
   align-items: center;
@@ -1400,6 +1414,21 @@ html, body, #root {
   color: var(--muted-fg);
   font-family: var(--font-mono);
   user-select: none;
+}
+
+.status-blur {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  height: calc(100% + 72px);
+  pointer-events: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 65%, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 65%, black 100%);
+  background: linear-gradient(to bottom, transparent 0%, transparent 45%, var(--status-translucent) 100%);
 }
 
 .status-stats {
@@ -2514,9 +2543,14 @@ html, body, #root {
   .find-bar,
   .file-context-menu,
   .outline-dashes,
-  .outline-panel {
+  .outline-panel,
+  .status-blur {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+  .status-bar {
+    background-color: var(--status-bar);
+    border-top: 1px solid var(--border);
   }
 }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Editor } from "@tiptap/react";
 
 export interface OutlineItem {
@@ -67,32 +67,60 @@ function extractFromMarkdown(body: string): OutlineItem[] {
   return items;
 }
 
+function sameOutline(a: OutlineItem[], b: OutlineItem[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id || a[i].level !== b[i].level || a[i].text !== b[i].text) return false;
+  }
+  return true;
+}
+
 export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) => {
   const [expanded, setExpanded] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [outline, setOutline] = useState<OutlineItem[]>([]);
 
-  const outline = useMemo(() => {
+  // Latest values for stable subscriptions (avoids re-subscribing per keystroke).
+  const outlineRef = useRef<OutlineItem[]>([]);
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
+
+  // Recompute the outline whenever content/editor changes, but only trigger a
+  // re-render when the headings actually changed (typing body text usually
+  // doesn't). The walks below are cheap; the re-render + resubscribe churn
+  // they used to cause on every keystroke was the perf problem.
+  useEffect(() => {
+    let items: OutlineItem[];
     if (!isRawMode && editor) {
       try {
-        return extractFromEditor(editor);
+        items = extractFromEditor(editor);
       } catch {
-        return extractFromMarkdown(body);
+        items = extractFromMarkdown(body);
       }
+    } else {
+      items = extractFromMarkdown(body);
     }
-    return extractFromMarkdown(body);
-  }, [editor, body, isRawMode, editor?.state.doc.content.size]);
+    if (!sameOutline(outlineRef.current, items)) {
+      outlineRef.current = items;
+      setOutline(items);
+    }
+  }, [editor, body, isRawMode]);
 
-  // Track active heading based on editor selection (rich mode)
+  // Track active heading based on editor selection (rich mode). Subscribed
+  // once per editor — never torn down by typing.
   useEffect(() => {
-    if (isRawMode || !editor || outline.length === 0) return;
+    if (isRawMode || !editor) return;
     const updateActive = () => {
+      const items = outlineRef.current;
+      if (items.length === 0) return;
       const { from } = editor.state.selection;
       let current: OutlineItem | null = null;
-      for (let i = 0; i < outline.length; i++) {
-        if (outline[i].pos <= from) current = outline[i];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].pos <= from) current = items[i];
         else break;
       }
-      setActiveId(current?.id ?? outline[0]?.id ?? null);
+      const next = current?.id ?? items[0]?.id ?? null;
+      setActiveId((prev) => (prev === next ? prev : next));
     };
     updateActive();
     editor.on("selectionUpdate", updateActive);
@@ -101,7 +129,7 @@ export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) =>
       editor.off("selectionUpdate", updateActive);
       editor.off("update", updateActive);
     };
-  }, [editor, outline, isRawMode]);
+  }, [editor, isRawMode]);
 
   const handleClick = useCallback(
     (item: OutlineItem) => {
@@ -109,7 +137,7 @@ export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) =>
         // scroll raw textarea to line
         const ta = document.querySelector(".raw-editor") as HTMLTextAreaElement | null;
         if (ta) {
-          const lines = body.split("\n");
+          const lines = bodyRef.current.split("\n");
           let charPos = 0;
           for (let i = 0; i < item.pos; i++) charPos += lines[i].length + 1;
           ta.focus();
@@ -120,10 +148,10 @@ export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) =>
         }
       } else if (editor) {
         editor.chain().focus().setTextSelection(item.pos).scrollIntoView().run();
-        setActiveId(item.id);
+        setActiveId((prev) => (prev === item.id ? prev : item.id));
       }
     },
-    [editor, body, isRawMode]
+    [editor, isRawMode]
   );
 
   if (outline.length === 0) return null;
