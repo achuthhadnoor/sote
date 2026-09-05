@@ -88,10 +88,11 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
 
   return (
     <header
-      className="tab-bar flex h-[var(--header-height)] items-center gap-3 border-b border-[var(--border-translucent)] bg-[var(--bg-translucent)] px-3 select-none overflow-hidden"
+      className="tab-bar w-full flex h-[var(--header-height)] items-center gap-3 border-b border-[var(--border-translucent)] px-3 select-none"
       data-tauri-drag-region
       onMouseDown={handleStartDragging}
     >
+      <div className="tab-bar-blur" aria-hidden="true" />
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
           titlebar row. macOS reserves the traffic-lights zone on the left
           (only needed when the sidebar is collapsed and the bar reaches the

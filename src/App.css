@@ -874,6 +874,10 @@ html, body, #root {
 
 /* Tab Bar — translucent, now with tabs */
 .tab-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  isolation: isolate;
   height: var(--header-height);
   border-bottom: 1px solid var(--border-translucent);
   background-color: transparent;
@@ -882,7 +886,23 @@ html, body, #root {
   gap: 12px;
   padding: 0 12px;
   user-select: none;
-  overflow: hidden;
+}
+
+/* Header blur — the top-to-bottom mirror of .status-blur: frosted wash
+   anchored to the bar, fading out over the content below. */
+.tab-bar-blur {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: -1;
+  height: calc(100% + 72px);
+  pointer-events: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
+  background: linear-gradient(to bottom, var(--bg-translucent) 0%, var(--bg-translucent) 45%, transparent 100%);
 }
 
 .tab-nav-group {
@@ -2858,6 +2878,34 @@ input[type="range"]::-moz-range-thumb {
 
 [data-theme="dark"] .snipnote-bubble-menu {
   box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.45), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+}
+
+/* ———————————————————————————————
+   Borderless mode — strip every border and outline app-wide,
+   including focus rings and editor-content borders.
+   (Decorative drop shadows are intentionally preserved.)
+   ——————————————————————————————— */
+*, *::before, *::after {
+  border-width: 0 !important;
+  border-style: none !important;
+  outline: none !important;
+  outline-width: 0 !important;
+  /* neutralize Tailwind ring utilities (they render via box-shadow) */
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-inset-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+/* focus-glow shadows that act as outlines */
+.raw-editor-container:focus-within,
+.home-search-row:focus-within {
+  box-shadow: none !important;
+}
+
+/* 1px background hairlines (menu separator, markdown <hr>) */
+.ctx-sep,
+.ProseMirror hr {
+  background: transparent !important;
 }
 
 
