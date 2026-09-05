@@ -137,6 +137,14 @@ fn build_and_set_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
 }
 
 #[tauri::command]
+fn reveal_window(app: AppHandle) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn add_recent_vault(app: AppHandle, vault_path: String) -> Result<(), String> {
     save_recent_vaults(&app, vault_path.clone())?;
     let _ = build_and_set_menu(&app);
@@ -202,6 +210,7 @@ pub fn run() {
             watcher::watch_vault,
             watcher::unwatch_vault,
             add_recent_vault,
+            reveal_window,
         ])
         .on_menu_event(|app, event| {
             use tauri::{Emitter, Manager};
@@ -317,16 +326,13 @@ pub fn run() {
             }
 
             // The window starts hidden (see `visible(false)` above) so users
-            // never see an empty webview. Reveal it from here after a short
-            // delay: by then the frontend bundle is parsed and the initial
-            // React commit is done, so the window paints with content on
-            // first show. (A native timer is used because rAF/timers are
-            // suspended while the webview is hidden, so the frontend cannot
-            // reliably reveal itself. The frontend also calls show() on
-            // mount — whichever runs first wins.)
+            // never see an empty webview. The frontend invokes `reveal_window`
+            // as soon as React has mounted and restored the session. A fallback
+            // safety timer reveals the window after 3 seconds if for any reason
+            // the frontend signal was delayed.
             if let Some(w) = app.get_webview_window("main") {
                 std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    std::thread::sleep(std::time::Duration::from_millis(3000));
                     let _ = w.show();
                 });
             }

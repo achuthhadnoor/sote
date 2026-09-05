@@ -333,7 +333,7 @@ export const EditorSurface: React.FC = () => {
     ],
     editorProps: {
       attributes: {
-        class: "snipnote-editor-content",
+        class: "snipnote-editor-content prose dark:prose-invert max-w-none focus:outline-none",
         spellcheck: spellCheckEnabled ? "true" : "false",
       },
       handleDrop: (view: any, event: DragEvent, _slice: any, _moved: boolean) => {

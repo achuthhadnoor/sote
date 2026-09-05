@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* App theme is driven by [data-theme] (see useThemeStore) — make Tailwind's
    dark: variant follow it instead of the OS prefers-color-scheme query. */
@@ -1881,15 +1882,14 @@ html, body, #root {
 }
 
 /* ———————————————————————————————
-   Tiptap / ProseMirror — Editorial Polish
-   SF Pro editorial, Bear/Notion breathing, macOS accent
+   Tiptap / ProseMirror — Editor Mechanics & Tailwind Typography Bridge
+   Baseline typography is provided by @tailwindcss/typography (prose / dark:prose-invert).
+   The styles below govern editor-only interactions, TaskLists, placeholders, and node views.
    ——————————————————————————————— */
 .ProseMirror {
   outline: none;
   min-height: 520px;
   font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.65;
   color: var(--fg);
   caret-color: var(--accent);
   text-rendering: optimizeLegibility;
@@ -1902,6 +1902,17 @@ html, body, #root {
 .ProseMirror:focus {
   caret-color: var(--accent);
 }
+
+/* Headings font family bridge for macOS SF Pro Display */
+.ProseMirror :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  font-family: var(--font-display);
+  color: var(--fg);
+}
+.ProseMirror :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--border-translucent);
+}
+
 /* Subtle placeholder when empty */
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -1913,124 +1924,25 @@ html, body, #root {
   font-style: italic;
 }
 
-.ProseMirror p {
-  margin: 0 0 1em 0;
-  line-height: 1.65;
+/* List markers & spacing polish */
+.ProseMirror :where(li)::marker {
+  color: var(--accent);
 }
-.ProseMirror p:last-child {
-  margin-bottom: 0;
+.ProseMirror :where(ol > li)::marker {
+  font-family: var(--font-mono);
+  color: var(--muted-fg);
 }
-
-.ProseMirror h1 {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 750;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-  margin-top: 2.2em;
-  margin-bottom: 0.6em;
-  color: var(--fg);
-}
-.ProseMirror h1:first-child { margin-top: 0.2em; }
-
-.ProseMirror h2 {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.018em;
-  margin-top: 2em;
-  margin-bottom: 0.5em;
-  padding-bottom: 0.35em;
-  border-bottom: 1px solid var(--border-translucent);
-  color: var(--fg);
-}
-
-.ProseMirror h3 {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 650;
-  line-height: 1.35;
-  letter-spacing: -0.012em;
-  margin-top: 1.6em;
-  margin-bottom: 0.45em;
-  color: var(--fg);
-}
-
-.ProseMirror h4, .ProseMirror h5, .ProseMirror h6 {
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-top: 1.4em;
-  margin-bottom: 0.4em;
-  color: var(--fg);
-}
-.ProseMirror h4 { font-size: 15px; }
-.ProseMirror h5 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-fg); }
-.ProseMirror h6 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-fg); }
-
-.ProseMirror ul,
-.ProseMirror ol {
-  padding-left: 1.5em;
-  margin: 0.6em 0 1em 0;
-}
-
-.ProseMirror ul {
-  list-style-type: disc;
-}
-.ProseMirror ul ul {
-  list-style-type: circle;
-}
-.ProseMirror ul ul ul {
-  list-style-type: square;
-}
-
-.ProseMirror ol {
-  list-style-type: decimal;
-}
-
-.ProseMirror li {
-  margin-top: 0.25em;
-  margin-bottom: 0.25em;
-  padding-left: 0.25em;
-  line-height: 1.65;
-}
-
-/* Reset paragraph margins inside list items so items don't look spread out and raw */
 .ProseMirror li > p {
-  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   display: inline;
 }
-
 .ProseMirror li > p + p {
   display: block;
   margin-top: 0.4em !important;
 }
 
-.ProseMirror li::marker {
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.ProseMirror ol > li::marker {
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-  color: var(--muted-fg);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.ProseMirror ul ul,
-.ProseMirror ol ol,
-.ProseMirror ul ol,
-.ProseMirror ol ul {
-  margin-top: 0.3em;
-  margin-bottom: 0.3em;
-  padding-left: 1.4em;
-}
-
-/* Task lists */
+/* Task lists (Interactive Tiptap extensions) */
 .ProseMirror ul[data-type="taskList"],
 .ProseMirror [data-type="taskList"],
 .ProseMirror .taskList {
@@ -2141,46 +2053,31 @@ html, body, #root {
   transform: rotate(45deg) translate(-0.5px, -0.5px);
 }
 
+/* Blockquote theme accent styling */
 .ProseMirror blockquote {
-  border-left: 3px solid var(--accent);
+  border-left-color: var(--accent);
   background: var(--accent-subtle);
-  padding: 12px 16px 12px 18px;
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  color: var(--fg);
+  padding: 12px 16px 12px 18px;
   font-style: italic;
-  margin: 1.4em 0;
-  line-height: 1.7;
-}
-.ProseMirror blockquote p {
-  margin-bottom: 0.6em;
-}
-.ProseMirror blockquote p:last-child { margin-bottom: 0; }
-.ProseMirror blockquote cite {
-  display: block;
-  margin-top: 8px;
-  font-size: 13px;
-  font-style: normal;
-  color: var(--muted-fg);
-  font-weight: 500;
 }
 
-.ProseMirror code {
+/* Inline code with theme variables */
+.ProseMirror :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, pre code)) {
   font-family: var(--font-mono);
-  font-size: 0.88em;
-  font-weight: 500;
   background: var(--inline-code-bg);
   border: 1px solid var(--inline-code-border);
   padding: 0.2em 0.4em;
   border-radius: 6px;
   color: var(--fg);
-  white-space: break-spaces;
-  word-break: break-word;
+  font-weight: 500;
 }
-.ProseMirror p code, .ProseMirror li code, .ProseMirror h1 code, .ProseMirror h2 code, .ProseMirror h3 code {
-  font-size: 0.86em;
+.ProseMirror :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, pre code))::before,
+.ProseMirror :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, pre code))::after {
+  content: "" !important;
 }
 
-/* Code block — Card-based chrome (header is a real React element) */
+/* Code block — Card-based chrome */
 .code-block-card {
   border-radius: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
@@ -2211,85 +2108,28 @@ html, body, #root {
   word-break: normal;
 }
 
-.ProseMirror hr {
-  border: none;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--border), transparent);
-  margin: 2.2em 0;
-  opacity: 0.9;
-}
-
+/* Links */
 .ProseMirror a {
   color: var(--link);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
   text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent);
-  cursor: pointer;
-  transition: text-decoration-color 0.15s ease, color 0.15s ease;
-  word-break: break-word;
 }
 .ProseMirror a:hover {
   text-decoration-color: var(--link);
-  color: var(--link);
 }
 
+/* Images & selected node */
 .ProseMirror img {
-  max-width: 100%;
-  height: auto;
   border-radius: 12px;
   border: 1px solid var(--border-translucent);
-  margin: 1.2em 0;
-  display: block;
-  background: var(--muted);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-.ProseMirror img:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
 }
 .ProseMirror img.ProseMirror-selectednode {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
 }
-.ProseMirror p img {
-  margin: 1em auto;
-  display: block;
+.ProseMirror p:has(> img:only-child) {
+  text-align: center;
 }
-/* Inline image inside paragraph with text around it */
-.ProseMirror p:has(> img:only-child) { text-align: center; }
-
-/* Tables — Notion-like */
-.ProseMirror table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  margin: 1.5em 0;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-.ProseMirror th {
-  background: var(--muted);
-  font-weight: 600;
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  color: var(--fg);
-  font-size: 13px;
-}
-.ProseMirror th:last-child { border-right: none; }
-.ProseMirror td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-translucent);
-  border-right: 1px solid var(--border-translucent);
-  vertical-align: top;
-}
-.ProseMirror td:last-child { border-right: none; }
-.ProseMirror tr:last-child td { border-bottom: none; }
 
 /* Custom table block container */
 .snipnote-table-container table {
@@ -2320,12 +2160,6 @@ html, body, #root {
 .snipnote-table-container tr:last-child td { border-bottom: none; }
 .snipnote-table-container tr:hover td { background: var(--muted-translucent); }
 
-/* Strong / emphasis polish */
-.ProseMirror strong { font-weight: 650; color: var(--fg); }
-.ProseMirror em { font-style: italic; }
-.ProseMirror s { text-decoration-thickness: 1px; opacity: 0.85; }
-
-/* Inline image inside paragraph flows with text; block image (alone in paragraph) still centered via max-width */
 
 /* Mermaid Diagram NodeView */
 .mermaid-node-wrapper {

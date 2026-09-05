@@ -14,6 +14,22 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "lucide-react",
+      "@tiptap/core",
+      "@tiptap/react",
+      "@tiptap/starter-kit",
+      "@tiptap/extension-link",
+      "@tiptap/extension-list",
+      "@tiptap/extension-task-list",
+      "@tiptap/extension-task-item",
+      "@tiptap/extension-image",
+      "@tiptap/markdown",
+    ],
+  },
   build: {
     rollupOptions: {
       output: {

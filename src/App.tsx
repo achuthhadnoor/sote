@@ -84,6 +84,8 @@ function App() {
         console.error("Failed to restore session:", err);
       } finally {
         isInitialized.current = true;
+        // Reveal native window now that initial session, vault, and active tabs are set
+        invoke("reveal_window").catch(() => {});
       }
     }
 

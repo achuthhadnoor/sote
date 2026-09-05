@@ -86,7 +86,7 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
 
   return (
     <NodeViewWrapper
-      className={`snipnote-table-wrapper my-4 block select-none ${
+      className={`not-prose snipnote-table-wrapper my-4 block select-none ${
         selected ? "ring-2 ring-primary/40 rounded-md" : ""
       }`}
     >
