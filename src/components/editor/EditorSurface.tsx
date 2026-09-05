@@ -21,6 +21,7 @@ import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
 import { RawEditor } from "./RawEditor";
 import { EditorBubbleMenu } from "./EditorBubbleMenu";
+import { HomeView } from "./HomeView";
 
 /**
  * Determines if a given href is an external web link that should open in the system default browser.
@@ -648,16 +649,33 @@ export const EditorSurface: React.FC = () => {
   }
 
   if (!activePath) {
-    return (
-      <section className="editor-surface-container">
-        <div className="editor-canvas">
-          <div className="empty-state flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <h2 className="empty-title text-[18px] font-semibold">No Note Selected</h2>
-            <p className="text-sm text-muted-foreground">Select a markdown note from the sidebar or click + to start writing.</p>
-          </div>
-        </div>
-      </section>
-    );
+    const handleHomeNewNote = () => {
+      const vp = useVaultStore.getState().vaultPath;
+      if (!vp) return;
+      const baseVault = vp.replace(/\/+$/, "");
+      const collectPaths = (nodes: any[]): string[] => {
+        const out: string[] = [];
+        for (const n of nodes) {
+          if (!n.isDirectory) out.push(n.path);
+          if (n.children) out.push(...collectPaths(n.children));
+        }
+        return out;
+      };
+      const existing = new Set<string>([
+        ...collectPaths(useVaultStore.getState().tree as any),
+        ...useTabStore.getState().tabs.map((t) => t.path),
+      ]);
+      let candidateName = "Untitled.md";
+      let candidatePath = `${baseVault}/${candidateName}`;
+      let idx = 1;
+      while (existing.has(candidatePath)) {
+        candidateName = `Untitled ${idx}.md`;
+        candidatePath = `${baseVault}/${candidateName}`;
+        idx++;
+      }
+      useTabStore.getState().selectNote(candidatePath, candidateName, { isNew: true });
+    };
+    return <HomeView onNewNote={handleHomeNewNote} />;
   }
 
   return (

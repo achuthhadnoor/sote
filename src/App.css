@@ -956,10 +956,12 @@ html, body, #root {
 }
 
 .tab-item {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 28px;
+  /* text runs underneath the overlaid close button — no reserved space */
   padding: 0 8px 0 10px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
@@ -972,6 +974,15 @@ html, body, #root {
   flex-shrink: 0;
   max-width: 180px;
   transition: all 0.12s ease;
+  /* solid end-color of the close-button fade, matched to the tab surface per state */
+  --tab-close-fade: color-mix(in srgb, var(--bg) 80%, transparent);
+}
+
+.tab-item:hover {
+  background: var(--hover-translucent);
+  color: var(--fg);
+  border-color: var(--border-translucent);
+  --tab-close-fade: color-mix(in srgb, var(--muted) 92%, transparent);
 }
 
 .tab-item:hover {
@@ -985,6 +996,7 @@ html, body, #root {
   border-color: var(--border);
   color: var(--fg);
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  --tab-close-fade: var(--bg);
 }
 
 .tab-item-title {
@@ -1032,24 +1044,63 @@ html, body, #root {
 }
 
 .tab-close-btn {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 20px;
+  /* wide left padding forms the fade zone overlapping the text; icon stays right */
+  padding: 2px 3px 2px 24px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   color: var(--muted-fg);
   flex-shrink: 0;
-  margin-left: 2px;
+  margin-left: 0;
+  /* progressive fade: transparent on the left melting into the tab surface */
+  background: linear-gradient(to right, transparent 0%, var(--tab-close-fade) 58%, var(--tab-close-fade) 100%);
+  /* progressive blur: frosted at the icon, dissolving toward the text */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 50%);
+  mask-image: linear-gradient(to right, transparent 0%, black 50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+
+/* Reveal the overlaid close button when the tab is hovered or keyboard-focused */
+.tab-item:hover .tab-close-btn,
+.tab-item:focus-visible .tab-close-btn,
+.tab-item:focus-within .tab-close-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .tab-close-btn:hover {
-  background: var(--hover-translucent);
   color: var(--fg);
 }
 
-.tab-item.is-active .tab-close-btn:hover {
-  background: var(--muted);
+/* status dots yield to the close button on hover so they don't collide */
+.tab-draft-dot,
+.tab-dirty-dot {
+  transition: opacity 0.12s ease;
+}
+
+.tab-item:hover .tab-draft-dot,
+.tab-item:hover .tab-dirty-dot,
+.tab-item:focus-within .tab-draft-dot,
+.tab-item:focus-within .tab-dirty-dot {
+  opacity: 0;
+}
+
+/* touch devices have no hover — keep the close button reachable */
+@media (hover: none) {
+  .tab-close-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .tab-action-btn {
@@ -1379,6 +1430,196 @@ html, body, #root {
   font-size: 18px;
   font-weight: 600;
   color: var(--fg);
+}
+
+/* Home view — search + recent notes shown when no note is selected */
+.home-view {
+  width: 100%;
+  max-width: 560px;
+  margin: auto 0;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.18s ease-out;
+}
+
+.home-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0 12px;
+  height: 40px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-search-row:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.home-search-icon {
+  color: var(--muted-fg);
+  flex-shrink: 0;
+}
+
+.home-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  height: 100%;
+}
+
+.home-search-input::placeholder {
+  color: var(--muted-fg);
+}
+
+.home-search-clear {
+  border: none;
+  background: transparent;
+  color: var(--muted-fg);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.home-search-clear:hover {
+  color: var(--fg);
+  background: var(--muted);
+}
+
+.home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-fg);
+  padding: 0 4px;
+}
+
+.home-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.home-item:hover {
+  background: var(--bg);
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.home-item-icon {
+  color: var(--muted-fg);
+  flex-shrink: 0;
+}
+
+.home-item:hover .home-item-icon {
+  color: var(--fg);
+}
+
+.home-item-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.home-item-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-item-path {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--muted-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.home-hint {
+  font-size: 13px;
+  color: var(--muted-fg);
+  line-height: 1.5;
+  padding: 4px;
+  margin: 0;
+}
+
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  margin-top: 4px;
+}
+
+.home-new-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
 }
 
 .btn-primary {

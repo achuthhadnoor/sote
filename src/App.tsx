@@ -12,6 +12,7 @@ import { useVaultStore } from "./stores/useVaultStore";
 import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
 import { useThemeStore } from "./stores/useThemeStore";
+import { useRecentNotesStore } from "./stores/useRecentNotesStore";
 import { SessionState } from "./types/session";
 import "./App.css";
 
@@ -103,6 +104,15 @@ function App() {
       console.error("Failed to save session:", err);
     });
   }, [vaultPath, activePath, tabs]);
+
+  // Track recently opened notes (persists across restarts via localStorage)
+  useEffect(() => {
+    if (!activePath || !vaultPath) return;
+    const tab = tabs.find((t) => t.path === activePath);
+    if (tab?.isNew) return; // don't record unsaved drafts
+    const title = tab?.title ?? activePath.split("/").pop() ?? "Note";
+    useRecentNotesStore.getState().pushRecent(activePath, title, vaultPath);
+  }, [activePath, vaultPath, tabs]);
 
   // Listen for native filesystem changes emitted by Rust file watcher (AD-4)
   useEffect(() => {
