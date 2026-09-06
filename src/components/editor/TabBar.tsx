@@ -59,15 +59,23 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
+  const saveNow = useEditorStore((state) => state.saveNow);
 
-  const handleTabClick = (path: string, title: string) => {
-    // flush handled in EditorSurface via activePath change
+  const flushActive = async () => {
+    const currentPath = useTabStore.getState().activePath;
+    if (!currentPath || !useEditorStore.getState().isDirty) return true;
+    await saveNow(currentPath);
+    return !useEditorStore.getState().isDirty;
+  };
+
+  const handleTabClick = async (path: string, title: string) => {
+    if (path !== activePath && !(await flushActive())) return;
     selectNote(path, title);
   };
 
-  const handleClose = (e: React.MouseEvent, path: string) => {
+  const handleClose = async (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
-    // If closing dirty active tab, still allow but we already auto-save on tab switch; just close
+    if (path === activePath && !(await flushActive())) return;
     closeTab(path);
   };
 
@@ -94,7 +102,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
     >
       {/* Frosted header blur wash */}
       <div
-        className="absolute inset-x-0 top-0 -z-10 h-[calc(100%+72px)] pointer-events-none backdrop-blur-[14px] [mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] bg-gradient-to-b from-bg-translucent via-bg-translucent/45 to-transparent"
+        className="absolute inset-x-0 top-0 -z-10 h-[calc(100%+32px)] pointer-events-none backdrop-blur-[14px] [mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] bg-gradient-to-b from-bg-translucent via-bg-translucent/45 to-transparent"
         aria-hidden="true"
       />
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the

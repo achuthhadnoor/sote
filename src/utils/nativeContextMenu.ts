@@ -45,6 +45,7 @@ export async function showNativeContextMenu(
           if (!name || !name.trim()) return;
           try {
             const newPath = await invoke<string>("create_file_at_path", {
+              vaultPath,
               dirPath: vaultPath,
               fileName: name.trim(),
             });
@@ -63,6 +64,7 @@ export async function showNativeContextMenu(
           if (!name || !name.trim()) return;
           try {
             await invoke<string>("create_folder_at_path", {
+              vaultPath,
               dirPath: vaultPath,
               folderName: name.trim(),
             });
@@ -140,6 +142,7 @@ export async function showNativeContextMenu(
         if (!next || next === current || !next.trim()) return;
         try {
           const newPath = await invoke<string>("rename_path", {
+            vaultPath,
             oldPath: node.path,
             newName: next.trim(),
           });
@@ -173,7 +176,7 @@ export async function showNativeContextMenu(
         const ok = window.confirm(`Move "${node.name}" to Trash?`);
         if (!ok) return;
         try {
-          await invoke("delete_path", { path: node.path });
+          await invoke("delete_path", { vaultPath, path: node.path });
           const tabs = useTabStore.getState().tabs;
           tabs.forEach((t) => {
             if (t.path === node.path || t.path.startsWith(node.path + "/")) {
@@ -224,6 +227,7 @@ export async function showNativeContextMenu(
         try {
           const dirPath = targetDir;
           const newPath = await invoke<string>("create_file_at_path", {
+            vaultPath,
             dirPath,
             fileName: name.trim(),
           });
@@ -244,6 +248,7 @@ export async function showNativeContextMenu(
         try {
           const dirPath = targetDir;
           await invoke<string>("create_folder_at_path", {
+            vaultPath,
             dirPath,
             folderName: name.trim(),
           });

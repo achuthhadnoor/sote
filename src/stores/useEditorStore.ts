@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { NoteEnvelope } from "../types/note";
 import { createLogger, loggedInvoke } from "../lib/logger";
+import { useVaultStore } from "./useVaultStore";
 
 const log = createLogger("editor");
 
@@ -16,6 +17,7 @@ interface EditorState {
   hasConflict: boolean;
   reloadCount: number;
   isRawMode: boolean;
+  lastSelfWrite: { path: string; at: number } | null;
   loadNote: (path: string) => Promise<string>;
   updateBody: (body: string) => void;
   updateFrontmatter: (frontmatter: string | null) => void;
@@ -41,12 +43,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   hasConflict: false,
   reloadCount: 0,
   isRawMode: false,
+  lastSelfWrite: null,
 
   loadNote: async (path: string) => {
     set({ isLoading: true, error: null });
     log.debug("loadNote start:", path);
     try {
+      const vaultPath = useVaultStore.getState().vaultPath;
+      if (!vaultPath) throw new Error("No vault is open");
       const envelope = await loggedInvoke<NoteEnvelope>("editor", "read_file", {
+        vaultPath,
         filePath: path,
       });
 
@@ -102,11 +108,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ isSaving: true });
 
     try {
+      const vaultPath = useVaultStore.getState().vaultPath;
+      if (!vaultPath) throw new Error("No vault is open");
       await loggedInvoke("editor", "write_file", {
+        vaultPath,
         filePath,
         body: snapshotBody,
         frontmatter: snapshotFrontmatter,
       });
+      set({ lastSelfWrite: { path: filePath, at: Date.now() } });
 
       // Buffer snapshot concurrency guard:
       // If user typed during write, current body will differ from snapshotBody
@@ -120,6 +130,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         });
       } else {
         set({ isSaving: false, error: null });
+        // Continue saving if the user edited while the previous write was in flight.
+        // The snapshot guard above deliberately keeps the newer buffer dirty.
+        queueMicrotask(() => {
+          if (get().isDirty && !get().isSaving) void get().saveNow(filePath);
+        });
       }
     } catch (err: any) {
       try {

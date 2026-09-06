@@ -25,6 +25,7 @@ impl EchoSuppressionCache {
 
     pub fn record_write(&self, path: &Path) {
         let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        crate::logger::debug("watcher", &format!("echo record: {}", canonical.to_string_lossy()));
         if let Ok(mut lock) = self.entries.lock() {
             let now = Instant::now();
             // Prune entries older than 2s
@@ -149,7 +150,19 @@ pub fn watch_vault(
             Ok(event) => {
                 let kind_str = map_event_kind(&event.kind);
                 for p in event.paths {
-                    if should_emit_change(&p) && !echo_cache.is_suppressed(&p) {
+                    let passes_filter = should_emit_change(&p);
+                    let suppressed = echo_cache.is_suppressed(&p);
+                    crate::logger::debug(
+                        "watcher",
+                        &format!(
+                            "raw event kind={} path={} filter={} suppressed={}",
+                            kind_str,
+                            p.to_string_lossy(),
+                            passes_filter,
+                            suppressed
+                        ),
+                    );
+                    if passes_filter && !suppressed {
                         let payload = VaultChangeEvent {
                             path: p.to_string_lossy().to_string(),
                             kind: kind_str.to_string(),

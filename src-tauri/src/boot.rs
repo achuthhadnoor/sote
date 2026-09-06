@@ -82,7 +82,7 @@ pub fn warm_boot_cache(app: tauri::AppHandle) {
             // on launch with the note stuck loading.
             let mut preloaded: Vec<(String, NoteEnvelope)> = Vec::new();
             for p in paths {
-                if let Ok(env) = crate::storage::read_file(app.clone(), p.clone()) {
+                if let Ok(env) = crate::storage::read_file(app.clone(), vault_path.clone(), p.clone()) {
                     preloaded.push((p, env));
                 }
             }

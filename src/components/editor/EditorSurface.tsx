@@ -25,6 +25,7 @@ import { HomeView } from "./HomeView";
 import { createLogger } from "../../lib/logger";
 
 const log = createLogger("editor-surface");
+const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /**
  * Determines if a given href is an external web link that should open in the system default browser.
@@ -342,7 +343,7 @@ export const EditorSurface: React.FC = () => {
       handleDrop: (view: any, event: DragEvent, _slice: any, _moved: boolean) => {
         const files = (event as any).dataTransfer?.files as FileList | undefined;
         if (!files || files.length === 0) return false;
-        const imageFiles = Array.from(files).filter((f: File) => f.type.startsWith("image/"));
+        const imageFiles = Array.from(files).filter((f: File) => f.type.startsWith("image/") && f.size <= MAX_INLINE_IMAGE_BYTES);
         if (imageFiles.length === 0) return false;
         event.preventDefault();
         imageFiles.forEach((file: File) => {
@@ -373,7 +374,7 @@ export const EditorSurface: React.FC = () => {
         const items = cd.items;
         const hasImageItem = items && Array.from(items).some((it: any) => it.type.startsWith("image/"));
         if (hasImageItem) {
-          const files = Array.from(cd?.files ?? []).filter((f: File) => f.type.startsWith("image/"));
+          const files = Array.from(cd?.files ?? []).filter((f: File) => f.type.startsWith("image/") && f.size <= MAX_INLINE_IMAGE_BYTES);
           if (files.length > 0) {
             event.preventDefault();
             files.forEach((file: File) => {
@@ -512,24 +513,6 @@ export const EditorSurface: React.FC = () => {
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, [editor, isFindOpen]);
-
-  // Capture-phase fallback for links: in-page anchors, markdown notes, and external browser links
-  useEffect(() => {
-    if (!editor) return;
-    let dom: HTMLElement | null = null;
-    try {
-      dom = (editor as any)?.view?.dom as HTMLElement | undefined ?? null;
-    } catch {
-      dom = null;
-    }
-    if (!dom) return;
-    const handler = (e: MouseEvent) => {
-      if (e.defaultPrevented) return;
-      handleEditorLinkClick(e, dom);
-    };
-    dom.addEventListener("click", handler, true);
-    return () => dom?.removeEventListener("click", handler, true);
-  }, [editor]);
 
   // Flush save on window blur or beforeunload (respects draft-no-content guard)
   useEffect(() => {

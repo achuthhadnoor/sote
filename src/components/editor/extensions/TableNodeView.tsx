@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { Edit3, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,7 +37,11 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
   // Use marked (already provided in the environment) to format markdown tables and all inline elements
   const html = useMemo(() => {
     try {
-      return marked.parse(raw) as string;
+      return DOMPurify.sanitize(marked.parse(raw) as string, {
+        FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "svg", "math"],
+        FORBID_ATTR: ["style"],
+        ALLOW_UNKNOWN_PROTOCOLS: false,
+      });
     } catch {
       return "";
     }

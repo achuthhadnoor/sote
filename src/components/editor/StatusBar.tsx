@@ -31,13 +31,13 @@ export const StatusBar: React.FC = () => {
 
   return (
     <footer
-      className="relative flex h-status items-center justify-between gap-3 px-3 text-[11px] font-mono text-muted-foreground select-none border-t border-border-translucent bg-status-translucent shrink-0"
+      className="status-bar relative isolate flex h-status items-center justify-between gap-3 px-3 text-[11px] font-mono text-muted-foreground select-none border-t border-border-translucent bg-transparent shrink-0"
       role="status"
       aria-live="polite"
       aria-atomic="true"
     >
       <div
-        className="absolute inset-0 -z-10 pointer-events-none backdrop-blur-[12px]"
+        className="status-blur absolute inset-x-0 bottom-0 -z-10 h-[calc(100%+32px)] pointer-events-none backdrop-blur-[14px] [mask-image:linear-gradient(to_top,black_0%,black_65%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_top,black_0%,black_65%,transparent_100%)] bg-gradient-to-t from-status-translucent via-status-translucent/45 to-transparent"
         aria-hidden="true"
       />
       <div className="flex items-center min-w-0 flex-1 mr-2">

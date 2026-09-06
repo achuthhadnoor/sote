@@ -80,7 +80,7 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
     const next = window.prompt(`Rename "${current}" to:`, current);
     if (!next || next === current || !next.trim()) { onClose(); return; }
     try {
-      const newPath = await invoke<string>("rename_path", { oldPath: node.path, newName: next.trim() });
+      const newPath = await invoke<string>("rename_path", { vaultPath, oldPath: node.path, newName: next.trim() });
       // Update tab if open
       const tabs = useTabStore.getState().tabs;
       const tab = tabs.find((t) => t.path === node.path);
@@ -117,7 +117,7 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
     const ok = window.confirm(`Delete "${node.name}"? This cannot be undone.`);
     if (!ok) { onClose(); return; }
     try {
-      await invoke("delete_path", { path: node.path });
+      await invoke("delete_path", { vaultPath, path: node.path });
       // close tabs for deleted path
       const tabs = useTabStore.getState().tabs;
       tabs.forEach((t) => {
@@ -138,7 +138,7 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
     if (!name || !name.trim()) { onClose(); return; }
     try {
       const targetDir = dirPath || vaultPath;
-      const newPath = await invoke<string>("create_file_at_path", { dirPath: targetDir, fileName: name.trim() });
+      const newPath = await invoke<string>("create_file_at_path", { vaultPath, dirPath: targetDir, fileName: name.trim() });
       if (vaultPath) await loadVault(vaultPath);
       const title = newPath.split("/").pop() || name;
       useTabStore.getState().selectNote(newPath, title);
@@ -154,7 +154,7 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
     if (!name || !name.trim()) { onClose(); return; }
     try {
       const targetDir = dirPath || vaultPath;
-      await invoke<string>("create_folder_at_path", { dirPath: targetDir, folderName: name.trim() });
+      await invoke<string>("create_folder_at_path", { vaultPath, dirPath: targetDir, folderName: name.trim() });
       if (vaultPath) await loadVault(vaultPath);
     } catch (e: any) {
       alert(`Create folder failed: ${e?.message || e}`);

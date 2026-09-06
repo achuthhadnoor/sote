@@ -21,50 +21,75 @@ pub struct NoteEnvelope {
     pub body: String,
 }
 
+/// Canonicalize a vault root and reject non-directory roots.
+pub fn canonical_vault_root(vault_path: &str) -> Result<PathBuf, String> {
+    let root = fs::canonicalize(vault_path)
+        .map_err(|e| format!("Invalid vault path: {}", e))?;
+    if !root.is_dir() {
+        return Err("Vault path is not a directory".to_string());
+    }
+    Ok(root)
+}
+
+/// Resolve a user-supplied path below a vault, including symlink-safe handling
+/// for paths that do not exist yet (such as a newly-created note).
+pub fn resolve_vault_path(vault_path: &str, requested: &str, allow_missing: bool) -> Result<PathBuf, String> {
+    let root = canonical_vault_root(vault_path)?;
+    let raw = Path::new(requested);
+    let candidate = if raw.is_absolute() { raw.to_path_buf() } else { root.join(raw) };
+    let resolved = if allow_missing && !candidate.exists() {
+        let parent = candidate.parent().ok_or_else(|| "Invalid path".to_string())?;
+        let parent = fs::canonicalize(parent).map_err(|e| format!("Invalid parent path: {}", e))?;
+        parent.join(candidate.file_name().ok_or_else(|| "Invalid path".to_string())?)
+    } else {
+        fs::canonicalize(&candidate).map_err(|e| format!("Invalid path: {}", e))?
+    };
+    if !resolved.starts_with(&root) {
+        return Err("Path escapes the selected vault".to_string());
+    }
+    Ok(resolved)
+}
+
+pub fn validate_file_name(name: &str) -> Result<(), String> {
+    if name.is_empty() || name == "." || name == ".." || name.len() > 200 {
+        return Err("Invalid file name".to_string());
+    }
+    if name.contains('/') || name.contains('\\') || name.chars().any(|c| c.is_control()) {
+        return Err("Invalid file name".to_string());
+    }
+    if name.ends_with(' ') || name.ends_with('.') {
+        return Err("File names may not end with a space or period".to_string());
+    }
+    let reserved = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3"];
+    let stem = name.split('.').next().unwrap_or(name);
+    if reserved.iter().any(|r| stem.eq_ignore_ascii_case(r)) {
+        return Err("Reserved file name".to_string());
+    }
+    Ok(())
+}
+
 /// Parses raw file content into a NoteEnvelope, separating YAML frontmatter from body.
 pub fn parse_note_envelope(raw_content: &str) -> NoteEnvelope {
-    if !raw_content.starts_with("---") {
+    let normalized = raw_content.strip_prefix('\u{feff}').unwrap_or(raw_content);
+    let mut lines = normalized.split_inclusive('\n');
+    let first = lines.next().unwrap_or("").trim_end_matches(['\r', '\n']);
+    if first != "---" {
         return NoteEnvelope {
             frontmatter: None,
             body: raw_content.to_string(),
         };
     }
-
-    // Check delimiter on line 1
-    let rest = &raw_content[3..];
-    if !rest.starts_with('\n') && !rest.starts_with("\r\n") {
-        return NoteEnvelope {
-            frontmatter: None,
-            body: raw_content.to_string(),
-        };
-    }
-
-    let search_start = if rest.starts_with("\r\n") { 5 } else { 4 };
-    let content_after_first_line = &raw_content[search_start..];
-
-    // Look for closing delimiter `\n---` or `\r\n---`
-    if let Some(pos) = content_after_first_line.find("\n---") {
-        let frontmatter = content_after_first_line[..pos].trim_end_matches('\r').to_string();
-        let after_closing_delimiter = &content_after_first_line[pos + 4..];
-
-        // Consume remaining characters on delimiter line and trailing newlines
-        let body = if let Some(newline_pos) = after_closing_delimiter.find('\n') {
-            let b = &after_closing_delimiter[newline_pos + 1..];
-            b.strip_prefix("\r\n").or_else(|| b.strip_prefix('\n')).unwrap_or(b)
-        } else {
-            ""
-        };
-
-        NoteEnvelope {
-            frontmatter: Some(frontmatter),
-            body: body.to_string(),
+    let mut frontmatter_lines = Vec::new();
+    while let Some(line) = lines.next() {
+        let content = line.trim_end_matches(['\r', '\n']);
+        if content == "---" || content == "..." {
+            let body = lines.collect::<String>();
+            let body = body.strip_prefix("\r\n").or_else(|| body.strip_prefix('\n')).unwrap_or(&body);
+            return NoteEnvelope { frontmatter: Some(frontmatter_lines.join("\n")), body: body.to_string() };
         }
-    } else {
-        NoteEnvelope {
-            frontmatter: None,
-            body: raw_content.to_string(),
-        }
+        frontmatter_lines.push(content.to_string());
     }
+    NoteEnvelope { frontmatter: None, body: raw_content.to_string() }
 }
 
 /// Reassembles frontmatter and markdown body into raw file content.
@@ -201,12 +226,7 @@ pub fn scan_vault(app: tauri::AppHandle, vault_path: String) -> Result<Vec<Vault
     }
     let started = std::time::Instant::now();
     crate::logger::debug("storage", &format!("scan_vault start: {}", vault_path));
-    let path = PathBuf::from(&vault_path);
-    let target_path = path.canonicalize().unwrap_or_else(|_| path.clone());
-    if !target_path.is_dir() {
-        crate::logger::warn("storage", &format!("scan_vault not a directory: {:?}", target_path));
-        return Err(format!("Vault path is not a directory: {:?}", target_path));
-    }
+    let target_path = canonical_vault_root(&vault_path)?;
     match scan_directory(&target_path) {
         Ok(tree) => {
             crate::logger::info(
@@ -224,7 +244,8 @@ pub fn scan_vault(app: tauri::AppHandle, vault_path: String) -> Result<Vec<Vault
 
 /// Tauri command to read a markdown file and return its NoteEnvelope.
 #[tauri::command]
-pub fn read_file(app: tauri::AppHandle, file_path: String) -> Result<NoteEnvelope, String> {
+pub fn read_file(app: tauri::AppHandle, vault_path: String, file_path: String) -> Result<NoteEnvelope, String> {
+    let _resolved_path = resolve_vault_path(&vault_path, &file_path, false)?;
     // Serve preloaded boot data when available (one-shot).
     if let Some(cache) = app.try_state::<crate::boot::BootCache>() {
         if let Some(env) = cache.take_file(&file_path) {
@@ -232,7 +253,7 @@ pub fn read_file(app: tauri::AppHandle, file_path: String) -> Result<NoteEnvelop
             return Ok(env);
         }
     }
-    match read_file_from_disk(&file_path) {
+    match read_file_from_vault(&vault_path, &file_path) {
         Ok(env) => Ok(env),
         Err(e) => {
             crate::logger::warn("storage", &format!("read_file failed for {}: {}", file_path, e));
@@ -241,7 +262,8 @@ pub fn read_file(app: tauri::AppHandle, file_path: String) -> Result<NoteEnvelop
     }
 }
 
-/// Disk read backing `read_file` (also used by tests and boot preload).
+/// Unscoped disk-read helper retained only for unit tests.
+#[cfg(test)]
 pub fn read_file_from_disk(file_path: &str) -> Result<NoteEnvelope, String> {
     let path = PathBuf::from(file_path);
     let target_path = path.canonicalize().unwrap_or_else(|_| path.clone());
@@ -253,6 +275,16 @@ pub fn read_file_from_disk(file_path: &str) -> Result<NoteEnvelope, String> {
     let contents = fs::read_to_string(&target_path)
         .map_err(|e| format!("Failed to read file: {}", e))?;
 
+    Ok(parse_note_envelope(&contents))
+}
+
+pub fn read_file_from_vault(vault_path: &str, file_path: &str) -> Result<NoteEnvelope, String> {
+    let target_path = resolve_vault_path(vault_path, file_path, false)?;
+    if !target_path.is_file() {
+        return Err("Path is not a file".to_string());
+    }
+    let contents = fs::read_to_string(&target_path)
+        .map_err(|e| format!("Failed to read file: {}", e))?;
     Ok(parse_note_envelope(&contents))
 }
 
@@ -286,11 +318,12 @@ pub fn internal_write_file(
 #[tauri::command]
 pub fn write_file(
     state: tauri::State<'_, crate::watcher::VaultWatcherState>,
+    vault_path: String,
     file_path: String,
     body: String,
     frontmatter: Option<String>,
 ) -> Result<(), String> {
-    let dest_path = PathBuf::from(&file_path);
+    let dest_path = resolve_vault_path(&vault_path, &file_path, true)?;
     match internal_write_file(&dest_path, &body, frontmatter.as_deref()) {
         Ok(()) => {
             crate::logger::debug(
@@ -317,23 +350,16 @@ pub fn internal_create_note(vault_path: &Path) -> Result<PathBuf, String> {
         return Err(format!("Vault path is not a directory: {:?}", canonical));
     }
 
-    let candidate = if !canonical.join("Untitled.md").exists() {
-        canonical.join("Untitled.md")
-    } else {
-        let mut idx = 1;
-        loop {
-            let candidate_path = canonical.join(format!("Untitled {}.md", idx));
-            if !candidate_path.exists() {
-                break candidate_path;
-            }
-            idx += 1;
+    let mut idx = 0;
+    loop {
+        let name = if idx == 0 { "Untitled.md".to_string() } else { format!("Untitled {}.md", idx) };
+        let candidate = canonical.join(name);
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&candidate) {
+            Ok(_) => return Ok(candidate),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => idx += 1,
+            Err(e) => return Err(format!("Failed to create new note file: {}", e)),
         }
-    };
-
-    fs::write(&candidate, "")
-        .map_err(|e| format!("Failed to create new note file: {}", e))?;
-
-    Ok(candidate)
+    }
 }
 
 /// Tauri command to create a new untitled markdown note on disk.
@@ -342,7 +368,7 @@ pub fn create_note(
     state: tauri::State<'_, crate::watcher::VaultWatcherState>,
     vault_path: String,
 ) -> Result<String, String> {
-    let path = PathBuf::from(&vault_path);
+    let path = canonical_vault_root(&vault_path)?;
     match internal_create_note(&path) {
         Ok(candidate) => {
             crate::logger::info("storage", &format!("create_note: {:?}", candidate));
@@ -358,17 +384,14 @@ pub fn create_note(
 
 /// Tauri command to rename a file or folder.
 #[tauri::command]
-pub fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
-    let old = PathBuf::from(&old_path);
-    if !old.exists() {
-        crate::logger::warn("storage", &format!("rename_path missing source: {}", old_path));
-        return Err(format!("Path does not exist: {:?}", old));
-    }
+pub fn rename_path(vault_path: String, old_path: String, new_name: String) -> Result<String, String> {
+    let old = resolve_vault_path(&vault_path, &old_path, false)?;
     let parent = old.parent().ok_or_else(|| "Cannot rename root".to_string())?;
-    if new_name.contains('/') || new_name.contains('\\') || new_name.is_empty() {
-        return Err("Invalid new name".to_string());
-    }
+    validate_file_name(&new_name)?;
     let new_path = parent.join(&new_name);
+    if !new_path.starts_with(canonical_vault_root(&vault_path)?) {
+        return Err("Path escapes the selected vault".to_string());
+    }
     if new_path.exists() {
         return Err(format!("Target already exists: {:?}", new_path));
     }
@@ -386,12 +409,8 @@ pub fn rename_path(old_path: String, new_name: String) -> Result<String, String>
 
 /// Tauri command to delete a file or folder (recursive for folders).
 #[tauri::command]
-pub fn delete_path(path: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
-    if !p.exists() {
-        crate::logger::warn("storage", &format!("delete_path missing: {}", path));
-        return Err(format!("Path does not exist: {:?}", p));
-    }
+pub fn delete_path(vault_path: String, path: String) -> Result<(), String> {
+    let p = resolve_vault_path(&vault_path, &path, false)?;
     let res = if p.is_dir() {
         fs::remove_dir_all(&p).map_err(|e| e.to_string())
     } else {
@@ -413,25 +432,21 @@ pub fn delete_path(path: String) -> Result<(), String> {
 #[tauri::command]
 pub fn create_file_at_path(
     state: tauri::State<'_, crate::watcher::VaultWatcherState>,
+    vault_path: String,
     dir_path: String,
     file_name: String,
 ) -> Result<String, String> {
-    let dir = PathBuf::from(&dir_path);
-    if !dir.is_dir() {
-        return Err(format!("Not a directory: {:?}", dir));
-    }
-    if file_name.contains('/') || file_name.contains('\\') || file_name.is_empty() {
-        return Err("Invalid file name".to_string());
-    }
+    let dir = resolve_vault_path(&vault_path, &dir_path, false)?;
+    if !dir.is_dir() { return Err("Not a directory".to_string()); }
+    validate_file_name(&file_name)?;
     let mut name = file_name;
-    if Path::new(&name).extension().is_none() {
+    if Path::new(&name).extension().is_none() && !name.starts_with('.') {
         name.push_str(".md");
     }
     let candidate = dir.join(&name);
-    if candidate.exists() {
-        return Err(format!("File already exists: {:?}", candidate));
-    }
-    fs::write(&candidate, "").map_err(|e| e.to_string())?;
+    let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&candidate)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+    file.write_all(b"").map_err(|e| e.to_string())?;
     state.echo_cache.record_write(&candidate);
     crate::logger::info("storage", &format!("create_file_at_path: {:?}", candidate));
     Ok(candidate.to_string_lossy().to_string())
@@ -439,14 +454,10 @@ pub fn create_file_at_path(
 
 /// Tauri command to create a folder at a given directory.
 #[tauri::command]
-pub fn create_folder_at_path(dir_path: String, folder_name: String) -> Result<String, String> {
-    let dir = PathBuf::from(&dir_path);
-    if !dir.is_dir() {
-        return Err(format!("Not a directory: {:?}", dir));
-    }
-    if folder_name.contains('/') || folder_name.contains('\\') || folder_name.is_empty() {
-        return Err("Invalid folder name".to_string());
-    }
+pub fn create_folder_at_path(vault_path: String, dir_path: String, folder_name: String) -> Result<String, String> {
+    let dir = resolve_vault_path(&vault_path, &dir_path, false)?;
+    if !dir.is_dir() { return Err("Not a directory".to_string()); }
+    validate_file_name(&folder_name)?;
     let new_folder = dir.join(&folder_name);
     if new_folder.exists() {
         return Err(format!("Already exists: {:?}", new_folder));
@@ -460,6 +471,7 @@ pub fn create_folder_at_path(dir_path: String, folder_name: String) -> Result<St
 #[tauri::command]
 pub fn copy_external_file(
     state: tauri::State<'_, crate::watcher::VaultWatcherState>,
+    vault_path: String,
     src_path: String,
     dest_dir: String,
 ) -> Result<String, String> {
@@ -467,7 +479,7 @@ pub fn copy_external_file(
     if !src.exists() {
         return Err(format!("Source does not exist: {:?}", src));
     }
-    let dest = PathBuf::from(&dest_dir);
+    let dest = resolve_vault_path(&vault_path, &dest_dir, false)?;
     if !dest.is_dir() {
         return Err(format!("Destination not a directory: {:?}", dest));
     }
@@ -476,6 +488,7 @@ pub fn copy_external_file(
         .ok_or_else(|| "Invalid source file name".to_string())?
         .to_string_lossy()
         .to_string();
+    validate_file_name(&file_name)?;
     let mut candidate = dest.join(&file_name);
     // handle name collision: file.md -> file 1.md
     if candidate.exists() {
@@ -606,6 +619,57 @@ mod tests {
         let envelope = parse_note_envelope(raw);
         assert_eq!(envelope.frontmatter, None);
         assert_eq!(envelope.body, raw);
+    }
+
+    #[test]
+    fn test_parse_note_envelope_requires_exact_delimiter_lines() {
+        for raw in ["--- not frontmatter\nbody", "---\nvalue\n--- extra\nbody", "# Heading\n---\nbody", "```\n---\n```"] {
+            let envelope = parse_note_envelope(raw);
+            assert_eq!(envelope.frontmatter, None, "unexpected frontmatter for {raw:?}");
+            assert_eq!(envelope.body, raw);
+        }
+        let crlf = "---\r\ntitle: Note\r\n---\r\n\r\nBody";
+        let envelope = parse_note_envelope(crlf);
+        assert_eq!(envelope.frontmatter, Some("title: Note".to_string()));
+        assert_eq!(envelope.body, "Body");
+    }
+
+    #[test]
+    fn test_resolve_vault_path_rejects_traversal_and_absolute_escape() {
+        let root = std::env::temp_dir().join(format!("snipnote_containment_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("nested")).unwrap();
+        fs::write(root.join("nested/note.md"), "# note").unwrap();
+        let root_str = root.to_string_lossy().to_string();
+        assert!(resolve_vault_path(&root_str, "nested/note.md", false).is_ok());
+        assert!(resolve_vault_path(&root_str, "../outside.md", true).is_err());
+        assert!(resolve_vault_path(&root_str, "/etc/passwd", false).is_err());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_resolve_vault_path_rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("snipnote_symlink_test_{}", std::process::id()));
+        let outside = std::env::temp_dir().join(format!("snipnote_symlink_outside_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("secret.md"), "secret").unwrap();
+        symlink(&outside, root.join("linked")).unwrap();
+        assert!(resolve_vault_path(&root.to_string_lossy(), "linked/secret.md", false).is_err());
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn test_validate_file_name_rejects_path_segments_and_controls() {
+        for name in ["", ".", "..", "a/b", "a\\\\b", "CON", "bad\nname", "trailing."] {
+            assert!(validate_file_name(name).is_err(), "accepted invalid name {name:?}");
+        }
+        assert!(validate_file_name("Note.md").is_ok());
     }
 
     #[test]

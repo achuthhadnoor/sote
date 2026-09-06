@@ -74,8 +74,9 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 3. tell Vite to ignore `src-tauri` and user vault files. Notes are
+      // written by the running app and must not trigger a dev-webview reload.
+      ignored: ["**/src-tauri/**", "**/*.md", "**/*.markdown"],
     },
   },
 }));

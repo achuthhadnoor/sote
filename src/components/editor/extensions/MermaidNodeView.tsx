@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
+import DOMPurify from "dompurify";
 
 import {
   Copy,
@@ -294,10 +295,12 @@ async function renderDiagram(
     startOnLoad: false,
     theme: "base",
     themeVariables: themeVars,
-    securityLevel: "loose",
+    securityLevel: "strict",
     fontFamily: "var(--font-sans)",
     sequence: { useMaxWidth: false, showSequenceNumbers: true },
-    flowchart: { useMaxWidth: false },
+    // Keep flowchart labels in the SVG text layer so their theme color is
+    // consistent and sanitization never has to preserve foreignObject HTML.
+    flowchart: { useMaxWidth: false, htmlLabels: false },
   });
   const { svg } = await mermaid.render(renderId, stripAuthorColors(text, palette));
   return toMonochrome(svg, palette);
@@ -484,6 +487,14 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   const showCode = isEditing || Boolean(error);
   // Both themes are pre-rendered: switching theme swaps SVGs synchronously.
   const svgHtml = isDark ? svgDark ?? svgLight : svgLight ?? svgDark;
+  const safeSvgHtml = svgHtml
+    ? DOMPurify.sanitize(svgHtml, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        FORBID_TAGS: ["script", "foreignObject", "iframe", "object", "embed"],
+        FORBID_ATTR: ["style"],
+        ALLOW_UNKNOWN_PROTOCOLS: false,
+      })
+    : null;
 
   return (
     <NodeViewWrapper as="div" className="not-prose my-[18px]">
@@ -613,7 +624,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
           onWheel={handleWheel}
           title={!isFitToWidth ? "Click and drag to pan across the diagram" : undefined}
         >
-          {svgHtml ? (
+          {safeSvgHtml ? (
             <div
               className={`mermaid-svg-surface ${isFitToWidth ? "fit-width" : "natural-width"} flex justify-center mx-auto my-0`}
               style={{
@@ -622,7 +633,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
                 userSelect: isDragging ? "none" : "auto",
                 pointerEvents: isDragging ? "none" : "auto",
               }}
-              dangerouslySetInnerHTML={{ __html: svgHtml }}
+              dangerouslySetInnerHTML={{ __html: safeSvgHtml }}
             />
           ) : !rawText ? (
             <div className="p-3 text-[13px] italic text-muted-foreground">Empty Mermaid diagram. Click &ldquo;Edit Code&rdquo; to add syntax.</div>

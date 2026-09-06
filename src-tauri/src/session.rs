@@ -28,47 +28,46 @@ fn get_session_file_path(app: &AppHandle) -> Result<PathBuf, String> {
 
 pub fn sanitize_session(mut session: SessionState) -> SessionState {
     if let Some(ref vault_path) = session.last_vault_path {
-        let p = Path::new(vault_path);
-        // Ensure path exists, is a directory, and can be read (handles EPERM/permission denied)
-        if !p.is_dir() || fs::read_dir(p).is_err() {
-            session.last_vault_path = None;
-            session.active_file_path = None;
-            session.open_tabs = None;
-            return session;
+        let p = match crate::storage::canonical_vault_root(vault_path) {
+            Ok(p) if fs::read_dir(&p).is_ok() => p,
+            _ => {
+                session.last_vault_path = None;
+                session.active_file_path = None;
+                session.open_tabs = None;
+                return session;
+            }
+        };
+        if p != Path::new(vault_path) {
+            session.last_vault_path = Some(p.to_string_lossy().to_string());
         }
-    }
-
-    if let Some(ref file_path) = session.active_file_path {
-        if !Path::new(file_path).is_file() {
-            session.active_file_path = None;
+        let vault = session.last_vault_path.clone().unwrap_or_default();
+        if let Some(file_path) = session.active_file_path.as_ref() {
+            if crate::storage::resolve_vault_path(&vault, file_path, false).is_err() {
+                session.active_file_path = None;
+            }
         }
-    }
-
-    if let Some(tabs) = session.open_tabs.take() {
-        let filtered: Vec<String> = tabs
-            .into_iter()
-            .filter(|p| Path::new(p).is_file())
-            .collect();
-        if !filtered.is_empty() {
-            // Ensure active is inside open tabs if present
-            if let Some(ref active) = session.active_file_path {
-                if !filtered.contains(active) {
+        if let Some(tabs) = session.open_tabs.take() {
+            let filtered: Vec<String> = tabs.into_iter().filter(|p| {
+                crate::storage::resolve_vault_path(&vault, p, false)
+                    .map(|resolved| resolved.is_file())
+                    .unwrap_or(false)
+            }).collect();
+            if !filtered.is_empty() {
+                if session.active_file_path.as_ref().map(|active| !filtered.contains(active)).unwrap_or(true) {
                     session.active_file_path = filtered.first().cloned();
                 }
+                session.open_tabs = Some(filtered);
             } else {
-                session.active_file_path = filtered.first().cloned();
-            }
-            session.open_tabs = Some(filtered);
-        } else {
-            session.open_tabs = None;
-            // if no tabs, clear active if it was not a file
-            if session.active_file_path.is_none() {
-                // keep as is
+                session.open_tabs = None;
+                session.active_file_path = None;
             }
         }
+        return session;
+    } else {
+        session.active_file_path = None;
+        session.open_tabs = None;
+        return session;
     }
-
-    session
 }
 
 #[tauri::command]
@@ -105,6 +104,7 @@ pub fn get_session(app: AppHandle) -> Result<SessionState, String> {
 
 #[tauri::command]
 pub fn save_session(app: AppHandle, session: SessionState) -> Result<(), String> {
+    let session = sanitize_session(session);
     let session_path = get_session_file_path(&app)?;
     let serialized = serde_json::to_string_pretty(&session)
         .map_err(|e| format!("Failed to serialize session: {}", e))?;
@@ -168,10 +168,10 @@ mod tests {
     #[test]
     fn test_sanitize_session_with_inaccessible_vault() {
         let json = r#"{
-            "lastVaultPath": "/Users/achuth/data/Developer/apps/test",
-            "activeFilePath": "/Users/achuth/data/Developer/apps/Readme.md",
+            "lastVaultPath": "/non/existent/path/for/snipnote/inaccessible-vault",
+            "activeFilePath": "/non/existent/path/for/snipnote/Readme.md",
             "openTabs": [
-                "/Users/achuth/data/Developer/apps/Readme.md"
+                "/non/existent/path/for/snipnote/Readme.md"
             ]
         }"#;
         let session: SessionState = serde_json::from_str(json).unwrap();

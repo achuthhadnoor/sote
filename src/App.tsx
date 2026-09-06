@@ -182,6 +182,16 @@ function App() {
       async (event) => {
         const changedPath = event.payload.path;
         log.debug("vault-changed:", event.payload.kind, changedPath);
+        const selfWrite = useEditorStore.getState().lastSelfWrite;
+        const normalizePath = (value: string) => value.replace(/\\/g, "/").replace(/\/+$/, "");
+        if (
+          selfWrite &&
+          Date.now() - selfWrite.at < 5000 &&
+          normalizePath(selfWrite.path) === normalizePath(changedPath)
+        ) {
+          log.debug("vault-changed: ignoring recent self-write", changedPath);
+          return;
+        }
         const currentVault = useVaultStore.getState().vaultPath;
         const currentActive = useTabStore.getState().activePath;
         const isDirty = useEditorStore.getState().isDirty;
@@ -236,6 +246,7 @@ function App() {
         // Debounce refreshing the sidebar file tree within 500ms
         if (currentVault) {
           if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
+          log.debug("vault-changed: scheduling tree refresh for", changedPath);
           treeRefreshTimer = setTimeout(() => {
             useVaultStore.getState().loadVault(currentVault);
           }, 500);
@@ -374,7 +385,7 @@ function App() {
             } catch {}
             // Await all copies before refreshing to avoid race
             const results = await Promise.allSettled(
-              paths.map((p) => invoke("copy_external_file", { srcPath: p, destDir }).catch((e) => { log.error("copy_external_file failed", e); throw e; }))
+              paths.map((p) => invoke("copy_external_file", { vaultPath: vp, srcPath: p, destDir }).catch((e) => { log.error("copy_external_file failed", e); throw e; }))
             );
             void results;
             // Refresh tree within 500ms per AC — await vault reload
@@ -416,7 +427,7 @@ function App() {
     if (validPaths.length === 0) return;
     await Promise.allSettled(
       validPaths.map(({ srcPath, destDir }) =>
-        invoke("copy_external_file", { srcPath, destDir }).catch((err) => {
+        invoke("copy_external_file", { vaultPath: vp, srcPath, destDir }).catch((err) => {
           log.error("copy_external_file fallback failed", err);
         })
       )
@@ -428,7 +439,7 @@ function App() {
 
   // Global keyboard shortcuts (Cmd+N, Cmd+P, Cmd+, Cmd+W, nav)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       // Cmd+, / Ctrl+, -> Settings (macOS standard) — check both key and code for layout safety
       if ((e.metaKey || e.ctrlKey) && (e.key === "," || (e as any).code === "Comma")) {
         e.preventDefault();
@@ -439,7 +450,9 @@ function App() {
         e.preventDefault();
         const active = useTabStore.getState().activePath;
         if (active) {
-          // flush dirty before close is handled by EditorSurface on activePath change
+          const editor = useEditorStore.getState();
+          await editor.saveNow(active);
+          if (useEditorStore.getState().isDirty) return;
           useTabStore.getState().closeTab(active);
         }
         return;

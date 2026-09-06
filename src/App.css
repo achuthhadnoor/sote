@@ -303,6 +303,19 @@ html, body, #root {
   border-bottom: 1px solid var(--border-translucent);
 }
 
+/* Compact rhythm: strip prose's before/after block margins inside the editor.
+   Typography v4 styles are zero-specificity `:where()` selectors, so this
+   single class-scoped rule wins by source order. */
+.ProseMirror :where(p, ul, ol, li, blockquote, hr, figure, table) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+/* Air above headings so sections breathe; bottom stays flush. */
+.ProseMirror :where(h1, h2, h3, h4, h5, h6) {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+}
+
 /* Subtle placeholder when empty */
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -338,7 +351,7 @@ html, body, #root {
 .ProseMirror .taskList {
   list-style: none !important;
   padding-left: 0 !important;
-  margin: 0.6em 0 1em 0;
+  margin: 0;
 }
 
 .ProseMirror li[data-type="taskItem"],
@@ -351,8 +364,8 @@ html, body, #root {
   gap: 10px !important;
   list-style: none !important;
   padding-left: 0 !important;
-  margin-top: 0.3em;
-  margin-bottom: 0.3em;
+  margin-top: 0;
+  margin-bottom: 0;
   line-height: 1.65;
 }
 
@@ -559,9 +572,19 @@ html, body, #root {
 .mermaid-svg-surface svg text,
 .mermaid-svg-surface svg tspan,
 .mermaid-svg-surface svg .label,
+.mermaid-svg-surface svg .nodeLabel,
+.mermaid-svg-surface svg .edgeLabel,
+.mermaid-svg-surface svg .cluster-label,
+.mermaid-svg-surface svg .flowchart-label,
 .mermaid-svg-surface svg foreignObject div,
 .mermaid-svg-surface svg foreignObject span {
   fill: var(--fg) !important;
+  color: var(--fg) !important;
+}
+
+.mermaid-svg-surface svg .nodeLabel,
+.mermaid-svg-surface svg .edgeLabel,
+.mermaid-svg-surface svg .cluster-label {
   color: var(--fg) !important;
 }
 
@@ -680,33 +703,4 @@ input[type="range"]::-moz-range-thumb {
 [data-theme="dark"] .snipnote-bubble-menu {
   box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.45), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
 }
-
-/* ———————————————————————————————
-   Borderless mode — strip every border and outline app-wide,
-   including focus rings and editor-content borders.
-   (Decorative drop shadows are intentionally preserved.)
-   ——————————————————————————————— */
-*, *::before, *::after {
-  border-width: 0 !important;
-  border-style: none !important;
-  outline: none !important;
-  outline-width: 0 !important;
-  /* neutralize Tailwind ring utilities (they render via box-shadow) */
-  --tw-ring-shadow: 0 0 #0000 !important;
-  --tw-inset-ring-shadow: 0 0 #0000 !important;
-  --tw-ring-offset-shadow: 0 0 #0000 !important;
-}
-
-/* focus-glow shadows that act as outlines */
-.raw-editor-container:focus-within,
-.home-search-row:focus-within {
-  box-shadow: none !important;
-}
-
-/* 1px background hairlines (menu separator, markdown <hr>) */
-.ctx-sep,
-.ProseMirror hr {
-  background: transparent !important;
-}
-
 

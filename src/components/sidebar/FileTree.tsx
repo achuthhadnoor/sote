@@ -183,7 +183,9 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
     if (files.length === 0) return;
     const valid = files.map((f) => (f as any).path as string | undefined).filter((p): p is string => !!p && typeof p === "string");
     if (valid.length === 0) return;
-    await Promise.allSettled(valid.map((srcPath) => invoke("copy_external_file", { srcPath, destDir: node.path }).catch((err) => { log.error("copy_external_file failed", err); throw err; })));
+    const vaultPath = useVaultStore.getState().vaultPath;
+    if (!vaultPath) return;
+    await Promise.allSettled(valid.map((srcPath) => invoke("copy_external_file", { vaultPath, srcPath, destDir: node.path }).catch((err) => { log.error("copy_external_file failed", err); throw err; })));
     try {
       await useVaultStore.getState().loadVault(vp);
     } catch {}
