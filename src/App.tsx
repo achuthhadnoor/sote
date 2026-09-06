@@ -1,23 +1,38 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense, lazy } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import { TabBar } from "./components/editor/TabBar";
 import { ConflictBanner } from "./components/editor/ConflictBanner";
-import { EditorSurface } from "./components/editor/EditorSurface";
 import { StatusBar } from "./components/editor/StatusBar";
-import { CommandPalette } from "./components/palette/CommandPalette";
-import { SettingsDialog } from "./components/settings/SettingsDialog";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
 import { useThemeStore } from "./stores/useThemeStore";
 import { useRecentNotesStore } from "./stores/useRecentNotesStore";
 import { SessionState } from "./types/session";
-import { createLogger } from "./lib/logger";
+import { createLogger, msSinceJsBoot, recordStartupSample, getStartupLoadBreakdown } from "./lib/logger";
 import "./App.css";
 
+// Heavy UI split out of the initial bundle so first paint only pays for the
+// shell (sidebar + tab bar). The editor chunk (~500KB tiptap) starts loading
+// in parallel with session restore via Suspense and is ready by the time a
+// note opens; dialogs load on first open.
+const EditorSurface = lazy(() =>
+  import("./components/editor/EditorSurface").then((m) => ({ default: m.EditorSurface }))
+);
+const CommandPalette = lazy(() =>
+  import("./components/palette/CommandPalette").then((m) => ({ default: m.CommandPalette }))
+);
+const SettingsDialog = lazy(() =>
+  import("./components/settings/SettingsDialog").then((m) => ({ default: m.SettingsDialog }))
+);
+
 const log = createLogger("app");
+
+// StrictMode double-mounts effects in dev, so restoreSession completes twice
+// per launch — only the first completion records a startup sample.
+let startupSampleRecorded = false;
 
 function App() {
   const vaultPath = useVaultStore((state) => state.vaultPath);
@@ -60,14 +75,18 @@ function App() {
 
   // Restore session on mount — restores vault + open tabs
   useEffect(() => {
-    // Safety timer: always reveal the window promptly so large vaults never cause the app to look stuck
+    // Safety timer: reveal promptly even if restore hangs. The window starts
+    // hidden and the promise chain below is the real reveal path (IPC
+    // resolves while hidden; this timer may fire late if throttled).
     const revealTimeout = setTimeout(() => {
       invoke("reveal_window").catch(() => {});
     }, 150);
 
     async function restoreSession() {
+      const t0 = performance.now();
+      const jsToRestore = msSinceJsBoot();
       try {
-        log.debug("restoreSession start");
+        log.debug(`restoreSession start (+${Math.round(jsToRestore)}ms after JS boot)`);
         const session = await invoke<SessionState>("get_session");
         log.debug("restoreSession got session:", session.lastVaultPath ?? "(no vault)");
         if (session.lastVaultPath) {
@@ -93,6 +112,32 @@ function App() {
       } catch (err) {
         log.error("Failed to restore session:", err);
       } finally {
+        const restoreMs = performance.now() - t0;
+        log.debug(`restoreSession done in ${Math.round(restoreMs)}ms`);
+        if (startupSampleRecorded) {
+          clearTimeout(revealTimeout);
+          return;
+        }
+        startupSampleRecorded = true;
+        const { samples, avgNavToJsMs } = recordStartupSample(jsToRestore, restoreMs);
+        const latest = samples[samples.length - 1];
+        log.info(
+          `startup history (${samples.length} runs, avg nav→js ${avgNavToJsMs}ms): ` +
+            samples.map((s) => `${s.navToJsMs}/${s.jsToRestoreMs}/${s.restoreMs}`).join(" | ") +
+            ` (nav→js/js→restore/restore ms; latest${latest?.dev ? ", dev" : ", prod"})`
+        );
+        const breakdown = getStartupLoadBreakdown();
+        if (breakdown) {
+          const jsSize = breakdown.totalJsBytes >= 0
+            ? `js ${(breakdown.totalJsBytes / 1024).toFixed(0)}KB, `
+            : "";
+          log.info(
+            `startup load: ${breakdown.resourceCount} resources, ` +
+              jsSize +
+              `domContentLoaded@${breakdown.domContentLoadedMs}ms, slowest: ` +
+              breakdown.slowest.map((s) => `${s.name} ${s.ms}ms`).join(", ")
+          );
+        }
         clearTimeout(revealTimeout);
         isInitialized.current = true;
         // Reveal native window now that initial session, vault, and active tabs are set
@@ -460,15 +505,19 @@ function App() {
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
         <TabBar onNewNote={handleNewNote} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((v) => !v)} />
         <ConflictBanner />
-        <EditorSurface />
+        <Suspense fallback={<div className="flex-1" />}>
+          <EditorSurface />
+        </Suspense>
         <StatusBar />
       </main>
       {/* RightPanel hidden for now — terminal/browser/canvas to be handled later */}
-      <CommandPalette
-        isOpen={isPaletteOpen}
-        onClose={() => setIsPaletteOpen(false)}
-      />
-      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <Suspense fallback={null}>
+        <CommandPalette
+          isOpen={isPaletteOpen}
+          onClose={() => setIsPaletteOpen(false)}
+        />
+        <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      </Suspense>
     </div>
   );
 }

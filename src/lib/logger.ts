@@ -55,6 +55,109 @@ export function setStreamLogs(enabled: boolean) {
   } catch {}
 }
 
+/**
+ * Startup timing anchors. `NAV_TO_JS_MS` is captured when this module first
+ * evaluates — i.e. ms from webview navigation start (fetch + parse of the
+ * bundle) to first JS execution. Compare with backend timestamps in the log
+ * to split the launch gap into: Rust setup → webview spawn → JS parse →
+ * React work.
+ */
+export const NAV_TO_JS_MS: number =
+  typeof performance !== "undefined" ? performance.now() : -1;
+
+export function msSinceJsBoot(): number {
+  return typeof performance !== "undefined" ? performance.now() - NAV_TO_JS_MS : -1;
+}
+
+/** Epoch ms of webview navigation start — subtract the backend "setup done"
+ *  timestamp to isolate WKWebView process-spawn cost from load/parse cost. */
+export function navigationEpochMs(): number {
+  return typeof performance !== "undefined" ? Math.round(performance.timeOrigin) : -1;
+}
+
+export interface StartupLoadBreakdown {
+  resourceCount: number;
+  totalJsBytes: number;
+  domContentLoadedMs: number | null;
+  slowest: Array<{ name: string; ms: number }>;
+}
+
+/**
+ * One-shot resource-level breakdown of the launch load: in dev every Vite
+ * transform shows up as a resource, so the slowest entries point directly at
+ * what's expensive (transform latency vs. parse vs. count).
+ */
+export function getStartupLoadBreakdown(): StartupLoadBreakdown | null {
+  try {
+    if (typeof performance === "undefined") return null;
+    const navs = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+    const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+    let totalJsBytes = 0;
+    const slowest = resources
+      .map((r) => {
+        // WKWebView often reports 0 for encodedBodySize; fall back to transferSize.
+        const bytes = r.encodedBodySize || (r as PerformanceResourceTiming).transferSize || 0;
+        if (/\.js($|\?)/.test(r.name)) totalJsBytes += bytes;
+        return { name: r.name.split("/").slice(-2).join("/"), ms: r.responseEnd };
+      })
+      .sort((a, b) => b.ms - a.ms)
+      .slice(0, 8)
+      .map(({ name, ms }) => ({ name, ms: Math.round(ms) }));
+    return {
+      resourceCount: resources.length,
+      // WKWebView hides transfer sizes (reports 0); -1 signals "unknown".
+      totalJsBytes: totalJsBytes > 0 ? totalJsBytes : -1,
+      domContentLoadedMs: navs[0] ? Math.round(navs[0].domContentLoadedEventEnd) : null,
+      slowest,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export interface StartupSample {
+  ts: number;
+  dev: boolean;
+  navToJsMs: number;
+  jsToRestoreMs: number;
+  restoreMs: number;
+}
+
+const STARTUP_HISTORY_KEY = "snipnote-startup-history";
+const MAX_STARTUP_SAMPLES = 10;
+
+/**
+ * Persist this launch's timings and return the recent history plus the
+ * running average of navigation→JS. Launch times are noisy (cold webview
+ * spawn, Vite re-transforms after edits), so compare averages across
+ * relaunches — never single runs.
+ */
+export function recordStartupSample(
+  jsToRestoreMs: number,
+  restoreMs: number
+): { samples: StartupSample[]; avgNavToJsMs: number } {
+  try {
+    const raw = localStorage.getItem(STARTUP_HISTORY_KEY);
+    const samples: StartupSample[] = raw ? JSON.parse(raw) : [];
+    samples.push({
+      ts: Date.now(),
+      dev: import.meta.env.DEV,
+      navToJsMs: Math.round(NAV_TO_JS_MS),
+      jsToRestoreMs: Math.round(jsToRestoreMs),
+      restoreMs: Math.round(restoreMs),
+    });
+    while (samples.length > MAX_STARTUP_SAMPLES) samples.shift();
+    localStorage.setItem(STARTUP_HISTORY_KEY, JSON.stringify(samples));
+    const navs = samples.map((s) => s.navToJsMs).filter((n) => n >= 0);
+    const avg = navs.length
+      ? Math.round(navs.reduce((a, b) => a + b, 0) / navs.length)
+      : -1;
+    return { samples, avgNavToJsMs: avg };
+  } catch {
+    return { samples: [], avgNavToJsMs: -1 };
+  }
+}
+
 function formatArgs(args: unknown[]): string {
   return args
     .map((a) => {

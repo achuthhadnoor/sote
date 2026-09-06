@@ -141,6 +141,8 @@ fn build_and_set_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
 fn reveal_window(app: AppHandle) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
+        let _ = w.set_focus();
+        crate::logger::debug("app", "window revealed (frontend ready)");
     }
     Ok(())
 }
@@ -261,6 +263,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            let setup_started = std::time::Instant::now();
             let log_path = logger::init(app.handle());
             logger::info("app", &format!("starting, log={}", log_path.to_string_lossy()));
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
@@ -272,6 +275,11 @@ pub fn run() {
                 .min_inner_size(1100.0, 600.0)
                 .transparent(true)
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
+                // Start hidden; the frontend calls `reveal_window` once session
+                // restore completes, so the window only appears with content.
+                // (Promise-driven IPC resolves while hidden; only rAF/timers
+                // are throttled, and those don't gate the reveal path.)
+                .visible(false)
                 .build()?;
 
             {
@@ -327,14 +335,26 @@ pub fn run() {
                 std::thread::spawn(move || boot::warm_boot_cache(handle));
             }
 
-            // NOTE: the window must start visible (the default). Starting
-            // hidden via `visible(false)` and showing it later leaves
-            // WebKit's page in `visibilityState == hidden` on macOS, which
-            // suspends JS timers/modules indefinitely — the window appears
-            // blank and unresponsive even after `show()`. The frontend still
-            // calls `reveal_window` after session restore as a harmless
-            // no-op for focus purposes.
+            // Failsafe: if the frontend never signals ready (boot JS failed),
+            // force the window visible after 10s. A stuck invisible app with
+            // no window and no Dock presence feedback is worse than an empty
+            // window — and the log will show what's missing.
+            {
+                let ready_window = window.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(10));
+                    if ready_window.is_visible().unwrap_or(true) {
+                        return;
+                    }
+                    crate::logger::warn("app", "frontend never signaled ready; forcing window visible");
+                    let _ = ready_window.show();
+                });
+            }
 
+            crate::logger::info(
+                "boot",
+                &format!("setup done in {:?}", setup_started.elapsed()),
+            );
             Ok(())
         })
         .run(tauri::generate_context!())

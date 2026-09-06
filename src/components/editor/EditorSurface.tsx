@@ -433,6 +433,20 @@ export const EditorSurface: React.FC = () => {
     },
   });
 
+  // Gate view-dependent overlays until the ProseMirror view is mounted.
+  // `useEditor` returns the instance before its view exists (mount happens in
+  // an effect), and EditorSurface can now first render with vault data already
+  // present (lazy chunk resolves after session restore) — rendering
+  // <BubbleMenu> against the unmounted instance throws "editor view is not
+  // available". This effect is declared after useEditor's internals, so it
+  // runs after the mount for the same commit. <EditorContent> below must
+  // always render: it provides the DOM node the view mounts into.
+  const [editorReady, setEditorReady] = useState(false);
+  useEffect(() => {
+    setEditorReady(!!editor);
+    return () => setEditorReady(false);
+  }, [editor]);
+
   // Find bar shortcuts: Cmd+F open, Shift+Cmd+F toggle replace
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -707,7 +721,7 @@ export const EditorSurface: React.FC = () => {
           />
         ) : (
           <>
-            <EditorBubbleMenu editor={editor} isRawMode={isRawMode} />
+            {editorReady && <EditorBubbleMenu editor={editor} isRawMode={isRawMode} />}
             <EditorContent editor={editor} />
           </>
         )}
