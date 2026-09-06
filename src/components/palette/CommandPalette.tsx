@@ -60,7 +60,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { onClose(); setQuery(""); } }}>
       <DialogContent
-        className="top-[14vh] translate-y-0 max-w-[520px] p-0 gap-0 overflow-hidden border shadow-[0_16px_40px_rgba(0,0,0,0.12)] sm:rounded-[12px]"
+        className="palette-dialog ui-surface top-[14vh] translate-y-0 w-[calc(100%-2rem)] max-w-[520px] p-0 gap-0 overflow-hidden border"
         aria-describedby={undefined}
         // Tailwind's DialogContent has close button; keep it for accessibility but hide visually if desired
       >

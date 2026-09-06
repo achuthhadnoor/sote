@@ -88,7 +88,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
   return (
     <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
       <div className="w-full max-w-[560px] m-auto self-center flex flex-col gap-5 animate-in fade-in duration-200">
-        <div className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 h-10 shadow-xs focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+        <div className="ui-surface flex items-center gap-2 bg-background border border-border px-3 h-10 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
           <Search size={15} className="text-muted-foreground shrink-0" aria-hidden />
           <input
             className="flex-1 min-w-0 border-0 outline-hidden bg-transparent text-sm text-foreground font-sans h-full"
@@ -112,7 +112,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
 
         {isSearching ? (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-1">
+            <div className="flex items-center gap-1.5 type-meta font-semibold tracking-wider uppercase px-1">
               {results.length > 0
                 ? `${results.length} result${results.length === 1 ? "" : "s"}`
                 : "No matching notes"}
@@ -141,7 +141,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground px-1">
+            <div className="flex items-center gap-1.5 type-meta font-semibold tracking-wider uppercase px-1">
               <Clock size={13} aria-hidden /> Recent notes
             </div>
             {vaultRecents.length > 0 ? (

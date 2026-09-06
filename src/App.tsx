@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Suspense, lazy } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Sidebar } from "./components/sidebar/Sidebar";
@@ -12,6 +12,7 @@ import { useThemeStore } from "./stores/useThemeStore";
 import { useRecentNotesStore } from "./stores/useRecentNotesStore";
 import { SessionState } from "./types/session";
 import { createLogger, msSinceJsBoot, recordStartupSample, getStartupLoadBreakdown } from "./lib/logger";
+import { canonicalPath, isPathWithin, normalizePath } from "./lib/path";
 import "./App.css";
 
 // Heavy UI split out of the initial bundle so first paint only pays for the
@@ -182,25 +183,23 @@ function App() {
       async (event) => {
         const changedPath = event.payload.path;
         log.debug("vault-changed:", event.payload.kind, changedPath);
+        const currentVault = useVaultStore.getState().vaultPath;
         const selfWrite = useEditorStore.getState().lastSelfWrite;
-        const normalizePath = (value: string) => value.replace(/\\/g, "/").replace(/\/+$/, "");
         if (
           selfWrite &&
           Date.now() - selfWrite.at < 5000 &&
-          normalizePath(selfWrite.path) === normalizePath(changedPath)
+          canonicalPath(selfWrite.path, currentVault ?? undefined) === canonicalPath(changedPath, currentVault ?? undefined)
         ) {
           log.debug("vault-changed: ignoring recent self-write", changedPath);
           return;
         }
-        const currentVault = useVaultStore.getState().vaultPath;
         const currentActive = useTabStore.getState().activePath;
         const isDirty = useEditorStore.getState().isDirty;
 
         // If the external change affects the currently active note
-        if (
-          currentActive &&
-          (changedPath === currentActive || changedPath.endsWith(currentActive))
-        ) {
+        if (currentActive && currentVault &&
+          canonicalPath(changedPath, currentVault) === canonicalPath(currentActive, currentVault) &&
+          isPathWithin(changedPath, currentVault)) {
           if (!isDirty) {
             // Clean buffer: automatically reload from disk
             useEditorStore.getState().resolveConflictReload(currentActive);
@@ -263,7 +262,7 @@ function App() {
 
 
   // New note is now a draft tab — no file on disk until there is content
-  const handleNewNote = async () => {
+  const handleNewNote = useCallback(async () => {
     let vp = useVaultStore.getState().vaultPath;
     if (!vp) {
       await useVaultStore.getState().openVaultDialog();
@@ -293,68 +292,82 @@ function App() {
       idx++;
     }
     selectNote(candidatePath, candidateName, { isNew: true });
-  };
+  }, [selectNote]);
+
+  const openLinkedNote = useCallback(async (path: string) => {
+    const name = path.split(/[\\/]/).pop() || "Note";
+    const currentVault = useVaultStore.getState().vaultPath;
+    if (currentVault && isPathWithin(path, currentVault)) {
+      useTabStore.getState().selectNote(path, name);
+      return;
+    }
+
+    // A note path does not contain enough information to safely identify its
+    // vault. Reuse the configured session vault only when it contains the
+    // target; otherwise ask the user instead of silently choosing the note's
+    // parent directory as a new vault.
+    try {
+      const session = await invoke<SessionState>("get_session");
+      const configuredVault = session.lastVaultPath;
+      if (configuredVault && isPathWithin(path, configuredVault)) {
+        if (!currentVault || normalizePath(currentVault) !== normalizePath(configuredVault)) {
+          await useVaultStore.getState().loadVault(configuredVault);
+        }
+        useTabStore.getState().selectNote(path, name);
+        return;
+      }
+    } catch (err) {
+      log.warn("Unable to resolve vault for linked note:", err);
+    }
+
+    await useVaultStore.getState().openVaultDialog();
+    const selectedVault = useVaultStore.getState().vaultPath;
+    if (selectedVault && isPathWithin(path, selectedVault)) {
+      useTabStore.getState().selectNote(path, name);
+    } else {
+      log.warn("Ignoring linked note outside the selected vault:", path);
+    }
+  }, []);
 
   // Native menu / deep-link / single-instance listeners
   useEffect(() => {
     const unlisteners: Array<() => void> = [];
+    let disposed = false;
+    const addListener = async (event: string, handler: (event: any) => void) => {
+      const unlisten = await listen(event, handler);
+      if (disposed) unlisten();
+      else unlisteners.push(unlisten);
+    };
     const setup = async () => {
-      unlisteners.push(await listen("menu:new_note", () => handleNewNote()));
-      unlisteners.push(await listen("menu:open_vault", () => useVaultStore.getState().openVaultDialog()));
-      unlisteners.push(await listen<string>("menu:open_recent", (e) => useVaultStore.getState().loadVault(e.payload)));
-      unlisteners.push(
-        await listen("menu:close_tab", () => {
+      await addListener("menu:new_note", () => handleNewNote());
+      await addListener("menu:open_vault", () => useVaultStore.getState().openVaultDialog());
+      await addListener("menu:open_recent", (e) => useVaultStore.getState().loadVault(e.payload));
+      await addListener("menu:close_tab", () => {
           const active = useTabStore.getState().activePath;
           if (active) useTabStore.getState().closeTab(active);
-        })
-      );
-      unlisteners.push(await listen("menu:toggle_sidebar", () => setSidebarCollapsed((v) => !v)));
-      unlisteners.push(await listen("menu:theme_light", () => setTheme("light")));
-      unlisteners.push(await listen("menu:theme_dark", () => setTheme("dark")));
-      unlisteners.push(await listen("menu:theme_system", () => setTheme("system")));
-      unlisteners.push(await listen("menu:about", () => setIsSettingsOpen(true)));
+        });
+      await addListener("menu:toggle_sidebar", () => setSidebarCollapsed((v) => !v));
+      await addListener("menu:theme_light", () => setTheme("light"));
+      await addListener("menu:theme_dark", () => setTheme("dark"));
+      await addListener("menu:theme_system", () => setTheme("system"));
+      await addListener("menu:about", () => setIsSettingsOpen(true));
       // single-instance second launch with file/vault path
-      unlisteners.push(
-        await listen<string>("single-instance:open", (e) => {
-          const p = e.payload;
-          const name = p.split("/").pop() || "Note";
-          const vault = p.substring(0, p.lastIndexOf("/"));
-          const currentVault = useVaultStore.getState().vaultPath;
-          if (!currentVault || !p.startsWith(currentVault)) {
-            useVaultStore.getState().loadVault(vault).then(() => useTabStore.getState().selectNote(p, name)).catch(() => useTabStore.getState().selectNote(p, name));
-          } else {
-            useTabStore.getState().selectNote(p, name);
-          }
-        })
-      );
-      unlisteners.push(await listen<string>("single-instance:open-vault", (e) => useVaultStore.getState().loadVault(e.payload)));
+      await addListener("single-instance:open", (e) => void openLinkedNote(e.payload));
+      await addListener("single-instance:open-vault", (e) => useVaultStore.getState().loadVault(e.payload));
       // deep link snipnote://open?path=... or vault=...
-      unlisteners.push(
-        await listen<string>("deep-link:open", (e) => {
-          const p = e.payload;
-          const name = p.split("/").pop() || "Note";
-          // if vault not yet loaded, try to load its parent dir as vault
-          const vault = p.substring(0, p.lastIndexOf("/"));
-          const currentVault = useVaultStore.getState().vaultPath;
-          if (!currentVault || !p.startsWith(currentVault)) {
-            // try to load parent as vault if it exists
-            useVaultStore.getState().loadVault(vault).then(() => useTabStore.getState().selectNote(p, name)).catch(() => useTabStore.getState().selectNote(p, name));
-          } else {
-            useTabStore.getState().selectNote(p, name);
-          }
-        })
-      );
-      unlisteners.push(await listen<string>("deep-link:open-vault", (e) => useVaultStore.getState().loadVault(e.payload)));
+      await addListener("deep-link:open", (e) => void openLinkedNote(e.payload));
+      await addListener("deep-link:open-vault", (e) => useVaultStore.getState().loadVault(e.payload));
     };
-    setup();
+    void setup();
     return () => {
+      disposed = true;
       unlisteners.forEach((fn) => {
         try {
           fn();
         } catch {}
       });
     };
-  }, [handleNewNote, setTheme]);
+  }, [handleNewNote, openLinkedNote, setTheme]);
 
   // Keep Recent Vaults menu in sync (also handles Dock Recent)
   useEffect(() => {
@@ -494,7 +507,7 @@ function App() {
 
   return (
     <div
-      className="flex w-screen h-screen overflow-hidden bg-bg-translucent rounded-xl select-none"
+      className="flex w-screen h-screen overflow-hidden bg-bg-translucent rounded-[var(--surface-radius-lg)] select-none"
       onDragOver={handleAppDragOver}
       onDrop={handleAppDrop}
     >

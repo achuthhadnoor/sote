@@ -42,49 +42,16 @@ export class ErrorBoundary extends React.Component<
     if (!error) return this.props.children;
 
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "100vw",
-          height: "100vh",
-          padding: 32,
-          fontFamily: "var(--font-sans)",
-          color: "var(--fg)",
-          background: "var(--bg)",
-        }}
-        role="alert"
-      >
-        <div style={{ maxWidth: 560 }}>
-          <h1 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+      <div className="flex items-center justify-center w-screen h-screen p-8 type-chrome text-foreground bg-background" role="alert">
+        <div className="max-w-[560px]">
+          <h1 className="text-base font-semibold mb-2">
             Something went wrong
           </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "var(--muted-fg)",
-              marginBottom: 12,
-            }}
-          >
+          <p className="type-label text-muted-foreground mb-3">
             The editor hit an unexpected error instead of loading your vault.
             Your files are untouched.
           </p>
-          <pre
-            style={{
-              fontSize: 11,
-              fontFamily: "var(--font-mono)",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              background: "var(--muted)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: 12,
-              maxHeight: 220,
-              overflow: "auto",
-              marginBottom: 12,
-            }}
-          >
+          <pre className="ui-surface type-diagnostic whitespace-pre-wrap break-words bg-muted border border-border p-3 max-h-[220px] overflow-auto mb-3">
             {String(error?.message || error)}
             {errorInfo?.componentStack
               ? `\n${errorInfo.componentStack
@@ -93,19 +60,7 @@ export class ErrorBoundary extends React.Component<
                   .join("\n")}`
               : ""}
           </pre>
-          <button
-            onClick={this.handleReload}
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              padding: "6px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--accent)",
-              color: "var(--accent-fg)",
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={this.handleReload} className="ui-control inline-flex h-8 items-center rounded-[var(--radius-md)] border border-border bg-primary px-3.5 type-label font-medium text-primary-foreground hover:opacity-90">
             Reload
           </button>
         </div>

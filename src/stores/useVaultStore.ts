@@ -17,6 +17,8 @@ interface VaultState {
   clearVault: () => void;
 }
 
+let watchedVaultPath: string | null = null;
+
 export const useVaultStore = create<VaultState>((set, get) => ({
   vaultPath: null,
   tree: [],
@@ -45,12 +47,16 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     log.debug("loadVault start:", path);
     try {
       const tree = await loggedInvoke<VaultNode[]>("vault", "scan_vault", { vaultPath: path });
+      const previousWatchedPath = watchedVaultPath;
+      const shouldRestartWatcher = previousWatchedPath !== path;
+      if (shouldRestartWatcher && previousWatchedPath) await invoke("unwatch_vault").catch(() => {});
       set({ vaultPath: path, tree, isLoading: false, error: null });
       log.info("loadVault ok:", path, `(${tree.length} top-level nodes)`);
       // Start watching vault directory for external changes
-      invoke("watch_vault", { vaultPath: path }).catch((err) => {
-        log.error("Failed to start vault file watcher:", err);
-      });
+      if (shouldRestartWatcher || !previousWatchedPath) {
+        await invoke("watch_vault", { vaultPath: path });
+        watchedVaultPath = path;
+      }
     } catch (err: any) {
       log.error("loadVault failed:", path, err?.message || String(err));
       set({
@@ -83,6 +89,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
 
   clearVault: () => {
     invoke("unwatch_vault").catch(() => {});
+    watchedVaultPath = null;
     set({ vaultPath: null, tree: [], isLoading: false, error: null });
   },
 }));

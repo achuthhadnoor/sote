@@ -203,7 +203,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
             <Button
-              variant="ghost"
+              variant="row"
               role="treeitem"
               aria-expanded={isOpen}
               aria-selected={false}
@@ -241,7 +241,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
 
   return (
     <Button
-      variant="ghost"
+      variant="row"
       role="treeitem"
       aria-selected={isActive}
       tabIndex={isRovingActive ? 0 : -1}

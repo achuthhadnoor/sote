@@ -197,7 +197,7 @@ export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) =>
 
       {/* expanded: titles panel */}
       <div
-        className={`absolute right-0 top-1/2 -translate-y-1/2 max-h-[60vh] overflow-hidden bg-background border border-border rounded-xl shadow-xl flex flex-col transition-all duration-200 ease-out ${
+        className={`ui-surface outline-panel absolute right-0 top-1/2 -translate-y-1/2 max-h-[60vh] overflow-hidden bg-background border border-border flex flex-col transition-all duration-200 ease-out ${
           expanded
             ? "w-[260px] opacity-100 pointer-events-auto translate-x-0"
             : "w-0 opacity-0 pointer-events-none translate-x-2"

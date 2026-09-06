@@ -177,7 +177,7 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
   return (
     <div
       ref={ref}
-      className="fixed w-[220px] bg-background border border-border rounded-lg shadow-xl p-1.5 flex flex-col gap-0.5 z-[9999] backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
+      className="file-context-menu ui-surface fixed w-[220px] max-w-[calc(100vw-1rem)] bg-background border border-border p-1.5 flex flex-col gap-0.5 z-[9999] backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
       style={style}
       role="menu"
     >

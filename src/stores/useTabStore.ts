@@ -35,10 +35,17 @@ export const useTabStore = create<TabState>((set, get) => ({
   canGoForward: false,
 
   setTabs: (tabs, activePath) => {
+    const current = get();
     const active = tabs.find((t) => t.path === activePath) ?? tabs[0] ?? null;
-    // rebuild history from tabs order for initial load
-    const history = tabs.map((t) => t.path);
-    const idx = active ? history.indexOf(active.path) : -1;
+    // Tabs are a collection; navigation history is an independent stack.
+    // Only initialize it for the first session restore, then preserve the
+    // existing sequence when a tree/session refresh supplies the tab list.
+    const tabPaths = new Set(tabs.map((tab) => tab.path));
+    let history = current.tabs.length === 0
+      ? (active ? [active.path] : [])
+      : current.history.filter((path) => tabPaths.has(path));
+    if (active && !history.includes(active.path)) history = [...history, active.path];
+    const idx = active ? history.lastIndexOf(active.path) : -1;
     set({
       tabs,
       activePath: active?.path ?? null,
@@ -120,15 +127,17 @@ export const useTabStore = create<TabState>((set, get) => ({
       }
     }
 
-    // keep history but remove entry if present? Simpler: filter history to remove closed path? But keep for back/forward? Remove it
+    // Remove only entries belonging to the closed tab. Repeated visits to
+    // other tabs remain meaningful back/forward destinations.
+    const removedBefore = history.slice(0, historyIndex + 1).filter((p) => p === path).length;
     let nextHistory = history.filter((p) => p !== path);
-    let nextHistoryIndex = historyIndex;
-    // adjust index if active changed due to close
+    let nextHistoryIndex = Math.max(-1, historyIndex - removedBefore);
+    // Repair the cursor when closing the active tab.
     if (nextActivePath) {
-      const pos = nextHistory.indexOf(nextActivePath);
+      const pos = nextHistory.lastIndexOf(nextActivePath, Math.max(0, nextHistoryIndex));
       if (pos !== -1) nextHistoryIndex = pos;
       else {
-        // active not in history (closed tab was last), push it
+        // The neighboring tab may not have been visited yet.
         nextHistory = [...nextHistory, nextActivePath];
         nextHistoryIndex = nextHistory.length - 1;
       }

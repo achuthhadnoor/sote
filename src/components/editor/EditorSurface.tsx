@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -275,10 +275,12 @@ export const EditorSurface: React.FC = () => {
   const [showReplace, setShowReplace] = useState(false);
   const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
 
-  const handlePostSave = async (path: string, wasNew: boolean) => {
+  type PendingSave = { path: string; wasNew: boolean; body: string; frontmatter: string | null };
+  const pendingSaveRef = useRef<PendingSave | null>(null);
+
+  const handlePostSave = useCallback(async (path: string, wasNew: boolean, didWrite: boolean) => {
     // wasNew draft now has content and was saved -> promote to real file
-    const stillDirty = useEditorStore.getState().isDirty;
-    if (wasNew && !stillDirty) {
+    if (wasNew && didWrite) {
       useTabStore.getState().markTabSaved(path);
       const vp = useVaultStore.getState().vaultPath;
       if (vp) {
@@ -286,24 +288,40 @@ export const EditorSurface: React.FC = () => {
         await useVaultStore.getState().loadVault(vp);
       }
     }
-  };
+  }, []);
 
-  const triggerAutoSave = () => {
+  const flushPendingAutoSave = useCallback(async () => {
+    const pending = pendingSaveRef.current;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = null;
+    pendingSaveRef.current = null;
+    if (!pending) return false;
+    const didWrite = await saveNow(pending.path, {
+      body: pending.body,
+      frontmatter: pending.frontmatter,
+    });
+    if (didWrite) await handlePostSave(pending.path, pending.wasNew, true);
+    return didWrite;
+  }, [handlePostSave, saveNow]);
+
+  const triggerAutoSave = useCallback(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
+    const path = activePathRef.current;
+    if (!path) return;
+    const tab = useTabStore.getState().tabs.find((t) => t.path === path);
+    const { body, frontmatter } = useEditorStore.getState();
+    const pending: PendingSave = { path, wasNew: !!tab?.isNew, body, frontmatter };
+    pendingSaveRef.current = pending;
     debounceTimerRef.current = setTimeout(async () => {
-      const path = activePathRef.current;
-      if (!path) return;
-      const tab = useTabStore.getState().tabs.find((t) => t.path === path);
-      const wasNew = !!tab?.isNew;
-      const { body, frontmatter } = useEditorStore.getState();
-      const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
-      if (wasNew && !hasContent) return;
-      await saveNow(path);
-      await handlePostSave(path, wasNew);
+      if (pendingSaveRef.current !== pending) return;
+      pendingSaveRef.current = null;
+      debounceTimerRef.current = null;
+      const didWrite = await saveNow(path, { body, frontmatter });
+      if (didWrite) await handlePostSave(path, pending.wasNew, true);
     }, 500);
-  };
+  }, [handlePostSave, saveNow]);
 
   const editor = useEditor({
     contentType: "markdown",
@@ -517,18 +535,14 @@ export const EditorSurface: React.FC = () => {
   // Flush save on window blur or beforeunload (respects draft-no-content guard)
   useEffect(() => {
     const handleFlush = () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      const path = activePathRef.current;
-      if (!path || !useEditorStore.getState().isDirty) return;
-      const tab = useTabStore.getState().tabs.find((t) => t.path === path);
-      const wasNew = !!tab?.isNew;
-      const { body, frontmatter } = useEditorStore.getState();
-      const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
-      if (wasNew && !hasContent) return;
-      // fire and handle post-save async
-      saveNow(path).then(() => handlePostSave(path, wasNew));
+      void flushPendingAutoSave().then((didWrite) => {
+        if (didWrite || !activePathRef.current || !useEditorStore.getState().isDirty) return;
+        const path = activePathRef.current;
+        const tab = useTabStore.getState().tabs.find((t) => t.path === path);
+        void saveNow(path).then((written) => {
+          if (written) return handlePostSave(path, !!tab?.isNew, true);
+        });
+      });
     };
 
     window.addEventListener("blur", handleFlush);
@@ -539,22 +553,20 @@ export const EditorSurface: React.FC = () => {
       window.removeEventListener("blur", handleFlush);
       window.removeEventListener("beforeunload", handleFlush);
     };
-  }, [saveNow]);
+  }, [flushPendingAutoSave, handlePostSave, saveNow]);
 
   // When activePath changes, flush previous note (if has content) and load new note
   const prevPathRef = useRef<string | null>(null);
   useEffect(() => {
     if (prevPathRef.current && prevPathRef.current !== activePath) {
       const prev = prevPathRef.current;
-      if (prev && useEditorStore.getState().isDirty) {
+      void flushPendingAutoSave().then((didWrite) => {
+        if (didWrite || !useEditorStore.getState().isDirty) return;
         const tab = useTabStore.getState().tabs.find((t) => t.path === prev);
-        const wasNew = !!tab?.isNew;
-        const { body, frontmatter } = useEditorStore.getState();
-        const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
-        if (!(wasNew && !hasContent)) {
-          saveNow(prev).then(() => handlePostSave(prev, wasNew));
-        }
-      }
+        void saveNow(prev).then((written) => {
+          if (written) return handlePostSave(prev, !!tab?.isNew, true);
+        });
+      });
     }
     prevPathRef.current = activePath;
 
@@ -607,8 +619,9 @@ export const EditorSurface: React.FC = () => {
 
     return () => {
       cancelled = true;
+      void flushPendingAutoSave();
     };
-  }, [activePath, isNewDraft, reloadCount, editor, loadNote, saveNow]);
+  }, [activePath, isNewDraft, reloadCount, editor, loadNote, saveNow, flushPendingAutoSave, handlePostSave]);
 
   // When toggling from raw → rich, sync editor content from body
   const prevRawRef = useRef(isRawMode);
@@ -681,14 +694,14 @@ export const EditorSurface: React.FC = () => {
 
   return (
     <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
-      <div className="w-full max-w-editor m-auto self-center text-[15px] leading-relaxed flex flex-col justify-center">
+      <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center">
         {isLoading && (
-          <div style={{ padding: "16px 0", color: "var(--muted-fg)", fontSize: "13px" }}>
+          <div className="py-4 type-label text-muted-foreground">
             Loading note...
           </div>
         )}
         {error && (
-          <div style={{ padding: "16px 0", color: "var(--destructive)", fontSize: "13px" }}>
+          <div className="py-4 type-label text-destructive">
             Failed to read note: {error}
           </div>
         )}

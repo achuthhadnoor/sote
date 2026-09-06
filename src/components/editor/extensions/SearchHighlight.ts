@@ -1,33 +1,16 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
-
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+import { findTextMatches } from "../../../utils/textSearch";
 
 function createDecorations(doc: any, searchTerm: string, activeIndex: number): DecorationSet {
   if (!searchTerm) return DecorationSet.empty;
   const decorations: Decoration[] = [];
-  const regex = new RegExp(escapeRegExp(searchTerm), "gi");
-  let matchCount = 0;
-
-  doc.descendants((node: any, pos: number) => {
-    if (!node.isText || !node.text) return;
-    const text = node.text as string;
-    let m: RegExpExecArray | null;
-    // reset lastIndex for each node
-    regex.lastIndex = 0;
-    while ((m = regex.exec(text)) !== null) {
-      const from = pos + m.index;
-      const to = from + m[0].length;
+  const matches = findTextMatches(doc, searchTerm);
+  matches.forEach(({ from, to }, matchCount) => {
       const isActive = matchCount === activeIndex;
       const cls = isActive ? "search-highlight search-highlight-active" : "search-highlight";
       decorations.push(Decoration.inline(from, to, { class: cls }));
-      matchCount++;
-      // prevent infinite loop on zero-length matches
-      if (m[0].length === 0) regex.lastIndex++;
-    }
   });
 
   return DecorationSet.create(doc, decorations);

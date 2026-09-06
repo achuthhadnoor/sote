@@ -31,7 +31,7 @@ export const StatusBar: React.FC = () => {
 
   return (
     <footer
-      className="status-bar relative isolate flex h-status items-center justify-between gap-3 px-3 text-[11px] font-mono text-muted-foreground select-none border-t border-border-translucent bg-transparent shrink-0"
+      className="status-bar relative isolate flex h-status items-center justify-between gap-3 px-3 type-meta select-none border-t border-border-translucent bg-transparent shrink-0"
       role="status"
       aria-live="polite"
       aria-atomic="true"

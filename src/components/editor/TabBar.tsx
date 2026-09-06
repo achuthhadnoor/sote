@@ -30,7 +30,7 @@ const FileTabIcon: React.FC<{ active?: boolean }> = ({ active }) => (
     viewBox="0 0 24 24"
     fill="none"
     aria-hidden="true"
-    style={{ color: active ? "var(--fg)" : "var(--muted-fg)", flexShrink: 0 }}
+    className={active ? "text-foreground shrink-0" : "text-muted-foreground shrink-0"}
   >
     <path
       d="M7 3.5A1.5 1.5 0 0 1 8.5 2H14l4 4.5V19.5A1.5 1.5 0 0 1 16.5 21H8.5A1.5 1.5 0 0 1 7 19.5v-16Z"
@@ -189,7 +189,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                   tabIndex={isActive ? 0 : -1}
                   data-tab-path={tab.path}
                   data-tab-title={tab.title}
-                  className={`group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 rounded-md border border-transparent text-[12.5px] font-medium whitespace-nowrap shrink-0 max-w-[180px] transition-all duration-150 cursor-pointer ${
+                  className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] cursor-pointer ${
                     isActive
                       ? "bg-background border-border text-foreground shadow-xs"
                       : "bg-transparent text-muted-foreground hover:bg-hover-translucent hover:text-foreground hover:border-border-translucent"

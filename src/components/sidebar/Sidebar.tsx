@@ -71,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onToggleSideba
         <ScrollArea className="flex-1 h-full [&>div>div]:!block">
           <div className="p-2">
           {isLoading && (
-            <div className="p-4 text-center text-[13px] text-muted-fg leading-relaxed">Scanning vault...</div>
+            <div className="p-4 text-center type-label text-muted-foreground leading-relaxed">Scanning vault...</div>
           )}
 
           {error && (
@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onToggleSideba
           )}
 
           {!isLoading && !error && tree.length === 0 && (
-            <div className="p-4 text-center text-[13px] text-muted-fg leading-relaxed">
+            <div className="p-4 text-center type-label text-muted-foreground leading-relaxed">
               {vaultPath ? (
                 "No markdown files found in this vault."
               ) : (
@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onToggleSideba
         </ScrollArea>
       </div>
 
-      <div className="h-header px-3 flex items-center justify-between border-t border-border-translucent text-[13px] text-muted-fg shrink-0">
+      <div className="h-header px-3 flex items-center justify-between border-t border-border-translucent type-chrome text-muted-foreground shrink-0">
         <span className="truncate max-w-[160px] inline-flex items-center gap-1.5 text-foreground font-medium">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-muted-foreground shrink-0">
               <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20H5.5A2.5 2.5 0 0 1 3 17.5v-10Z" fill="currentColor" opacity="0.14" />

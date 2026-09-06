@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { Editor } from "@tiptap/react";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { Card } from "@/components/ui/card";
+import { findTextMatches } from "@/utils/textSearch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, ChevronUp, ChevronDown, X } from "lucide-react";
@@ -12,10 +13,6 @@ interface FindBarProps {
   showReplace: boolean;
   onClose: () => void;
   onToggleReplace: () => void;
-}
-
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, onClose, onToggleReplace }) => {
@@ -35,20 +32,7 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
         setMatchCount(0);
         return 0;
       }
-      const regex = new RegExp(escapeRegExp(q), "gi");
-      let count = 0;
-      const doc = editor.state.doc;
-      doc.descendants((node: any) => {
-        if (node.isText && node.text) {
-          const text = node.text as string;
-          let m: RegExpExecArray | null;
-          regex.lastIndex = 0;
-          while ((m = regex.exec(text)) !== null) {
-            count++;
-            if (m[0].length === 0) regex.lastIndex++;
-          }
-        }
-      });
+      const count = findTextMatches(editor.state.doc, q).length;
       setMatchCount(count);
       return count;
     },
@@ -137,37 +121,15 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
   const handleReplace = useCallback(() => {
     if (!editor || !query) return;
     if (matchCount === 0) return;
-    // Find active match range and replace
-    const doc = editor.state.doc;
-    const regex = new RegExp(escapeRegExp(query), "gi");
-    let current = 0;
-    let replaced = false;
-    let targetFrom = -1;
-    let targetTo = -1;
-    doc.descendants((node: any, pos: number) => {
-      if (replaced) return false;
-      if (!node.isText || !node.text) return;
-      const text = node.text as string;
-      let m: RegExpExecArray | null;
-      regex.lastIndex = 0;
-      while ((m = regex.exec(text)) !== null) {
-        if (current === activeIndex) {
-          targetFrom = pos + m.index;
-          targetTo = targetFrom + m[0].length;
-          replaced = true;
-          break;
-        }
-        current++;
-        if (m[0].length === 0) regex.lastIndex++;
-      }
-    });
-    if (targetFrom >= 0) {
+    const target = findTextMatches(editor.state.doc, query)[activeIndex];
+    if (target) {
+      const { from: targetFrom, to: targetTo } = target;
       const tr = editor.state.tr.replaceWith(targetFrom, targetTo, editor.state.schema.text(replaceQuery));
       editor.view.dispatch(tr);
       // update body store via markdown serialization
       const ed: any = editor;
       const md = typeof ed.getMarkdown === "function" ? ed.getMarkdown() : "";
-      if (md) updateBody(md);
+      updateBody(md);
       // recompute after replace
       const newCount = recomputeMatches(query);
       const newIdx = newCount === 0 ? 0 : Math.min(activeIndex, newCount - 1);
@@ -180,21 +142,7 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
   const handleReplaceAll = useCallback(() => {
     if (!editor || !query) return;
     if (matchCount === 0) return;
-    const doc = editor.state.doc;
-    const regex = new RegExp(escapeRegExp(query), "gi");
-    const ranges: Array<{ from: number; to: number }> = [];
-    doc.descendants((node: any, pos: number) => {
-      if (!node.isText || !node.text) return;
-      const text = node.text as string;
-      let m: RegExpExecArray | null;
-      regex.lastIndex = 0;
-      while ((m = regex.exec(text)) !== null) {
-        const from = pos + m.index;
-        const to = from + m[0].length;
-        ranges.push({ from, to });
-        if (m[0].length === 0) regex.lastIndex++;
-      }
-    });
+    const ranges = findTextMatches(editor.state.doc, query);
     // Replace from end to start to keep positions valid
     let tr = editor.state.tr;
     for (let i = ranges.length - 1; i >= 0; i--) {
@@ -205,7 +153,7 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
       editor.view.dispatch(tr);
       const ed: any = editor;
       const md = typeof ed.getMarkdown === "function" ? ed.getMarkdown() : "";
-      if (md) updateBody(md);
+      updateBody(md);
       (editor.chain() as any).clearSearch().run();
       setQuery("");
       setActiveIndex(0);
@@ -233,7 +181,7 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
   if (!isOpen) return null;
 
   return (
-    <Card className="find-bar absolute bottom-9 left-1/2 -translate-x-1/2 w-[560px] max-w-[90%] p-2.5 flex flex-col gap-2 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-[8px] animate-in fade-in zoom-in-95" role="search" aria-label="Find in editor">
+    <Card className="find-bar ui-surface absolute bottom-9 left-1/2 -translate-x-1/2 w-[560px] max-w-[90%] p-2.5 flex flex-col gap-2 backdrop-blur-[8px] animate-in fade-in zoom-in-95" role="search" aria-label="Find in editor">
       <div className="flex items-center gap-2">
         <div className="flex flex-1 items-center gap-2 rounded-md border border-transparent bg-muted/70 px-2 py-1 focus-within:border-ring focus-within:bg-background transition-colors">
           <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

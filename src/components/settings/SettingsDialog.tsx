@@ -59,7 +59,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
     return (
       <button
         className={cn(
-          "flex items-center justify-between gap-3 p-3 rounded-lg border text-left cursor-pointer transition-all duration-150",
+          "ui-row flex items-center justify-between gap-3 p-3 border text-left cursor-pointer transition-all duration-150",
           active
             ? "border-accent bg-accent-subtle shadow-xs"
             : "border-border bg-background hover:border-foreground/30 hover:bg-muted"
@@ -87,8 +87,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
-        className="max-w-[560px] p-0 gap-0 bg-background sm:rounded-xl shadow-2xl border flex max-h-[80vh] flex-col overflow-hidden"
-        style={{ display: "flex" } as React.CSSProperties}
+        className="settings-dialog ui-surface max-w-[560px] p-0 gap-0 bg-background border flex max-h-[80vh] flex-col overflow-hidden"
         aria-describedby={undefined}
       >
         <DialogHeader className="p-5 pb-3.5 border-b border-border text-left space-y-0">
@@ -162,7 +161,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
             </p>
             <div className="flex flex-col gap-2 mt-1">
               <div
-                className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+                className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
                 role="button"
                 tabIndex={0}
                 onClick={() => setSpellCheckEnabled(!spellCheckEnabled)}
@@ -192,7 +191,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
             </p>
             <div className="flex flex-col gap-2 mt-1">
               <button
-                className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background text-left cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+                className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background text-left cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
                 onClick={async () => {
                   setChecking(true);
                   setUpdateStatus("Checking…");
@@ -224,7 +223,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                 </span>
               </button>
               <div
-                className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+                className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
                 role="button"
                 tabIndex={0}
                 onClick={async () => {
@@ -281,7 +280,7 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
               Frontend warnings/errors are always appended to the same file.
             </p>
             <div
-              className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
               role="button"
               tabIndex={0}
               onClick={() => {

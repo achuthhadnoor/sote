@@ -75,7 +75,7 @@ export const RawEditor: React.FC<RawEditorProps> = ({
   }, []);
 
   return (
-    <div className="w-full min-h-[480px] flex-1 flex bg-background border border-border rounded-lg overflow-hidden transition-all duration-150 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+    <div className="ui-surface w-full min-h-[480px] flex-1 flex bg-background border border-border overflow-hidden transition-all duration-150 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
       {/* Line numbers gutter */}
       <div
         ref={gutterRef}

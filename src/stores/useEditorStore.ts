@@ -21,7 +21,7 @@ interface EditorState {
   loadNote: (path: string) => Promise<string>;
   updateBody: (body: string) => void;
   updateFrontmatter: (frontmatter: string | null) => void;
-  saveNow: (filePath: string) => Promise<void>;
+  saveNow: (filePath: string, snapshot?: { body: string; frontmatter: string | null }) => Promise<boolean>;
   setSaved: () => void;
   clearNote: () => void;
   setConflict: (val: boolean) => void;
@@ -30,6 +30,10 @@ interface EditorState {
   toggleRawMode: () => void;
   setRawMode: (val: boolean) => void;
 }
+
+let latestLoadRequestId = 0;
+const saveQueues = new Map<string, Promise<void>>();
+const savedSnapshots = new Map<string, { body: string; frontmatter: string | null }>();
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   frontmatter: null,
@@ -46,6 +50,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   lastSelfWrite: null,
 
   loadNote: async (path: string) => {
+    const requestId = ++latestLoadRequestId;
     set({ isLoading: true, error: null });
     log.debug("loadNote start:", path);
     try {
@@ -56,25 +61,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         filePath: path,
       });
 
-      set({
-        frontmatter: envelope.frontmatter,
-        lastSavedFrontmatter: envelope.frontmatter,
-        body: envelope.body,
-        lastSavedBody: envelope.body,
-        isDirty: false,
-        isLoading: false,
-        error: null,
-        hasConflict: false,
-      });
+      if (requestId === latestLoadRequestId) {
+        savedSnapshots.set(path, { body: envelope.body, frontmatter: envelope.frontmatter });
+        set({
+          frontmatter: envelope.frontmatter,
+          lastSavedFrontmatter: envelope.frontmatter,
+          body: envelope.body,
+          lastSavedBody: envelope.body,
+          isDirty: false,
+          isLoading: false,
+          error: null,
+          hasConflict: false,
+        });
+      }
 
       return envelope.body;
     } catch (err: any) {
       const errMsg = err?.message || String(err);
       log.error("loadNote failed:", path, errMsg);
-      set({
-        isLoading: false,
-        error: errMsg,
-      });
+      if (requestId === latestLoadRequestId) set({ isLoading: false, error: errMsg });
       throw err;
     }
   },
@@ -95,57 +100,59 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  saveNow: async (filePath: string) => {
-    const { body, frontmatter, isDirty } = get();
-    if (!filePath || !isDirty) return;
+  saveNow: async (filePath: string, snapshot) => {
+    if (!filePath) return false;
+    let didWrite = false;
+    const previous = saveQueues.get(filePath) ?? Promise.resolve();
+    const operation = previous.catch(() => {}).then(async () => {
+      const current = get();
+      const snapshotBody = snapshot ? snapshot.body : current.body;
+      const snapshotFrontmatter = snapshot ? snapshot.frontmatter : current.frontmatter;
+      const savedForPath = savedSnapshots.get(filePath);
+      const isDirty = snapshot
+        ? snapshotBody !== (savedForPath?.body ?? current.lastSavedBody) || snapshotFrontmatter !== (savedForPath?.frontmatter ?? current.lastSavedFrontmatter)
+        : current.isDirty;
+      if (!isDirty) return;
 
-    // Do not create a new note file if there is no content (requirement: save only when there is content)
-    const hasContent = body.trim().length > 0 || (frontmatter && frontmatter.trim().length > 0);
-    if (!hasContent) return;
+      // Do not create a new note file if there is no content.
+      const hasContent = snapshotBody.trim().length > 0 || !!snapshotFrontmatter?.trim().length;
+      if (!hasContent) return;
 
-    const snapshotBody = body;
-    const snapshotFrontmatter = frontmatter;
-    set({ isSaving: true });
-
-    try {
-      const vaultPath = useVaultStore.getState().vaultPath;
-      if (!vaultPath) throw new Error("No vault is open");
-      await loggedInvoke("editor", "write_file", {
-        vaultPath,
-        filePath,
-        body: snapshotBody,
-        frontmatter: snapshotFrontmatter,
-      });
-      set({ lastSelfWrite: { path: filePath, at: Date.now() } });
-
-      // Buffer snapshot concurrency guard:
-      // If user typed during write, current body will differ from snapshotBody
-      if (get().body === snapshotBody && get().frontmatter === snapshotFrontmatter) {
-        set({
-          lastSavedBody: snapshotBody,
-          lastSavedFrontmatter: snapshotFrontmatter,
-          isDirty: false,
-          isSaving: false,
-          error: null,
-        });
-      } else {
-        set({ isSaving: false, error: null });
-        // Continue saving if the user edited while the previous write was in flight.
-        // The snapshot guard above deliberately keeps the newer buffer dirty.
-        queueMicrotask(() => {
-          if (get().isDirty && !get().isSaving) void get().saveNow(filePath);
-        });
-      }
-    } catch (err: any) {
+      set({ isSaving: true });
       try {
-        (navigator as any).vibrate?.([30, 20, 30]);
-      } catch {}
-      log.error("saveNow failed:", filePath, err?.message || String(err));
-      set({
-        isSaving: false,
-        error: err?.message || String(err),
-      });
+        const vaultPath = useVaultStore.getState().vaultPath;
+        if (!vaultPath) throw new Error("No vault is open");
+        await loggedInvoke("editor", "write_file", {
+          vaultPath,
+          filePath,
+          body: snapshotBody,
+          frontmatter: snapshotFrontmatter,
+        });
+        didWrite = true;
+        savedSnapshots.set(filePath, { body: snapshotBody, frontmatter: snapshotFrontmatter });
+        set({ lastSelfWrite: { path: filePath, at: Date.now() }, error: null });
+        if (get().body === snapshotBody && get().frontmatter === snapshotFrontmatter) {
+          set({
+            lastSavedBody: snapshotBody,
+            lastSavedFrontmatter: snapshotFrontmatter,
+            isDirty: false,
+          });
+        }
+      } catch (err: any) {
+        try { (navigator as any).vibrate?.([30, 20, 30]); } catch {}
+        log.error("saveNow failed:", filePath, err?.message || String(err));
+        set({ error: err?.message || String(err) });
+      } finally {
+        set({ isSaving: false });
+      }
+    });
+    saveQueues.set(filePath, operation);
+    try {
+      await operation;
+    } finally {
+      if (saveQueues.get(filePath) === operation) saveQueues.delete(filePath);
     }
+    return didWrite;
   },
 
   setSaved: () => {
@@ -158,6 +165,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   clearNote: () => {
+    latestLoadRequestId++;
     set({
       frontmatter: null,
       lastSavedFrontmatter: null,
