@@ -4,6 +4,9 @@ import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useVaultStore } from "../stores/useVaultStore";
 import { useTabStore } from "../stores/useTabStore";
 import type { VaultNode } from "../types/vault";
+import { createLogger } from "../lib/logger";
+
+const log = createLogger("context-menu");
 
 export async function showNativeContextMenu(
   node: VaultNode | null,
@@ -30,7 +33,7 @@ export async function showNativeContextMenu(
           try {
             await revealItemInDir(vaultPath);
           } catch (e) {
-            console.error("Reveal failed", e);
+            log.error("Reveal failed", e);
           }
         },
       });
@@ -83,7 +86,7 @@ export async function showNativeContextMenu(
       });
       await menu.popup();
     } catch (err) {
-      console.error("Native menu failed", err);
+      log.error("Native menu failed", err);
     }
     return;
   }
@@ -98,7 +101,7 @@ export async function showNativeContextMenu(
         try {
           await revealItemInDir(node.path);
         } catch (err) {
-          console.error("Reveal failed", err);
+          log.error("Reveal failed", err);
         }
       },
     });
@@ -260,6 +263,6 @@ export async function showNativeContextMenu(
     const menu = await Menu.new({ items: filtered });
     await menu.popup();
   } catch (err) {
-    console.error("Native menu failed", err);
+    log.error("Native menu failed", err);
   }
 }

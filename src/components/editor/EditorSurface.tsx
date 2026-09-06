@@ -22,6 +22,9 @@ import { Button } from "@/components/ui/button";
 import { RawEditor } from "./RawEditor";
 import { EditorBubbleMenu } from "./EditorBubbleMenu";
 import { HomeView } from "./HomeView";
+import { createLogger } from "../../lib/logger";
+
+const log = createLogger("editor-surface");
 
 /**
  * Determines if a given href is an external web link that should open in the system default browser.
@@ -67,11 +70,11 @@ async function openInExternalBrowser(href: string, activePath: string | null, va
       await openUrl(target);
       return;
     } catch (err) {
-      console.warn("openUrl failed, attempting window.open fallback:", err);
+      log.warn("openUrl failed, attempting window.open fallback:", err);
       try {
         window.open(target, "_blank", "noopener,noreferrer");
       } catch (e) {
-        console.error("Failed to open web link:", e);
+        log.error("Failed to open web link:", e);
       }
       return;
     }
@@ -95,7 +98,7 @@ async function openInExternalBrowser(href: string, activePath: string | null, va
     await openPath(filePath);
     return;
   } catch (err) {
-    console.error("openPath failed for local file:", filePath, err);
+    log.error("openPath failed for local file:", filePath, err);
   }
 }
 
@@ -215,7 +218,7 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
     e.preventDefault();
     e.stopPropagation();
     openInExternalBrowser(href, curActive, vaultPath).catch((err) =>
-      console.error("Failed to open external link:", err)
+      log.error("Failed to open external link:", err)
     );
     return true;
   }
@@ -239,7 +242,7 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
   e.preventDefault();
   e.stopPropagation();
   openInExternalBrowser(href, curActive, vaultPath).catch((err) =>
-    console.error("Failed to open link:", err)
+    log.error("Failed to open link:", err)
   );
   return true;
 }
@@ -602,7 +605,7 @@ export const EditorSurface: React.FC = () => {
         }
       })
       .catch((err) => {
-        console.error("Failed to load note content:", err);
+        log.error("Failed to load note content:", err);
       });
 
     return () => {

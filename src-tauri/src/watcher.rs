@@ -68,8 +68,24 @@ impl Default for VaultWatcherState {
 pub fn should_emit_change(path: &Path) -> bool {
     let path_str = path.to_string_lossy();
 
-    // Ignore version control, hidden files, and temporary atomic write files
+    // Ignore version control, hidden files, build artifacts, and temporary atomic write files
     if path_str.contains("/.git/") || path_str.ends_with("/.git") || path_str.contains("\\.git\\") {
+        return false;
+    }
+
+    if path_str.contains("/node_modules/") || path_str.ends_with("/node_modules") || path_str.contains("\\node_modules\\") {
+        return false;
+    }
+
+    if path_str.contains("/target/") || path_str.ends_with("/target") || path_str.contains("\\target\\") {
+        return false;
+    }
+
+    if path_str.contains("/dist/") || path_str.ends_with("/dist") || path_str.contains("\\dist\\") {
+        return false;
+    }
+
+    if path_str.contains("/build/") || path_str.ends_with("/build") || path_str.contains("\\build\\") {
         return false;
     }
 
@@ -115,8 +131,10 @@ pub fn watch_vault(
         .map_err(|e| format!("Failed to canonicalize vault path: {}", e))?;
 
     if !canonical.is_dir() {
+        crate::logger::warn("watcher", &format!("watch_vault not a directory: {:?}", canonical));
         return Err(format!("Vault path is not a directory: {:?}", canonical));
     }
+    crate::logger::info("watcher", &format!("watching: {}", canonical.to_string_lossy()));
 
     let mut watcher_lock = state.watcher.lock().map_err(|e| e.to_string())?;
     let mut watched_path_lock = state.watched_path.lock().map_err(|e| e.to_string())?;
@@ -141,7 +159,7 @@ pub fn watch_vault(
                 }
             }
             Err(e) => {
-                eprintln!("[snipnote watcher error]: {}", e);
+                crate::logger::error("watcher", &format!("notify error: {}", e));
             }
         },
         Config::default(),
@@ -166,6 +184,7 @@ pub fn unwatch_vault(state: State<'_, VaultWatcherState>) -> Result<(), String> 
 
     *watcher_lock = None;
     *watched_path_lock = None;
+    crate::logger::debug("watcher", "unwatched vault");
 
     Ok(())
 }

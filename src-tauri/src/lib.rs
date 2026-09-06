@@ -1,4 +1,5 @@
 pub mod boot;
+pub mod logger;
 pub mod session;
 pub mod storage;
 pub mod watcher;
@@ -209,6 +210,8 @@ pub fn run() {
             session::save_session,
             watcher::watch_vault,
             watcher::unwatch_vault,
+            logger::frontend_log,
+            logger::get_log_path,
             add_recent_vault,
             reveal_window,
         ])
@@ -258,6 +261,8 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            let log_path = logger::init(app.handle());
+            logger::info("app", &format!("starting, log={}", log_path.to_string_lossy()));
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 // Empty window title: with Overlay style macOS would draw the
                 // title text centered over our custom TabBar. App/menu identity
@@ -267,9 +272,6 @@ pub fn run() {
                 .min_inner_size(1100.0, 600.0)
                 .transparent(true)
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
-                // Start hidden: the frontend reveals the window after first
-                // paint so users never see an empty webview flash.
-                .visible(false)
                 .build()?;
 
             {
@@ -318,24 +320,20 @@ pub fn run() {
             build_and_set_menu(app.handle())?;
 
             // Preload session + vault tree + open note contents in parallel
-            // with window reveal, so the frontend's first data calls resolve
+            // with window creation, so the frontend's first data calls resolve
             // from ready memory instead of cold disk reads.
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || boot::warm_boot_cache(handle));
             }
 
-            // The window starts hidden (see `visible(false)` above) so users
-            // never see an empty webview. The frontend invokes `reveal_window`
-            // as soon as React has mounted and restored the session. A fallback
-            // safety timer reveals the window after 3 seconds if for any reason
-            // the frontend signal was delayed.
-            if let Some(w) = app.get_webview_window("main") {
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(3000));
-                    let _ = w.show();
-                });
-            }
+            // NOTE: the window must start visible (the default). Starting
+            // hidden via `visible(false)` and showing it later leaves
+            // WebKit's page in `visibilityState == hidden` on macOS, which
+            // suspends JS timers/modules indefinitely — the window appears
+            // blank and unresponsive even after `show()`. The frontend still
+            // calls `reveal_window` after session restore as a harmless
+            // no-op for focus purposes.
 
             Ok(())
         })

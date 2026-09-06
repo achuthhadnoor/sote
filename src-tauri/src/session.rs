@@ -28,7 +28,9 @@ fn get_session_file_path(app: &AppHandle) -> Result<PathBuf, String> {
 
 pub fn sanitize_session(mut session: SessionState) -> SessionState {
     if let Some(ref vault_path) = session.last_vault_path {
-        if !Path::new(vault_path).is_dir() {
+        let p = Path::new(vault_path);
+        // Ensure path exists, is a directory, and can be read (handles EPERM/permission denied)
+        if !p.is_dir() || fs::read_dir(p).is_err() {
             session.last_vault_path = None;
             session.active_file_path = None;
             session.open_tabs = None;
@@ -74,23 +76,31 @@ pub fn get_session(app: AppHandle) -> Result<SessionState, String> {
     // Serve preloaded boot data when available (one-shot).
     if let Some(cache) = app.try_state::<crate::boot::BootCache>() {
         if let Some(cached) = cache.take_session() {
+            crate::logger::debug("session", "get_session served from boot cache");
             return Ok(cached);
         }
     }
     let session_path = get_session_file_path(&app)?;
     if !session_path.exists() {
+        crate::logger::debug("session", "no session.json, returning default");
         return Ok(SessionState::default());
     }
 
     let contents = match fs::read_to_string(&session_path) {
         Ok(c) => c,
-        Err(_) => return Ok(SessionState::default()),
+        Err(e) => {
+            crate::logger::warn("session", &format!("failed to read session.json: {}", e));
+            return Ok(SessionState::default());
+        }
     };
 
-    let session: SessionState = serde_json::from_str(&contents)
-        .unwrap_or_default();
-
-    Ok(sanitize_session(session))
+    match serde_json::from_str::<SessionState>(&contents) {
+        Ok(session) => Ok(sanitize_session(session)),
+        Err(e) => {
+            crate::logger::warn("session", &format!("corrupt session.json, returning default: {}", e));
+            Ok(SessionState::default())
+        }
+    }
 }
 
 #[tauri::command]
@@ -99,9 +109,26 @@ pub fn save_session(app: AppHandle, session: SessionState) -> Result<(), String>
     let serialized = serde_json::to_string_pretty(&session)
         .map_err(|e| format!("Failed to serialize session: {}", e))?;
 
-    fs::write(&session_path, serialized)
-        .map_err(|e| format!("Failed to write session file: {}", e))?;
+    let temp_path = session_path.with_extension("tmp");
+    if let Err(e) = fs::write(&temp_path, serialized) {
+        crate::logger::error("session", &format!("failed to write session tmp: {}", e));
+        return Err(format!("Failed to write temporary session file: {}", e));
+    }
 
+    if let Err(e) = fs::rename(&temp_path, &session_path) {
+        crate::logger::error("session", &format!("failed to replace session.json: {}", e));
+        return Err(format!("Failed to atomically replace session file: {}", e));
+    }
+
+    crate::logger::debug(
+        "session",
+        &format!(
+            "saved vault={:?} active={:?} tabs={}",
+            session.last_vault_path,
+            session.active_file_path,
+            session.open_tabs.as_ref().map(|t| t.len()).unwrap_or(0)
+        ),
+    );
     Ok(())
 }
 
@@ -136,5 +163,19 @@ mod tests {
         assert_eq!(sanitized.last_vault_path, None);
         assert_eq!(sanitized.active_file_path, None);
         assert_eq!(sanitized.open_tabs, None);
+    }
+
+    #[test]
+    fn test_sanitize_session_with_inaccessible_vault() {
+        let json = r#"{
+            "lastVaultPath": "/Users/achuth/data/Developer/apps/test",
+            "activeFilePath": "/Users/achuth/data/Developer/apps/Readme.md",
+            "openTabs": [
+                "/Users/achuth/data/Developer/apps/Readme.md"
+            ]
+        }"#;
+        let session: SessionState = serde_json::from_str(json).unwrap();
+        let sanitized = sanitize_session(session);
+        assert_eq!(sanitized.last_vault_path, None);
     }
 }

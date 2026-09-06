@@ -14,7 +14,10 @@ import { useEditorStore } from "./stores/useEditorStore";
 import { useThemeStore } from "./stores/useThemeStore";
 import { useRecentNotesStore } from "./stores/useRecentNotesStore";
 import { SessionState } from "./types/session";
+import { createLogger } from "./lib/logger";
 import "./App.css";
+
+const log = createLogger("app");
 
 function App() {
   const vaultPath = useVaultStore((state) => state.vaultPath);
@@ -57,9 +60,16 @@ function App() {
 
   // Restore session on mount — restores vault + open tabs
   useEffect(() => {
+    // Safety timer: always reveal the window promptly so large vaults never cause the app to look stuck
+    const revealTimeout = setTimeout(() => {
+      invoke("reveal_window").catch(() => {});
+    }, 150);
+
     async function restoreSession() {
       try {
+        log.debug("restoreSession start");
         const session = await invoke<SessionState>("get_session");
+        log.debug("restoreSession got session:", session.lastVaultPath ?? "(no vault)");
         if (session.lastVaultPath) {
           await loadVault(session.lastVaultPath);
           const openTabs = (session as any).openTabs as string[] | null | undefined;
@@ -81,8 +91,9 @@ function App() {
           }
         }
       } catch (err) {
-        console.error("Failed to restore session:", err);
+        log.error("Failed to restore session:", err);
       } finally {
+        clearTimeout(revealTimeout);
         isInitialized.current = true;
         // Reveal native window now that initial session, vault, and active tabs are set
         invoke("reveal_window").catch(() => {});
@@ -90,6 +101,7 @@ function App() {
     }
 
     restoreSession();
+    return () => clearTimeout(revealTimeout);
   }, [loadVault, selectNote, setTabs]);
 
   // Persist session on state changes — now includes open tabs (only real files, drafts with no disk file are not persisted)
@@ -103,7 +115,7 @@ function App() {
         openTabs: tabs.filter((t) => !t.isNew).map((t) => t.path),
       },
     }).catch((err) => {
-      console.error("Failed to save session:", err);
+      log.error("Failed to save session:", err);
     });
   }, [vaultPath, activePath, tabs]);
 
@@ -124,6 +136,7 @@ function App() {
       "vault-changed",
       async (event) => {
         const changedPath = event.payload.path;
+        log.debug("vault-changed:", event.payload.kind, changedPath);
         const currentVault = useVaultStore.getState().vaultPath;
         const currentActive = useTabStore.getState().activePath;
         const isDirty = useEditorStore.getState().isDirty;
@@ -316,7 +329,7 @@ function App() {
             } catch {}
             // Await all copies before refreshing to avoid race
             const results = await Promise.allSettled(
-              paths.map((p) => invoke("copy_external_file", { srcPath: p, destDir }).catch((e) => { console.error("copy_external_file failed", e); throw e; }))
+              paths.map((p) => invoke("copy_external_file", { srcPath: p, destDir }).catch((e) => { log.error("copy_external_file failed", e); throw e; }))
             );
             void results;
             // Refresh tree within 500ms per AC — await vault reload
@@ -359,7 +372,7 @@ function App() {
     await Promise.allSettled(
       validPaths.map(({ srcPath, destDir }) =>
         invoke("copy_external_file", { srcPath, destDir }).catch((err) => {
-          console.error("copy_external_file fallback failed", err);
+          log.error("copy_external_file fallback failed", err);
         })
       )
     );

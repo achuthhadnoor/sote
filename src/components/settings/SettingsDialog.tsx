@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Theme, useThemeStore } from "../../stores/useThemeStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
+import { formatLogsAsText, getRecentLogs, getBackendLogPath, createLogger, isStreamLogs, setStreamLogs } from "../../lib/logger";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -22,6 +23,10 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [logPath, setLogPath] = useState<string | null>(null);
+  const [logStatus, setLogStatus] = useState<string | null>(null);
+  const [streamToTerminal, setStreamToTerminal] = useState(isStreamLogs());
+  const log = createLogger("settings");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,6 +46,11 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
         const enabled = await isEnabled();
         setAutostartEnabled(enabled);
       } catch {}
+    })();
+    // Resolve backend log file location for debugging
+    (async () => {
+      const p = await getBackendLogPath();
+      if (p) setLogPath(p);
     })();
   }, [isOpen]);
 
@@ -260,6 +270,78 @@ export const SettingsDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                   aria-hidden="true"
                 />
               </div>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">Diagnostics</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Debug logs live at <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">{logPath || "…loading"}</code>
+              {import.meta.env.DEV ? " (debug level in dev)" : " (info level in production)"}.
+              Frontend warnings/errors are always appended to the same file.
+            </p>
+            <div
+              className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                const next = !streamToTerminal;
+                setStreamLogs(next);
+                setStreamToTerminal(next);
+                log.info(next ? "Log streaming to terminal enabled" : "Log streaming to terminal disabled");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  const next = !streamToTerminal;
+                  setStreamLogs(next);
+                  setStreamToTerminal(next);
+                }
+              }}
+              aria-pressed={streamToTerminal}
+              aria-label="Stream logs to terminal toggle"
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[13px] font-semibold text-foreground">Stream logs to terminal</span>
+                <span className="text-[11px] text-muted-foreground leading-normal">Forward all frontend logs to the log file and dev terminal (on by default in dev)</span>
+              </div>
+              <Switch checked={streamToTerminal} onCheckedChange={(checked) => { setStreamLogs(checked); setStreamToTerminal(checked); }} onClick={(e) => e.stopPropagation()} aria-hidden="true" />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="text-xs"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(formatLogsAsText(getRecentLogs(200)));
+                    setLogStatus("Copied recent logs ✓");
+                  } catch (e) {
+                    log.error("Copy logs failed", e);
+                    setLogStatus("Copy failed");
+                  }
+                  setTimeout(() => setLogStatus(null), 2500);
+                }}
+              >
+                Copy recent logs
+              </Button>
+              <Button
+                variant="outline"
+                className="text-xs"
+                onClick={async () => {
+                  try {
+                    const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+                    const p = logPath || (await getBackendLogPath());
+                    if (p) await revealItemInDir(p);
+                    else setLogStatus("Log path unavailable");
+                  } catch (e) {
+                    log.error("Reveal log file failed", e);
+                    setLogStatus("Reveal failed");
+                  }
+                }}
+              >
+                Show log file
+              </Button>
+              {logStatus && <span className="text-[11px] text-muted-foreground self-center">{logStatus}</span>}
             </div>
           </section>
 

@@ -9,6 +9,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronRight, Folder, FolderOpen } from "lucide-react";
+import { createLogger } from "../../lib/logger";
+
+const log = createLogger("file-tree");
 
 interface FileTreeProps {
   nodes: VaultNode[];
@@ -180,7 +183,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
     if (files.length === 0) return;
     const valid = files.map((f) => (f as any).path as string | undefined).filter((p): p is string => !!p && typeof p === "string");
     if (valid.length === 0) return;
-    await Promise.allSettled(valid.map((srcPath) => invoke("copy_external_file", { srcPath, destDir: node.path }).catch((err) => console.error("copy_external_file failed", err))));
+    await Promise.allSettled(valid.map((srcPath) => invoke("copy_external_file", { srcPath, destDir: node.path }).catch((err) => { log.error("copy_external_file failed", err); throw err; })));
     try {
       await useVaultStore.getState().loadVault(vp);
     } catch {}

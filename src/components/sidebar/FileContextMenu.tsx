@@ -4,6 +4,9 @@ import { revealItemInDir, openPath } from "@tauri-apps/plugin-opener";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { VaultNode } from "../../types/vault";
+import { createLogger } from "../../lib/logger";
+
+const log = createLogger("context-menu");
 
 interface Props {
   node: VaultNode | null; // null means empty area (vault root)
@@ -39,7 +42,7 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
       const target = node ? node.path : vaultPath!;
       await revealItemInDir(target);
     } catch (e) {
-      console.error("Reveal failed", e);
+      log.error("Reveal failed", e);
     }
     onClose();
   };
@@ -49,7 +52,7 @@ export const FileContextMenu: React.FC<Props> = ({ node, x, y, onClose }) => {
       const target = node ? node.path : vaultPath!;
       await openPath(target);
     } catch (e) {
-      console.error("Open failed", e);
+      log.error("Open failed", e);
     }
     onClose();
   };

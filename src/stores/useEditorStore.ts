@@ -1,6 +1,8 @@
 import { create } from "zustand";
-import { invoke } from "@tauri-apps/api/core";
 import { NoteEnvelope } from "../types/note";
+import { createLogger, loggedInvoke } from "../lib/logger";
+
+const log = createLogger("editor");
 
 interface EditorState {
   frontmatter: string | null;
@@ -42,8 +44,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   loadNote: async (path: string) => {
     set({ isLoading: true, error: null });
+    log.debug("loadNote start:", path);
     try {
-      const envelope = await invoke<NoteEnvelope>("read_file", {
+      const envelope = await loggedInvoke<NoteEnvelope>("editor", "read_file", {
         filePath: path,
       });
 
@@ -61,6 +64,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return envelope.body;
     } catch (err: any) {
       const errMsg = err?.message || String(err);
+      log.error("loadNote failed:", path, errMsg);
       set({
         isLoading: false,
         error: errMsg,
@@ -98,7 +102,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ isSaving: true });
 
     try {
-      await invoke("write_file", {
+      await loggedInvoke("editor", "write_file", {
         filePath,
         body: snapshotBody,
         frontmatter: snapshotFrontmatter,
@@ -121,6 +125,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       try {
         (navigator as any).vibrate?.([30, 20, 30]);
       } catch {}
+      log.error("saveNow failed:", filePath, err?.message || String(err));
       set({
         isSaving: false,
         error: err?.message || String(err),

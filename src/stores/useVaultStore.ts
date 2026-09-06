@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { VaultNode } from "../types/vault";
+import { createLogger, loggedInvoke } from "../lib/logger";
+
+const log = createLogger("vault");
 
 interface VaultState {
   vaultPath: string | null;
@@ -32,20 +35,24 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         await useVaultStore.getState().loadVault(selected);
       }
     } catch (err: any) {
+      log.error("openVaultDialog failed:", err?.message || String(err));
       set({ error: err?.message || String(err) });
     }
   },
 
   loadVault: async (path: string) => {
     set({ isLoading: true, error: null });
+    log.debug("loadVault start:", path);
     try {
-      const tree = await invoke<VaultNode[]>("scan_vault", { vaultPath: path });
+      const tree = await loggedInvoke<VaultNode[]>("vault", "scan_vault", { vaultPath: path });
       set({ vaultPath: path, tree, isLoading: false, error: null });
+      log.info("loadVault ok:", path, `(${tree.length} top-level nodes)`);
       // Start watching vault directory for external changes
       invoke("watch_vault", { vaultPath: path }).catch((err) => {
-        console.error("Failed to start vault file watcher:", err);
+        log.error("Failed to start vault file watcher:", err);
       });
     } catch (err: any) {
+      log.error("loadVault failed:", path, err?.message || String(err));
       set({
         error: err?.message || String(err),
         isLoading: false,
@@ -62,12 +69,13 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     }
 
     try {
-      const newPath = await invoke<string>("create_note", {
+      const newPath = await loggedInvoke<string>("vault", "create_note", {
         vaultPath: currentPath,
       });
       await get().loadVault(currentPath);
       return newPath;
     } catch (err: any) {
+      log.error("createNote failed:", err?.message || String(err));
       set({ error: err?.message || String(err) });
       return null;
     }

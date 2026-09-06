@@ -77,27 +77,78 @@ pub fn reassemble_envelope(body: &str, frontmatter: Option<&str>) -> String {
     }
 }
 
+/// Ignored directory names that should never be traversed during vault scans.
+const IGNORED_DIRS: &[&str] = &[
+    "node_modules",
+    ".git",
+    ".svn",
+    ".hg",
+    "target",
+    "dist",
+    "build",
+    "out",
+    ".next",
+    ".nuxt",
+    ".output",
+    ".turbo",
+    ".cache",
+    ".snipnote",
+];
+
+pub fn is_ignored_dir(name: &str) -> bool {
+    IGNORED_DIRS.iter().any(|&ignored| name.eq_ignore_ascii_case(ignored))
+}
+
 /// Recursively scans a directory, returning a sorted tree of directories and markdown files.
 /// - Shows dot-folders (e.g. `.obsidian`, `.templates`) if they contain markdown
 /// - Hidden files (dot-files like `.DS_Store`, `.hidden.md`) are still excluded
+/// - Heavy directories (node_modules, target, .git, etc.) are skipped
+/// - Symlinked directories are skipped to avoid cycles
+/// - Inaccessible subdirectories are skipped gracefully
 /// - Hides folders which do not contain any `.md`/`.markdown` files in their subtree
 pub fn scan_directory(dir_path: &Path) -> Result<Vec<VaultNode>, String> {
     if !dir_path.is_dir() {
         return Err(format!("Path is not a directory: {:?}", dir_path));
     }
 
-    let entries = fs::read_dir(dir_path).map_err(|e| e.to_string())?;
+    let entries = match fs::read_dir(dir_path) {
+        Ok(e) => e,
+        Err(e) => return Err(format!("Failed to read directory {:?}: {}", dir_path, e)),
+    };
     let mut nodes = Vec::new();
 
     for entry in entries {
-        let entry = entry.map_err(|e| e.to_string())?;
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue, // Skip unreadable entries gracefully
+        };
         let path = entry.path();
         let file_name = entry.file_name().to_string_lossy().to_string();
-        let is_dir = path.is_dir();
 
-        if is_dir {
+        // Check symlinks using symlink_metadata to prevent cycles and symlink attacks
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+
+        if file_type.is_symlink() {
+            // If it points to a directory, skip to prevent recursion loops
+            if path.is_dir() {
+                continue;
+            }
+        }
+
+        if file_type.is_dir() {
+            // Skip heavy build/system directories
+            if is_ignored_dir(&file_name) {
+                continue;
+            }
+
             // Include dot-folders now; hide later if they contain no markdown
-            let children = scan_directory(&path)?;
+            let children = match scan_directory(&path) {
+                Ok(c) => c,
+                Err(_) => continue, // Gracefully ignore subdirectories with permission errors
+            };
             if children.is_empty() {
                 // Hide folders which do not have .md files in subtree
                 continue;
@@ -108,7 +159,7 @@ pub fn scan_directory(dir_path: &Path) -> Result<Vec<VaultNode>, String> {
                 is_directory: true,
                 children: Some(children),
             });
-        } else if path.is_file() {
+        } else if file_type.is_file() || (file_type.is_symlink() && path.is_file()) {
             // Still skip hidden files (dot-files)
             if file_name.starts_with('.') {
                 continue;
@@ -144,14 +195,31 @@ pub fn scan_vault(app: tauri::AppHandle, vault_path: String) -> Result<Vec<Vault
     // Serve preloaded boot data when available (one-shot).
     if let Some(cache) = app.try_state::<crate::boot::BootCache>() {
         if let Some(tree) = cache.take_tree(&vault_path) {
+            crate::logger::debug("storage", &format!("scan_vault served from boot cache: {}", vault_path));
             return Ok(tree);
         }
     }
+    let started = std::time::Instant::now();
+    crate::logger::debug("storage", &format!("scan_vault start: {}", vault_path));
     let path = PathBuf::from(&vault_path);
-    let canonical = path
-        .canonicalize()
-        .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
-    scan_directory(&canonical)
+    let target_path = path.canonicalize().unwrap_or_else(|_| path.clone());
+    if !target_path.is_dir() {
+        crate::logger::warn("storage", &format!("scan_vault not a directory: {:?}", target_path));
+        return Err(format!("Vault path is not a directory: {:?}", target_path));
+    }
+    match scan_directory(&target_path) {
+        Ok(tree) => {
+            crate::logger::info(
+                "storage",
+                &format!("scan_vault ok: {} top-level nodes in {:?}: {}", tree.len(), started.elapsed(), vault_path),
+            );
+            Ok(tree)
+        }
+        Err(e) => {
+            crate::logger::error("storage", &format!("scan_vault failed for {}: {}", vault_path, e));
+            Err(e)
+        }
+    }
 }
 
 /// Tauri command to read a markdown file and return its NoteEnvelope.
@@ -160,24 +228,29 @@ pub fn read_file(app: tauri::AppHandle, file_path: String) -> Result<NoteEnvelop
     // Serve preloaded boot data when available (one-shot).
     if let Some(cache) = app.try_state::<crate::boot::BootCache>() {
         if let Some(env) = cache.take_file(&file_path) {
+            crate::logger::debug("storage", &format!("read_file served from boot cache: {}", file_path));
             return Ok(env);
         }
     }
-    read_file_from_disk(&file_path)
+    match read_file_from_disk(&file_path) {
+        Ok(env) => Ok(env),
+        Err(e) => {
+            crate::logger::warn("storage", &format!("read_file failed for {}: {}", file_path, e));
+            Err(e)
+        }
+    }
 }
 
 /// Disk read backing `read_file` (also used by tests and boot preload).
 pub fn read_file_from_disk(file_path: &str) -> Result<NoteEnvelope, String> {
     let path = PathBuf::from(file_path);
-    let canonical = path
-        .canonicalize()
-        .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
+    let target_path = path.canonicalize().unwrap_or_else(|_| path.clone());
 
-    if !canonical.is_file() {
-        return Err(format!("Path is not a file: {:?}", canonical));
+    if !target_path.is_file() {
+        return Err(format!("Path is not a file: {:?}", target_path));
     }
 
-    let contents = fs::read_to_string(&canonical)
+    let contents = fs::read_to_string(&target_path)
         .map_err(|e| format!("Failed to read file: {}", e))?;
 
     Ok(parse_note_envelope(&contents))
@@ -218,9 +291,20 @@ pub fn write_file(
     frontmatter: Option<String>,
 ) -> Result<(), String> {
     let dest_path = PathBuf::from(&file_path);
-    internal_write_file(&dest_path, &body, frontmatter.as_deref())?;
-    state.echo_cache.record_write(&dest_path);
-    Ok(())
+    match internal_write_file(&dest_path, &body, frontmatter.as_deref()) {
+        Ok(()) => {
+            crate::logger::debug(
+                "storage",
+                &format!("write_file ok ({} body bytes): {}", body.len(), file_path),
+            );
+            state.echo_cache.record_write(&dest_path);
+            Ok(())
+        }
+        Err(e) => {
+            crate::logger::error("storage", &format!("write_file failed for {}: {}", file_path, e));
+            Err(e)
+        }
+    }
 }
 
 /// Internal helper for creating an untitled note.
@@ -259,9 +343,17 @@ pub fn create_note(
     vault_path: String,
 ) -> Result<String, String> {
     let path = PathBuf::from(&vault_path);
-    let candidate = internal_create_note(&path)?;
-    state.echo_cache.record_write(&candidate);
-    Ok(candidate.to_string_lossy().to_string())
+    match internal_create_note(&path) {
+        Ok(candidate) => {
+            crate::logger::info("storage", &format!("create_note: {:?}", candidate));
+            state.echo_cache.record_write(&candidate);
+            Ok(candidate.to_string_lossy().to_string())
+        }
+        Err(e) => {
+            crate::logger::error("storage", &format!("create_note failed in {}: {}", vault_path, e));
+            Err(e)
+        }
+    }
 }
 
 /// Tauri command to rename a file or folder.
@@ -269,6 +361,7 @@ pub fn create_note(
 pub fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
     let old = PathBuf::from(&old_path);
     if !old.exists() {
+        crate::logger::warn("storage", &format!("rename_path missing source: {}", old_path));
         return Err(format!("Path does not exist: {:?}", old));
     }
     let parent = old.parent().ok_or_else(|| "Cannot rename root".to_string())?;
@@ -279,8 +372,16 @@ pub fn rename_path(old_path: String, new_name: String) -> Result<String, String>
     if new_path.exists() {
         return Err(format!("Target already exists: {:?}", new_path));
     }
-    fs::rename(&old, &new_path).map_err(|e| e.to_string())?;
-    Ok(new_path.to_string_lossy().to_string())
+    match fs::rename(&old, &new_path) {
+        Ok(()) => {
+            crate::logger::info("storage", &format!("rename {:?} -> {:?}", old, new_path));
+            Ok(new_path.to_string_lossy().to_string())
+        }
+        Err(e) => {
+            crate::logger::error("storage", &format!("rename_path {:?} -> {:?} failed: {}", old, new_path, e));
+            Err(e.to_string())
+        }
+    }
 }
 
 /// Tauri command to delete a file or folder (recursive for folders).
@@ -288,14 +389,24 @@ pub fn rename_path(old_path: String, new_name: String) -> Result<String, String>
 pub fn delete_path(path: String) -> Result<(), String> {
     let p = PathBuf::from(&path);
     if !p.exists() {
+        crate::logger::warn("storage", &format!("delete_path missing: {}", path));
         return Err(format!("Path does not exist: {:?}", p));
     }
-    if p.is_dir() {
-        fs::remove_dir_all(&p).map_err(|e| e.to_string())?;
+    let res = if p.is_dir() {
+        fs::remove_dir_all(&p).map_err(|e| e.to_string())
     } else {
-        fs::remove_file(&p).map_err(|e| e.to_string())?;
+        fs::remove_file(&p).map_err(|e| e.to_string())
+    };
+    match res {
+        Ok(()) => {
+            crate::logger::info("storage", &format!("delete_path ok: {}", path));
+            Ok(())
+        }
+        Err(e) => {
+            crate::logger::error("storage", &format!("delete_path failed for {}: {}", path, e));
+            Err(e)
+        }
     }
-    Ok(())
 }
 
 /// Tauri command to create an empty file at a given directory with a name.
@@ -322,6 +433,7 @@ pub fn create_file_at_path(
     }
     fs::write(&candidate, "").map_err(|e| e.to_string())?;
     state.echo_cache.record_write(&candidate);
+    crate::logger::info("storage", &format!("create_file_at_path: {:?}", candidate));
     Ok(candidate.to_string_lossy().to_string())
 }
 
@@ -340,6 +452,7 @@ pub fn create_folder_at_path(dir_path: String, folder_name: String) -> Result<St
         return Err(format!("Already exists: {:?}", new_folder));
     }
     fs::create_dir_all(&new_folder).map_err(|e| e.to_string())?;
+    crate::logger::info("storage", &format!("create_folder_at_path: {:?}", new_folder));
     Ok(new_folder.to_string_lossy().to_string())
 }
 
@@ -407,6 +520,7 @@ pub fn copy_external_file(
         let dest_canon = dest.canonicalize().unwrap_or_else(|_| dest.clone());
         let cand_canon = candidate.clone();
         if dest_canon.starts_with(&src_canon) || cand_canon.starts_with(&src_canon) {
+            crate::logger::warn("storage", &format!("copy_external_file refused self-copy: {:?} -> {:?}", src, dest));
             return Err("Cannot copy a directory into itself".to_string());
         }
         copy_dir_recursive(&src, &candidate).map_err(|e| e.to_string())?;
@@ -424,6 +538,7 @@ pub fn copy_external_file(
         fs::copy(&src, &candidate).map_err(|e| e.to_string())?;
         state.echo_cache.record_write(&candidate);
     }
+    crate::logger::info("storage", &format!("copy_external_file {:?} -> {:?}", src, candidate));
     Ok(candidate.to_string_lossy().to_string())
 }
 
