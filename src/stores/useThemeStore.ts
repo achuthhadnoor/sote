@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -37,6 +38,11 @@ function applyThemeToDom(effective: "light" | "dark") {
   });
 }
 
+/** Keep the native window chrome (titlebar / traffic lights / menus) in sync. */
+function syncNativeWindowTheme(theme: Theme) {
+  invoke("set_window_theme", { theme }).catch(() => {});
+}
+
 function loadInitialTheme(): Theme {
   try {
     const saved = localStorage.getItem("snipnote-theme") as Theme | null;
@@ -69,6 +75,7 @@ export const useThemeStore = create<ThemeState>((set) => ({
       } catch {}
       const effective = computeEffective(t);
       applyThemeToDom(effective);
+      syncNativeWindowTheme(t);
       return { theme: t, effectiveTheme: effective };
     }),
   setBgOpacity: (opacity) => {
@@ -88,6 +95,7 @@ if (typeof window !== "undefined") {
   const eff = computeEffective(initial);
   document.documentElement.setAttribute("data-theme", eff);
   document.documentElement.style.colorScheme = eff;
+  syncNativeWindowTheme(initial);
 
   const initialOpacity = loadInitialBgOpacity();
   document.documentElement.style.setProperty("--bg-opacity", `${initialOpacity / 100}`);
@@ -99,6 +107,7 @@ if (typeof window !== "undefined") {
       const next = getSystemTheme();
       applyThemeToDom(next);
       useThemeStore.setState({ effectiveTheme: next });
+      // Native window is already on system theme (None); no forced override needed.
     }
   });
 }

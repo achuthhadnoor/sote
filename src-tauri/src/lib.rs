@@ -147,6 +147,26 @@ fn reveal_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Sync the native window/chrome theme with the app appearance preference.
+/// `"system"` clears the forced theme so the OS preference is used.
+#[tauri::command]
+fn set_window_theme(app: AppHandle, theme: String) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    let native = match theme.as_str() {
+        "light" => Some(tauri::Theme::Light),
+        "dark" => Some(tauri::Theme::Dark),
+        "system" => None,
+        other => return Err(format!("invalid theme: {other}")),
+    };
+    window
+        .set_theme(native)
+        .map_err(|e| format!("failed to set window theme: {e}"))?;
+    crate::logger::debug("app", &format!("window theme set to {theme}"));
+    Ok(())
+}
+
 #[tauri::command]
 fn add_recent_vault(app: AppHandle, vault_path: String) -> Result<(), String> {
     save_recent_vaults(&app, vault_path.clone())?;
@@ -216,6 +236,7 @@ pub fn run() {
             logger::get_log_path,
             add_recent_vault,
             reveal_window,
+            set_window_theme,
         ])
         .on_menu_event(|app, event| {
             use tauri::{Emitter, Manager};
