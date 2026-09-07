@@ -87,7 +87,7 @@ const CSS_PASSTHROUGH = new Set([
   "context-stroke",
 ]);
 
-const MERMAID_CACHE_VERSION = "mermaid-render-v4";
+const MERMAID_CACHE_VERSION = "mermaid-render-v5";
 const MERMAID_SANITIZE_CONFIG = {
   USE_PROFILES: { svg: true, svgFilters: true },
   FORBID_TAGS: ["script", "foreignObject", "iframe", "object", "embed"],
@@ -298,11 +298,12 @@ function toMonochrome(svg: string, palette: Palette, darkMode: boolean): string 
 
 /* ── Shared Mermaid render pipeline ────────────────────────────────────────
    Mermaid configuration is process-global. The queue therefore owns module
-   loading, initialization, and the complete light/dark render pair so no
-   other diagram can interleave between those operations. */
+   loading, initialization, and renders so no other diagram can interleave
+   between initialize + render for a given theme. */
 let mermaidQueue: Promise<void> = Promise.resolve();
 
 type MermaidApi = typeof import("mermaid")["default"];
+type ThemePair = { light?: string; dark?: string };
 
 function enqueueMermaid<T>(task: (mermaid: MermaidApi) => Promise<T>): Promise<T> {
   const result = mermaidQueue.then(async () => task(await getMermaid()), async () => task(await getMermaid()));
@@ -313,9 +314,11 @@ function enqueueMermaid<T>(task: (mermaid: MermaidApi) => Promise<T>): Promise<T
   return result;
 }
 
-const diagramCache = new Map<string, { light: string; dark: string }>();
-const DIAGRAM_CACHE_LIMIT = 50;
+const diagramCache = new Map<string, ThemePair>();
+const DIAGRAM_CACHE_LIMIT = 80;
 let renderSequence = 0;
+/** Skip re-initialize when consecutive renders share the same theme. */
+let lastMermaidInitKey: "light" | "dark" | null = null;
 
 function sanitizeSvg(svg: string): string {
   return DOMPurify.sanitize(svg, MERMAID_SANITIZE_CONFIG);
@@ -461,13 +464,12 @@ async function getMermaid() {
   return mermaidModule;
 }
 
-async function renderDiagram(
+function ensureMermaidInitialized(
   mermaid: MermaidApi,
-  renderId: string,
-  text: string,
-  themeVars: Record<string, string | boolean>,
-  palette: Palette
-): Promise<string> {
+  themeKey: "light" | "dark",
+  themeVars: Record<string, string | boolean>
+) {
+  if (lastMermaidInitKey === themeKey) return;
   mermaid.initialize({
     startOnLoad: false,
     theme: "base",
@@ -481,26 +483,61 @@ async function renderDiagram(
     sequence: { useMaxWidth: false, showSequenceNumbers: true },
     flowchart: { useMaxWidth: false, htmlLabels: false },
   });
+  lastMermaidInitKey = themeKey;
+}
+
+async function renderDiagram(
+  mermaid: MermaidApi,
+  renderId: string,
+  text: string,
+  themeKey: "light" | "dark",
+  themeVars: Record<string, string | boolean>,
+  palette: Palette
+): Promise<string> {
+  ensureMermaidInitialized(mermaid, themeKey, themeVars);
   const { svg } = await mermaid.render(renderId, text);
-  const darkMode = themeVars.darkMode === true;
+  const darkMode = themeKey === "dark";
   return sanitizeSvg(toMonochrome(sanitizeSvg(svg), palette, darkMode));
 }
 
-async function renderBothThemes(source: string, renderId: string): Promise<{ light: string; dark: string }> {
+async function renderTheme(source: string, renderId: string, themeKey: "light" | "dark"): Promise<string> {
   return enqueueMermaid(async (mermaid) => {
-    const light = await renderDiagram(mermaid, `${renderId}-light`, source, LIGHT_VARS, APP.light);
-    const dark = await renderDiagram(mermaid, `${renderId}-dark`, source, DARK_VARS, APP.dark);
-    return { light, dark };
+    if (themeKey === "dark") {
+      return renderDiagram(mermaid, `${renderId}-dark`, source, "dark", DARK_VARS, APP.dark);
+    }
+    return renderDiagram(mermaid, `${renderId}-light`, source, "light", LIGHT_VARS, APP.light);
   });
+}
+
+function putDiagramCache(key: string, patch: ThemePair) {
+  const prev = diagramCache.get(key) ?? {};
+  const next = { ...prev, ...patch };
+  diagramCache.delete(key);
+  diagramCache.set(key, next);
+  while (diagramCache.size > DIAGRAM_CACHE_LIMIT) {
+    const oldest = diagramCache.keys().next();
+    if (oldest.done) break;
+    diagramCache.delete(oldest.value);
+  }
 }
 
 function cacheKeyFor(source: string): string {
   return `${MERMAID_CACHE_VERSION}:${source}`;
 }
 
+function scheduleIdle(fn: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  if ("requestIdleCallback" in window) {
+    const id = window.requestIdleCallback(() => fn(), { timeout: 1500 });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = window.setTimeout(fn, 120);
+  return () => clearTimeout(id);
+}
+
 export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   const isMermaid = node.attrs.language === "mermaid";
-  const [rendered, setRendered] = useState<{ source: string; light: string; dark: string } | null>(null);
+  const [rendered, setRendered] = useState<{ source: string; light: string | null; dark: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isFitToWidth, setIsFitToWidth] = useState(true);
@@ -508,9 +545,12 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [copied, setCopied] = useState(false);
+  /** Only compile Mermaid once the block is near the viewport. */
+  const [isNearViewport, setIsNearViewport] = useState(false);
   const instanceIdRef = useRef(`mm-${Math.random().toString(36).slice(2, 10)}`);
   const requestIdRef = useRef(0);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const dragStartRef = useRef<{
     pointerId: number;
@@ -544,8 +584,30 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   // Single source of truth for theme — the store already mirrors data-theme.
   const isDark = useThemeStore((state) => state.effectiveTheme) === "dark";
 
+  // Viewport gate: off-screen diagrams stay as placeholders until scrolled near.
   useEffect(() => {
     if (!isMermaid) return;
+    const el = rootRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setIsNearViewport(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsNearViewport(true);
+          io.disconnect();
+        }
+      },
+      { root: null, rootMargin: "600px 0px", threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [isMermaid]);
+
+  useEffect(() => {
+    if (!isMermaid || !isNearViewport || isEditing) return;
     const requestId = ++requestIdRef.current;
     setError(null);
     setZoomLevel(1);
@@ -554,48 +616,80 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
       setRendered(null);
       return;
     }
+
     const key = cacheKeyFor(source);
     const cached = diagramCache.get(key);
-    if (cached) {
-      diagramCache.delete(key);
-      diagramCache.set(key, cached);
+    const activeKey: "light" | "dark" = isDark ? "dark" : "light";
+    const otherKey: "light" | "dark" = isDark ? "light" : "dark";
+
+    const applyPair = (pair: ThemePair) => {
       setRendered({
         source,
-        light: namespaceSvgIds(cached.light, instanceIdRef.current),
-        dark: namespaceSvgIds(cached.dark, instanceIdRef.current),
+        light: pair.light ? namespaceSvgIds(pair.light, instanceIdRef.current) : null,
+        dark: pair.dark ? namespaceSvgIds(pair.dark, instanceIdRef.current) : null,
       });
-      return;
+    };
+
+    if (cached?.light || cached?.dark) {
+      diagramCache.delete(key);
+      diagramCache.set(key, cached);
+      applyPair(cached);
     }
+
     let cancelled = false;
+    let cancelIdle: (() => void) | null = null;
+
+    const runTheme = async (themeKey: "light" | "dark") => {
+      const renderId = `${instanceIdRef.current}-${(++renderSequence).toString(36)}`;
+      const svg = await renderTheme(source, renderId, themeKey);
+      if (cancelled || requestId !== requestIdRef.current) return null;
+      putDiagramCache(key, { [themeKey]: svg });
+      return svg;
+    };
+
     const run = async () => {
       try {
-        const renderId = `${instanceIdRef.current}-${(++renderSequence).toString(36)}`;
-        const pair = await renderBothThemes(source, renderId);
-        if (cancelled || requestId !== requestIdRef.current) return;
-        setRendered({
-          source,
-          light: namespaceSvgIds(pair.light, instanceIdRef.current),
-          dark: namespaceSvgIds(pair.dark, instanceIdRef.current),
-        });
-        setError(null);
-        diagramCache.delete(key);
-        diagramCache.set(key, pair);
-        if (diagramCache.size > DIAGRAM_CACHE_LIMIT) {
-          const oldest = diagramCache.keys().next();
-          if (!oldest.done) diagramCache.delete(oldest.value);
+        const latest = diagramCache.get(key) ?? {};
+        const hasActive = activeKey === "dark" ? Boolean(latest.dark) : Boolean(latest.light);
+        if (!hasActive) {
+          const svg = await runTheme(activeKey);
+          if (cancelled || requestId !== requestIdRef.current || svg == null) return;
+          applyPair({ ...diagramCache.get(key), [activeKey]: svg });
+          setError(null);
+        } else {
+          applyPair(latest);
         }
+
+        // Prefetch the opposite theme in idle time for instant theme swaps.
+        cancelIdle = scheduleIdle(() => {
+          if (cancelled || requestId !== requestIdRef.current) return;
+          void (async () => {
+            try {
+              const again = diagramCache.get(key) ?? {};
+              const hasOther = otherKey === "dark" ? Boolean(again.dark) : Boolean(again.light);
+              if (hasOther || cancelled) return;
+              const svg = await runTheme(otherKey);
+              if (cancelled || requestId !== requestIdRef.current || svg == null) return;
+              applyPair({ ...diagramCache.get(key), [otherKey]: svg });
+            } catch {
+              // Opposite theme is optional; ignore idle failures.
+            }
+          })();
+        });
       } catch (err) {
         if (cancelled || requestId !== requestIdRef.current) return;
         setError((err as Error)?.message || String(err));
       }
     };
-    // Both themes are rendered in one queued operation; debounce source edits.
-    const timer = setTimeout(() => void run(), 250);
+
+    // Debounce source edits slightly; first paint stays snappy.
+    const timer = setTimeout(() => void run(), 80);
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      cancelIdle?.();
     };
-  }, [source, isMermaid]);
+  }, [source, isMermaid, isNearViewport, isDark, isEditing]);
 
   const getClampedPan = (nextPan: { x: number; y: number }, nextZoom: number) => {
     const viewport = previewRef.current;
@@ -736,14 +830,14 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
 
   // ─── Mermaid code blocks ────────────────────────────────────────────
   const showCode = isEditing || Boolean(error);
-  // Both themes are pre-rendered: switching theme swaps SVGs synchronously.
+  // Pipeline already sanitizes; paint from the active theme (other theme may still be warming).
   const svgHtml = rendered?.source === source
     ? (isDark ? rendered.dark : rendered.light)
     : null;
-  const safeSvgHtml = svgHtml ? sanitizeSvg(svgHtml) : null;
 
   return (
     <NodeViewWrapper as="div" className="not-prose snipnote-code-block my-[0.75em]">
+      <div ref={rootRef}>
         <Card className="code-block-card group relative overflow-hidden border bg-transparent shadow-none">
           {/* Floating actions */}
           <div
@@ -874,7 +968,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
           onWheel={handleWheel}
           title={!isFitToWidth ? "Click and drag to pan across the diagram" : undefined}
         >
-          {safeSvgHtml ? (
+          {svgHtml ? (
             <div
               ref={svgSurfaceRef}
               role="img"
@@ -886,17 +980,18 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
                 userSelect: isDragging ? "none" : "auto",
                 pointerEvents: isDragging ? "none" : "auto",
               }}
-              dangerouslySetInnerHTML={{ __html: safeSvgHtml }}
+              dangerouslySetInnerHTML={{ __html: svgHtml }}
             />
           ) : !rawText ? (
             <div className="p-3 type-chrome italic text-muted-foreground">Empty Mermaid diagram. Click &ldquo;Edit Code&rdquo; to add syntax.</div>
           ) : (
-            <div className="w-full p-5" aria-label="Rendering diagram">
+            <div className="w-full p-5" aria-label={isNearViewport ? "Rendering diagram" : "Diagram pending"}>
               <div className="h-28 animate-pulse rounded-md bg-muted/60" />
             </div>
           )}
         </div>
       </Card>
+      </div>
     </NodeViewWrapper>
   );
 };
