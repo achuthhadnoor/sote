@@ -12,14 +12,17 @@ Version **0.1.0** is configured in `package.json`, `src-tauri/tauri.conf.json`, 
 ## Environment for a signed macOS release
 
 ```bash
+# Prefer the cert SHA when Keychain has duplicate display names
 export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+# export APPLE_SIGNING_IDENTITY="$(security find-identity -v -p codesigning | awk -F'\"' '/Developer ID Application/{print $1}' | awk '{print $2; exit}')"
+
 export APPLE_ID="you@example.com"                 # or use API key vars below
 export APPLE_PASSWORD="app-specific-password"
 export APPLE_TEAM_ID="TEAMID"
 
-# Updater artifact signatures
-export TAURI_SIGNING_PRIVATE_KEY_PATH="$PWD/.tauri/snipnote.key"
-# export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""   # only if the key is password-protected
+# Updater artifact signatures (PATH alone can fail; content env is reliable)
+export TAURI_SIGNING_PRIVATE_KEY="$(cat "$PWD/.tauri/snipnote.key")"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 ```
 
 Optional App Store Connect API key:

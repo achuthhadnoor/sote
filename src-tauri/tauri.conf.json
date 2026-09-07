@@ -43,17 +43,18 @@
       "minimumSystemVersion": "12.0",
       "hardenedRuntime": true,
       "dmg": {
+        "background": "icons/background.png",
         "appPosition": {
-          "x": 180,
-          "y": 170
+          "x": 105,
+          "y": 108
         },
         "applicationFolderPosition": {
-          "x": 480,
-          "y": 170
+          "x": 278,
+          "y": 108
         },
         "windowSize": {
-          "width": 660,
-          "height": 400
+          "width": 384,
+          "height": 256
         }
       }
     }

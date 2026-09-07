@@ -31,6 +31,9 @@ export default defineConfig(async () => ({
     ],
   },
   build: {
+    // Mermaid diagram chunks exceed Vite's 500 kB default; they load only when
+    // a mermaid fence is near the viewport (dynamic import), so raise the limit.
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
         manualChunks: {
