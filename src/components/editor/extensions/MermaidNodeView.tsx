@@ -527,12 +527,16 @@ function cacheKeyFor(source: string): string {
 
 function scheduleIdle(fn: () => void): () => void {
   if (typeof window === "undefined") return () => {};
-  if ("requestIdleCallback" in window) {
-    const id = window.requestIdleCallback(() => fn(), { timeout: 1500 });
-    return () => window.cancelIdleCallback(id);
+  const w = window as Window & {
+    requestIdleCallback?: (cb: IdleRequestCallback, opts?: IdleRequestOptions) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (typeof w.requestIdleCallback === "function") {
+    const id = w.requestIdleCallback(() => fn(), { timeout: 1500 });
+    return () => w.cancelIdleCallback?.(id);
   }
   const id = window.setTimeout(fn, 120);
-  return () => clearTimeout(id);
+  return () => window.clearTimeout(id);
 }
 
 export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {

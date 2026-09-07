@@ -158,12 +158,28 @@ export const SettingsView: React.FC = () => {
       if (!update) {
         setUpdateStatus("Up to date");
         setTimeout(() => setUpdateStatus(null), 3000);
-      } else {
-        setUpdateStatus(`Update ${update.version} available — restart to install`);
+        return;
+      }
+      const install = window.confirm(
+        `Update ${update.version} is available.\n\nDownload and install now? The app will restart when finished.`,
+      );
+      if (!install) {
+        setUpdateStatus(`Update ${update.version} available`);
+        setTimeout(() => setUpdateStatus(null), 5000);
+        return;
+      }
+      setUpdateStatus(`Downloading ${update.version}…`);
+      await update.downloadAndInstall();
+      setUpdateStatus("Installed — restarting…");
+      try {
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        await relaunch();
+      } catch {
+        setUpdateStatus("Installed — restart snipnote to finish");
       }
     } catch (e: any) {
       setUpdateStatus(`Check failed: ${e?.message || e}`);
-      setTimeout(() => setUpdateStatus(null), 3000);
+      setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
       setChecking(false);
     }

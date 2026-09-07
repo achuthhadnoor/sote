@@ -19,6 +19,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
+    "category": "Productivity",
+    "shortDescription": "Local-first Markdown notes",
+    "longDescription": "snipnote is a fast local Markdown editor for macOS. Open any folder, edit .md files in a WYSIWYG editor, and keep disk as the source of truth.",
+    "copyright": "Copyright © 2026 Achuth. All rights reserved.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -33,7 +38,25 @@
         "description": "Markdown file",
         "role": "Editor"
       }
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": true,
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        },
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
+      }
+    }
   },
   "plugins": {
     "deepLink": {
@@ -43,8 +66,10 @@
       "enabled": true
     },
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IGR1bW15IHB1YmtleSBmb3IgdjEgLSBubyByZWFsIHVwZGF0ZSBzZXJ2ZXI=",
-      "endpoints": ["https://example.com/appcast.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNBQzAwOEIzMkVBODcxNDkKUldSSmNhZ3Vzd2pBT2paMUxpTVpMQTRHVjdSaVVHMEdEaitBbE5DSU9VUUFheDRCakt1VmJLaGMK",
+      "endpoints": [
+        "https://github.com/achuth/snipnote/releases/latest/download/latest.json"
+      ],
       "windows": {
         "installMode": "passive",
         "installerArgs": []

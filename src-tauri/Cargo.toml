@@ -1,9 +1,11 @@
 [package]
 name = "snipnote"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Local-first Markdown notes for macOS"
+authors = ["Achuth"]
 edition = "2021"
+license = "Proprietary"
+repository = "https://github.com/achuth/snipnote"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -31,6 +33,7 @@ tauri-plugin-dialog = "2"
 notify = "6"
 url = "2"
 trash = "5"
+tauri-plugin-process = "2"
 
 [profile.release]
 opt-level = 3

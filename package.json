@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "release:build": "tauri build"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.20",
@@ -21,6 +22,7 @@
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-notification": "2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "2",
     "@tauri-apps/plugin-updater": "2",
     "@tiptap/core": "3.31.3",
     "@tiptap/extension-bubble-menu": "3.31.3",
