@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 import { useEditorStore } from "../../stores/useEditorStore";
 import {
   parseYamlFrontmatter,
@@ -8,15 +8,48 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FrontmatterTableProps {
   onAutoSaveTrigger?: () => void;
 }
+
+function useAutoResizeTextarea(value: string) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return ref;
+}
+
+const AutoResizeTextarea: React.FC<
+  React.ComponentProps<typeof Textarea>
+> = ({ value, className, ...props }) => {
+  const ref = useAutoResizeTextarea(String(value ?? ""));
+
+  return (
+    <Textarea
+      {...props}
+      ref={ref}
+      value={value}
+      rows={1}
+      className={cn(
+        "frontmatter-textarea min-h-0 overflow-hidden resize-none border-0 bg-transparent px-1 py-0.5 shadow-none leading-5",
+        "outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-none",
+        className
+      )}
+    />
+  );
+};
 
 export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
   onAutoSaveTrigger,
@@ -154,8 +187,8 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
   }
 
   return (
-    <Card className="mb-6 overflow-hidden shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 bg-muted/50 px-3 py-2 border-b">
+    <Card className="mb-6 overflow-hidden border-0 shadow-none">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 bg-transparent px-3 py-2">
         <button
           className="flex items-center gap-2 text-sm font-medium hover:text-foreground transition-colors"
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -201,7 +234,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
         <CardContent className="p-0">
           {viewMode === "raw" ? (
             <Textarea
-              className="frontmatter-raw-textarea min-h-[120px] w-full rounded-none border-0 font-mono text-xs leading-5 focus-visible:ring-0 p-3"
+              className="frontmatter-textarea frontmatter-raw-textarea min-h-[120px] w-full rounded-none border-0 font-mono text-xs leading-5 focus-visible:ring-0 p-3 outline-none"
               value={rawText}
               onChange={handleRawChange}
               placeholder="key: value..."
@@ -213,8 +246,8 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
               <Table className="text-xs">
                 <TableBody>
                   {properties.map((prop, idx) => (
-                    <TableRow key={`${prop.key}-${idx}`} className="hover:bg-muted/30">
-                      <TableCell className="w-[160px] max-w-[200px] border-r bg-muted/20 p-2 align-top">
+                    <TableRow key={`${prop.key}-${idx}`} className="border-0 hover:bg-transparent">
+                      <TableCell className="w-[160px] max-w-[200px] bg-transparent p-2 align-top">
                         <span className="font-mono text-[11px] font-medium text-muted-foreground truncate block" title={prop.key}>
                           {prop.key}
                         </span>
@@ -234,7 +267,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 opacity-60 hover:opacity-100 hover:text-destructive hover:bg-destructive/10"
+                          className="h-6 w-6 opacity-60 hover:opacity-100 hover:text-transparent "
                           onClick={() => handleDeleteProperty(idx)}
                           title={`Delete ${prop.key}`}
                         >
@@ -248,21 +281,21 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
 
               {isAddingProperty && (
                 <form
-                  className="flex gap-2 border-t bg-muted/30 p-2"
+                  className="flex gap-2 bg-transparent p-2"
                   onSubmit={handleAddNewProperty}
                 >
-                  <Input
+                  <AutoResizeTextarea
                     placeholder="Property name"
                     value={newKey}
                     onChange={(e) => setNewKey(e.target.value)}
-                    className="h-7 w-[150px] font-mono text-xs"
+                    className="w-[150px] font-mono text-xs outline-none"
                     autoFocus
                   />
-                  <Input
+                  <AutoResizeTextarea
                     placeholder="Value"
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
-                    className="h-7 flex-1 text-xs"
+                    className="flex-1 text-xs outline-none"
                   />
                   <Button type="submit" size="sm" className="h-7 px-3 text-xs">
                     Add
@@ -292,14 +325,20 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
   onAddListItem,
   onRemoveListItem,
 }) => {
-  const [isEditingText, setIsEditingText] = useState(false);
   const [textDraft, setTextDraft] = useState(String(prop.value ?? ""));
   const [newChipText, setNewChipText] = useState("");
-  const [isAddingChip, setIsAddingChip] = useState(false);
 
   useEffect(() => {
     setTextDraft(String(prop.value ?? ""));
   }, [prop.value]);
+
+  const commitText = (raw: string) => {
+    if (prop.type === "number" && raw.trim() !== "" && !isNaN(Number(raw))) {
+      onUpdate(Number(raw));
+    } else {
+      onUpdate(raw);
+    }
+  };
 
   if (prop.type === "boolean" || typeof prop.value === "boolean") {
     return (
@@ -326,102 +365,59 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
           </Badge>
         ))}
 
-        {isAddingChip ? (
-          <Input
-            className="h-6 w-[90px] text-xs"
-            value={newChipText}
-            onChange={(e) => setNewChipText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (newChipText.trim()) {
-                  onAddListItem(newChipText);
-                  setNewChipText("");
-                  setIsAddingChip(false);
-                }
-              } else if (e.key === "Escape") {
-                setIsAddingChip(false);
-                setNewChipText("");
-              }
-            }}
-            onBlur={() => {
+        <AutoResizeTextarea
+          className="w-[100px] text-xs outline-none"
+          value={newChipText}
+          onChange={(e) => setNewChipText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
               if (newChipText.trim()) {
                 onAddListItem(newChipText);
+                setNewChipText("");
               }
-              setIsAddingChip(false);
+            }
+          }}
+          onBlur={() => {
+            if (newChipText.trim()) {
+              onAddListItem(newChipText);
               setNewChipText("");
-            }}
-            placeholder="item..."
-            autoFocus
-          />
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 border-dashed px-2 text-[11px]"
-            onClick={() => setIsAddingChip(true)}
-          >
-            + item
-          </Button>
-        )}
+            }
+          }}
+          placeholder="+ item"
+        />
       </div>
     );
   }
 
   if (typeof prop.value === "object" && prop.value !== null) {
     return (
-      <div className="flex flex-col gap-1 font-mono text-[11px]">
+      <div className="flex flex-col gap-1">
         {Object.entries(prop.value).map(([subK, subV]) => (
-          <div key={subK} className="flex gap-1.5">
-            <span className="text-muted-foreground font-medium">{subK}:</span>
-            <span>{String(subV)}</span>
+          <div key={subK} className="flex items-start gap-1.5">
+            <span className="shrink-0 pt-0.5 font-mono text-[11px] font-medium text-muted-foreground">
+              {subK}:
+            </span>
+            <AutoResizeTextarea
+              className="font-mono text-[11px] outline-none"
+              value={String(subV ?? "")}
+              onChange={(e) => {
+                onUpdate({ ...prop.value, [subK]: e.target.value });
+              }}
+            />
           </div>
         ))}
       </div>
     );
   }
 
-  if (isEditingText) {
-    return (
-      <Input
-        className="h-7 text-xs"
-        value={textDraft}
-        onChange={(e) => setTextDraft(e.target.value)}
-        onBlur={() => {
-          setIsEditingText(false);
-          if (prop.type === "number" && !isNaN(Number(textDraft))) {
-            onUpdate(Number(textDraft));
-          } else {
-            onUpdate(textDraft);
-          }
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            setIsEditingText(false);
-            if (prop.type === "number" && !isNaN(Number(textDraft))) {
-              onUpdate(Number(textDraft));
-            } else {
-              onUpdate(textDraft);
-            }
-          } else if (e.key === "Escape") {
-            setIsEditingText(false);
-            setTextDraft(String(prop.value ?? ""));
-          }
-        }}
-        autoFocus
-      />
-    );
-  }
-
   return (
-    <div
-      className="min-h-[20px] cursor-pointer text-xs leading-5 hover:bg-muted/40 rounded px-1 -mx-1 break-words"
-      onClick={() => setIsEditingText(true)}
-      title="Click to edit value"
-    >
-      {String(prop.value ?? "") || (
-        <span className="italic text-muted-foreground text-[11px]">empty</span>
-      )}
-    </div>
+    <AutoResizeTextarea
+      className="text-xs outline-none"
+      value={textDraft}
+      onChange={(e) => setTextDraft(e.target.value)}
+      onBlur={() => commitText(textDraft)}
+      placeholder="empty"
+    />
   );
 };

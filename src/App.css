@@ -248,6 +248,10 @@ input, textarea, [contenteditable] {
   outline-offset: 2px;
   box-shadow: none;
 }
+textarea.frontmatter-textarea:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
 
 @layer components {
   .ui-surface {

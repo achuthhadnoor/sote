@@ -22,8 +22,10 @@ import { Button } from "@/components/ui/button";
 import { RawEditor } from "./RawEditor";
 import { EditorBubbleMenu } from "./EditorBubbleMenu";
 import { HomeView } from "./HomeView";
+import { SettingsView } from "../settings/SettingsView";
 import { createLogger } from "../../lib/logger";
 import { flushActiveNote } from "../../lib/flushActiveNote";
+import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 
 const log = createLogger("editor-surface");
 const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -566,22 +568,26 @@ export const EditorSurface: React.FC = () => {
     let wasNewPrev = false;
 
     if (prev && prev !== activePath) {
-      const pending = pendingSaveRef.current;
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-      pendingSaveRef.current = null;
-
-      if (pending && pending.path === prev) {
-        snapshotForPrev = { body: pending.body, frontmatter: pending.frontmatter };
-        wasNewPrev = pending.wasNew;
+      if (isVirtualTab(prev)) {
+        // Virtual tabs have no file buffer to flush.
       } else {
-        const state = useEditorStore.getState();
-        // Only use live buffer when it still belongs to the previous path
-        if (!state.loadedPath || state.loadedPath === prev) {
-          snapshotForPrev = { body: state.body, frontmatter: state.frontmatter };
-          wasNewPrev = !!useTabStore.getState().tabs.find((t) => t.path === prev)?.isNew;
+        const pending = pendingSaveRef.current;
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
+        }
+        pendingSaveRef.current = null;
+
+        if (pending && pending.path === prev) {
+          snapshotForPrev = { body: pending.body, frontmatter: pending.frontmatter };
+          wasNewPrev = pending.wasNew;
+        } else {
+          const state = useEditorStore.getState();
+          // Only use live buffer when it still belongs to the previous path
+          if (!state.loadedPath || state.loadedPath === prev) {
+            snapshotForPrev = { body: state.body, frontmatter: state.frontmatter };
+            wasNewPrev = !!useTabStore.getState().tabs.find((t) => t.path === prev)?.isNew;
+          }
         }
       }
     }
@@ -592,11 +598,14 @@ export const EditorSurface: React.FC = () => {
     let cancelled = false;
 
     const run = async () => {
-      if (prev && snapshotForPrev && prev !== activePath) {
+      if (prev && snapshotForPrev && prev !== activePath && !isVirtualTab(prev)) {
         const didWrite = await saveNow(prev, snapshotForPrev);
         if (didWrite) await handlePostSave(prev, wasNewPrev, true);
       }
       if (cancelled) return;
+
+      // Settings (and other virtual tabs) are not notes — keep prior buffer loaded.
+      if (isVirtualTab(activePath)) return;
 
       // Draft new note: no file on disk yet, init empty
       if (isNewDraft) {
@@ -673,6 +682,10 @@ export const EditorSurface: React.FC = () => {
       }
     }
   }, [isRawMode, body, editor]);
+
+  if (isSettingsTab(activePath)) {
+    return <SettingsView />;
+  }
 
   if (!vaultPath) {
     return (

@@ -5,7 +5,8 @@ import { useEditorStore } from "../../stores/useEditorStore";
 import { flushActiveNote } from "../../lib/flushActiveNote";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronLeft, ChevronRight, PanelLeft, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, PanelLeft, Plus, Settings } from "lucide-react";
+import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 
 interface TabBarProps {
   onNewNote?: () => void;
@@ -183,6 +184,9 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
             {tabs.map((tab) => {
               const isActive = tab.path === activePath;
               const isDraft = !!tab.isNew;
+              const isVirtual = isVirtualTab(tab.path);
+              const showDirty = isActive && !isVirtual && isDirty && !isSaving;
+              const showSaving = isActive && !isVirtual && isSaving;
               return (
                 <button
                   key={tab.path}
@@ -203,16 +207,20 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                     tabsEls.forEach((el) => (el.tabIndex = -1));
                     (e.currentTarget as HTMLElement).tabIndex = 0;
                   }}
-                  title={isDraft ? `${tab.path} — not yet saved` : tab.path}
+                  title={isDraft ? `${tab.path} — not yet saved` : isSettingsTab(tab.path) ? "Settings" : tab.path}
                 >
-                  <FileTabIcon active={isActive} />
+                  {isSettingsTab(tab.path) ? (
+                    <Settings className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+                  ) : (
+                    <FileTabIcon active={isActive} />
+                  )}
                   <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
                   {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
                   {isActive && isDraft && !isDirty && <span className="text-[10px] text-muted-foreground italic font-normal shrink-0">draft</span>}
-                  {isActive && isDirty && !isSaving && (
+                  {showDirty && (
                     <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0 group-hover:opacity-0 transition-opacity" title="Unsaved changes" />
                   )}
-                  {isActive && isSaving && (
+                  {showSaving && (
                     <span className="text-[10px] text-muted-foreground font-normal shrink-0">saving…</span>
                   )}
                   <span

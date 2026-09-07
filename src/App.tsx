@@ -14,6 +14,7 @@ import { SessionState } from "./types/session";
 import { createLogger, msSinceJsBoot, recordStartupSample, getStartupLoadBreakdown } from "./lib/logger";
 import { canonicalPath, isPathWithin, normalizePath } from "./lib/path";
 import { flushActiveNote } from "./lib/flushActiveNote";
+import { SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE, isSettingsTab, isVirtualTab } from "./lib/specialTabs";
 import "./App.css";
 
 // Heavy UI split out of the initial bundle so first paint only pays for the
@@ -25,9 +26,6 @@ const EditorSurface = lazy(() =>
 );
 const CommandPalette = lazy(() =>
   import("./components/palette/CommandPalette").then((m) => ({ default: m.CommandPalette }))
-);
-const SettingsDialog = lazy(() =>
-  import("./components/settings/SettingsDialog").then((m) => ({ default: m.SettingsDialog }))
 );
 
 const log = createLogger("app");
@@ -45,7 +43,6 @@ function App() {
   const setTabs = useTabStore((state) => state.setTabs);
   const isInitialized = useRef(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // ensure theme is initialized (store side-effect loads from localStorage)
   useThemeStore((s) => s.effectiveTheme);
@@ -60,7 +57,22 @@ function App() {
     } catch {}
   };
 
-  // Haptics on sidebar/settings toggles
+  const openSettingsTab = useCallback(async () => {
+    if (!(await flushActiveNote())) return;
+    useTabStore.getState().selectNote(SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE);
+    triggerHaptic();
+  }, []);
+
+  const toggleSettingsTab = useCallback(async () => {
+    const { activePath, closeTab } = useTabStore.getState();
+    if (isSettingsTab(activePath)) {
+      closeTab(SETTINGS_TAB_PATH);
+      return;
+    }
+    await openSettingsTab();
+  }, [openSettingsTab]);
+
+  // Haptics on sidebar toggles
   const prevSidebarRef = useRef(sidebarCollapsed);
   useEffect(() => {
     if (prevSidebarRef.current !== sidebarCollapsed) {
@@ -68,12 +80,6 @@ function App() {
       triggerHaptic();
     }
   }, [sidebarCollapsed]);
-
-  const prevSettingsRef = useRef(isSettingsOpen);
-  useEffect(() => {
-    if (!prevSettingsRef.current && isSettingsOpen) triggerHaptic();
-    prevSettingsRef.current = isSettingsOpen;
-  }, [isSettingsOpen]);
 
   // Restore session on mount — restores vault + open tabs
   useEffect(() => {
@@ -93,8 +99,12 @@ function App() {
         log.debug("restoreSession got session:", session.lastVaultPath ?? "(no vault)");
         if (session.lastVaultPath) {
           await loadVault(session.lastVaultPath);
-          const openTabs = (session as any).openTabs as string[] | null | undefined;
-          const active = session.activeFilePath ?? null;
+          const openTabs = ((session as any).openTabs as string[] | null | undefined)?.filter(
+            (p) => !isVirtualTab(p)
+          );
+          const active = session.activeFilePath && !isVirtualTab(session.activeFilePath)
+            ? session.activeFilePath
+            : null;
           if (openTabs && openTabs.length > 0) {
             const tabObjs = openTabs.map((p) => ({
               path: p,
@@ -106,9 +116,9 @@ function App() {
               const fileName = active.split("/").pop() || "Note";
               selectNote(active, fileName);
             }
-          } else if (session.activeFilePath) {
-            const fileName = session.activeFilePath.split("/").pop() || "Note";
-            selectNote(session.activeFilePath, fileName);
+          } else if (active) {
+            const fileName = active.split("/").pop() || "Note";
+            selectNote(active, fileName);
           }
         }
       } catch (err) {
@@ -158,8 +168,8 @@ function App() {
     invoke("save_session", {
       session: {
         lastVaultPath: vaultPath,
-        activeFilePath: activePath,
-        openTabs: tabs.filter((t) => !t.isNew).map((t) => t.path),
+        activeFilePath: activePath && !isVirtualTab(activePath) ? activePath : null,
+        openTabs: tabs.filter((t) => !t.isNew && !isVirtualTab(t.path)).map((t) => t.path),
       },
     }).catch((err) => {
       log.error("Failed to save session:", err);
@@ -168,7 +178,7 @@ function App() {
 
   // Track recently opened notes (persists across restarts via localStorage)
   useEffect(() => {
-    if (!activePath || !vaultPath) return;
+    if (!activePath || !vaultPath || isVirtualTab(activePath)) return;
     const tab = tabs.find((t) => t.path === activePath);
     if (tab?.isNew) return; // don't record unsaved drafts
     const title = tab?.title ?? activePath.split("/").pop() ?? "Note";
@@ -357,7 +367,7 @@ function App() {
       await addListener("menu:theme_light", () => setTheme("light"));
       await addListener("menu:theme_dark", () => setTheme("dark"));
       await addListener("menu:theme_system", () => setTheme("system"));
-      await addListener("menu:about", () => setIsSettingsOpen(true));
+      await addListener("menu:about", () => { void openSettingsTab(); });
       // single-instance second launch with file/vault path
       await addListener("single-instance:open", (e) => void openLinkedNote(e.payload));
       await addListener("single-instance:open-vault", (e) => useVaultStore.getState().loadVault(e.payload));
@@ -374,7 +384,7 @@ function App() {
         } catch {}
       });
     };
-  }, [handleNewNote, openLinkedNote, setTheme]);
+  }, [handleNewNote, openLinkedNote, setTheme, openSettingsTab]);
 
   // Keep Recent Vaults menu in sync (also handles Dock Recent)
   useEffect(() => {
@@ -460,10 +470,10 @@ function App() {
   // Global keyboard shortcuts (Cmd+N, Cmd+P, Cmd+, Cmd+W, nav)
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // Cmd+, / Ctrl+, -> Settings (macOS standard) — check both key and code for layout safety
+      // Cmd+, / Ctrl+, -> Settings tab (macOS standard) — check both key and code for layout safety
       if ((e.metaKey || e.ctrlKey) && (e.key === "," || (e as any).code === "Comma")) {
         e.preventDefault();
-        setIsSettingsOpen((prev) => !prev);
+        void toggleSettingsTab();
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "w") {
@@ -511,7 +521,7 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectNote]);
+  }, [selectNote, toggleSettingsTab]);
 
   return (
     <div
@@ -531,7 +541,7 @@ function App() {
         aria-hidden={sidebarCollapsed}
       >
         <Sidebar
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={() => { void openSettingsTab(); }}
           onToggleSidebar={() => setSidebarCollapsed(true)}
           onOpenPalette={() => setIsPaletteOpen(true)}
         />
@@ -550,7 +560,6 @@ function App() {
           isOpen={isPaletteOpen}
           onClose={() => setIsPaletteOpen(false)}
         />
-        <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       </Suspense>
     </div>
   );
