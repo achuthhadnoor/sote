@@ -2,6 +2,7 @@ import React from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
+import { flushActiveNote } from "../../lib/flushActiveNote";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronLeft, ChevronRight, PanelLeft, Plus } from "lucide-react";
@@ -59,24 +60,26 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
-  const saveNow = useEditorStore((state) => state.saveNow);
-
-  const flushActive = async () => {
-    const currentPath = useTabStore.getState().activePath;
-    if (!currentPath || !useEditorStore.getState().isDirty) return true;
-    await saveNow(currentPath);
-    return !useEditorStore.getState().isDirty;
-  };
 
   const handleTabClick = async (path: string, title: string) => {
-    if (path !== activePath && !(await flushActive())) return;
+    if (path !== activePath && !(await flushActiveNote())) return;
     selectNote(path, title);
   };
 
   const handleClose = async (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
-    if (path === activePath && !(await flushActive())) return;
+    if (path === activePath && !(await flushActiveNote())) return;
     closeTab(path);
+  };
+
+  const handleGoBack = async () => {
+    if (!(await flushActiveNote())) return;
+    goBack();
+  };
+
+  const handleGoForward = async () => {
+    if (!(await flushActiveNote())) return;
+    goForward();
   };
 
   const handleStartDragging = (e: React.MouseEvent) => {
@@ -127,7 +130,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
           size="icon"
           className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
           disabled={!canGoBack}
-          onClick={goBack}
+          onClick={() => void handleGoBack()}
           title="Go back (⌘[)"
           aria-label="Go back"
         >
@@ -138,7 +141,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
           size="icon"
           className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
           disabled={!canGoForward}
-          onClick={goForward}
+          onClick={() => void handleGoForward()}
           title="Go forward (⌘])"
           aria-label="Go forward"
         >

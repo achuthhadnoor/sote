@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
+import { flushActiveNote } from "../../lib/flushActiveNote";
 import { VaultNode } from "../../types/vault";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -51,7 +52,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   if (!vaultPath) return null;
 
-  const handleSelect = (note: FlattenedNote) => {
+  const handleSelect = async (note: FlattenedNote) => {
+    if (note.path !== useTabStore.getState().activePath && !(await flushActiveNote())) return;
     selectNote(note.path, note.name);
     onClose();
     setQuery("");

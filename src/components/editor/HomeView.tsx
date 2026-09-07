@@ -3,6 +3,7 @@ import { Search, FileText, Clock, Plus } from "lucide-react";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
 import { useRecentNotesStore } from "../../stores/useRecentNotesStore";
+import { flushActiveNote } from "../../lib/flushActiveNote";
 import { VaultNode } from "../../types/vault";
 
 interface FlatNote {
@@ -71,7 +72,8 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
 
   const isSearching = query.trim().length > 0;
 
-  const openNote = (path: string, title: string) => {
+  const openNote = async (path: string, title: string) => {
+    if (path !== useTabStore.getState().activePath && !(await flushActiveNote())) return;
     selectNote(path, title);
     setQuery("");
   };

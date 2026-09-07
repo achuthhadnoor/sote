@@ -13,6 +13,7 @@ import { useRecentNotesStore } from "./stores/useRecentNotesStore";
 import { SessionState } from "./types/session";
 import { createLogger, msSinceJsBoot, recordStartupSample, getStartupLoadBreakdown } from "./lib/logger";
 import { canonicalPath, isPathWithin, normalizePath } from "./lib/path";
+import { flushActiveNote } from "./lib/flushActiveNote";
 import "./App.css";
 
 // Heavy UI split out of the initial bundle so first paint only pays for the
@@ -263,6 +264,7 @@ function App() {
 
   // New note is now a draft tab — no file on disk until there is content
   const handleNewNote = useCallback(async () => {
+    if (!(await flushActiveNote())) return;
     let vp = useVaultStore.getState().vaultPath;
     if (!vp) {
       await useVaultStore.getState().openVaultDialog();
@@ -296,6 +298,7 @@ function App() {
 
   const openLinkedNote = useCallback(async (path: string) => {
     const name = path.split(/[\\/]/).pop() || "Note";
+    if (!(await flushActiveNote())) return;
     const currentVault = useVaultStore.getState().vaultPath;
     if (currentVault && isPathWithin(path, currentVault)) {
       useTabStore.getState().selectNote(path, name);
@@ -343,9 +346,13 @@ function App() {
       await addListener("menu:open_vault", () => useVaultStore.getState().openVaultDialog());
       await addListener("menu:open_recent", (e) => useVaultStore.getState().loadVault(e.payload));
       await addListener("menu:close_tab", () => {
+        void (async () => {
           const active = useTabStore.getState().activePath;
-          if (active) useTabStore.getState().closeTab(active);
-        });
+          if (!active) return;
+          if (!(await flushActiveNote())) return;
+          useTabStore.getState().closeTab(active);
+        })();
+      });
       await addListener("menu:toggle_sidebar", () => setSidebarCollapsed((v) => !v));
       await addListener("menu:theme_light", () => setTheme("light"));
       await addListener("menu:theme_dark", () => setTheme("dark"));
@@ -463,9 +470,7 @@ function App() {
         e.preventDefault();
         const active = useTabStore.getState().activePath;
         if (active) {
-          const editor = useEditorStore.getState();
-          await editor.saveNow(active);
-          if (useEditorStore.getState().isDirty) return;
+          if (!(await flushActiveNote())) return;
           useTabStore.getState().closeTab(active);
         }
         return;
@@ -485,15 +490,18 @@ function App() {
         }
       } else if ((e.metaKey || e.ctrlKey) && e.key === "[") {
         e.preventDefault();
+        if (!(await flushActiveNote())) return;
         useTabStore.getState().goBack();
       } else if ((e.metaKey || e.ctrlKey) && e.key === "]") {
         e.preventDefault();
+        if (!(await flushActiveNote())) return;
         useTabStore.getState().goForward();
       } else if ((e.metaKey || e.ctrlKey) && e.key === "Tab") {
         // Ctrl+Tab / Cmd+Tab cycle tabs
         e.preventDefault();
         const { tabs, activePath } = useTabStore.getState();
         if (tabs.length <= 1) return;
+        if (!(await flushActiveNote())) return;
         const idx = tabs.findIndex((t) => t.path === activePath);
         const nextIdx = e.shiftKey ? (idx - 1 + tabs.length) % tabs.length : (idx + 1) % tabs.length;
         const next = tabs[nextIdx];

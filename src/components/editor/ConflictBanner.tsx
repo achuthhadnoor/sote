@@ -38,7 +38,7 @@ export const ConflictBanner: React.FC = () => {
             variant="outline"
             size="sm"
             className="h-7 px-3 text-xs bg-transparent"
-            onClick={resolveConflictKeepMine}
+            onClick={() => void resolveConflictKeepMine(activePath)}
           >
             Keep mine
           </Button>

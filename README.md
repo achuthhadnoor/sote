@@ -1,7 +1,25 @@
-# Tauri + React + Typescript
+# snipnote
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+A fast local Markdown file editor for macOS (Tauri + React).
 
-## Recommended IDE Setup
+Open a folder as a vault, edit `.md` files in a WYSIWYG editor, and keep disk as the source of truth — autosave, tabs, ⌘P, and live reload when files change outside the app.
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Develop
+
+```bash
+yarn install
+yarn tauri dev
+```
+
+## Build
+
+```bash
+yarn tauri build
+```
+
+## Stack
+
+- Tauri 2 + Rust (file I/O, vault scan, watcher)
+- React 19 + Vite + Tailwind CSS v4
+- Tiptap (Markdown round-trip)
+

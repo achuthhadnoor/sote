@@ -54,8 +54,15 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       log.info("loadVault ok:", path, `(${tree.length} top-level nodes)`);
       // Start watching vault directory for external changes
       if (shouldRestartWatcher || !previousWatchedPath) {
-        await invoke("watch_vault", { vaultPath: path });
-        watchedVaultPath = path;
+        try {
+          await invoke("watch_vault", { vaultPath: path });
+          watchedVaultPath = path;
+        } catch (watchErr: any) {
+          log.error("watch_vault failed:", path, watchErr?.message || String(watchErr));
+          set({
+            error: `Vault opened, but live file watching failed: ${watchErr?.message || String(watchErr)}`,
+          });
+        }
       }
     } catch (err: any) {
       log.error("loadVault failed:", path, err?.message || String(err));

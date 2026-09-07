@@ -24,26 +24,40 @@ impl EchoSuppressionCache {
     }
 
     pub fn record_write(&self, path: &Path) {
-        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-        crate::logger::debug("watcher", &format!("echo record: {}", canonical.to_string_lossy()));
+        crate::logger::debug("watcher", &format!("echo record: {}", path.to_string_lossy()));
         if let Ok(mut lock) = self.entries.lock() {
             let now = Instant::now();
             // Prune entries older than 2s
             lock.retain(|_, timestamp| now.duration_since(*timestamp) < Duration::from_secs(2));
-            lock.insert(canonical, now);
+            // Store both the given path and its canonical form so pre-rename
+            // records still match post-create watcher events.
+            lock.insert(path.to_path_buf(), now);
+            if let Ok(canonical) = path.canonicalize() {
+                lock.insert(canonical, now);
+            }
         }
     }
 
     pub fn is_suppressed(&self, path: &Path) -> bool {
-        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         if let Ok(mut lock) = self.entries.lock() {
             let now = Instant::now();
-            if let Some(timestamp) = lock.get(&canonical) {
-                if now.duration_since(*timestamp) < Duration::from_secs(2) {
-                    return true;
+            let candidates = [
+                path.to_path_buf(),
+                path.canonicalize().unwrap_or_else(|_| path.to_path_buf()),
+            ];
+            for candidate in candidates {
+                if let Some(timestamp) = lock.get(&candidate) {
+                    if now.duration_since(*timestamp) < Duration::from_secs(2) {
+                        return true;
+                    }
                 }
             }
-            lock.remove(&canonical);
+            for candidate in [
+                path.to_path_buf(),
+                path.canonicalize().unwrap_or_else(|_| path.to_path_buf()),
+            ] {
+                lock.remove(&candidate);
+            }
         }
         false
     }

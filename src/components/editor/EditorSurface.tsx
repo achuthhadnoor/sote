@@ -23,6 +23,7 @@ import { RawEditor } from "./RawEditor";
 import { EditorBubbleMenu } from "./EditorBubbleMenu";
 import { HomeView } from "./HomeView";
 import { createLogger } from "../../lib/logger";
+import { flushActiveNote } from "../../lib/flushActiveNote";
 
 const log = createLogger("editor-surface");
 const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -234,7 +235,9 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
     if (isMod) {
       useTabStore.getState().openInNewBackgroundTab(resolved, name);
     } else {
-      useTabStore.getState().selectNote(resolved, name);
+      void flushActiveNote().then((ok) => {
+        if (ok) useTabStore.getState().selectNote(resolved, name);
+      });
     }
     return true;
   }
@@ -555,73 +558,96 @@ export const EditorSurface: React.FC = () => {
     };
   }, [flushPendingAutoSave, handlePostSave, saveNow]);
 
-  // When activePath changes, flush previous note (if has content) and load new note
+  // When activePath changes, snapshot+flush previous note BEFORE loading the next
   const prevPathRef = useRef<string | null>(null);
   useEffect(() => {
-    if (prevPathRef.current && prevPathRef.current !== activePath) {
-      const prev = prevPathRef.current;
-      void flushPendingAutoSave().then((didWrite) => {
-        if (didWrite || !useEditorStore.getState().isDirty) return;
-        const tab = useTabStore.getState().tabs.find((t) => t.path === prev);
-        void saveNow(prev).then((written) => {
-          if (written) return handlePostSave(prev, !!tab?.isNew, true);
-        });
-      });
+    const prev = prevPathRef.current;
+    let snapshotForPrev: { body: string; frontmatter: string | null } | null = null;
+    let wasNewPrev = false;
+
+    if (prev && prev !== activePath) {
+      const pending = pendingSaveRef.current;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      pendingSaveRef.current = null;
+
+      if (pending && pending.path === prev) {
+        snapshotForPrev = { body: pending.body, frontmatter: pending.frontmatter };
+        wasNewPrev = pending.wasNew;
+      } else {
+        const state = useEditorStore.getState();
+        // Only use live buffer when it still belongs to the previous path
+        if (!state.loadedPath || state.loadedPath === prev) {
+          snapshotForPrev = { body: state.body, frontmatter: state.frontmatter };
+          wasNewPrev = !!useTabStore.getState().tabs.find((t) => t.path === prev)?.isNew;
+        }
+      }
     }
     prevPathRef.current = activePath;
 
     if (!activePath || !editor) return;
 
-    // Draft new note: no file on disk yet, init empty
-    if (isNewDraft) {
-      isProgrammaticUpdateRef.current = true;
-      useEditorStore.setState({
-        frontmatter: null,
-        lastSavedFrontmatter: null,
-        body: "",
-        lastSavedBody: "",
-        isDirty: false,
-        isLoading: false,
-        error: null,
-        hasConflict: false,
-      } as any);
-      editor.commands.setContent("", { emitUpdate: false } as any);
-      setTimeout(() => {
-        isProgrammaticUpdateRef.current = false;
-      }, 50);
-      return;
-    }
-
     let cancelled = false;
-    loadNote(activePath)
-      .then((body) => {
-        if (!cancelled && editor) {
-          isProgrammaticUpdateRef.current = true;
-          try {
-            const cleanBody = healEscapedMarkdown(body);
-            const ed = editor as any;
-            if (ed.markdown?.parse) {
-              const parsedDoc = ed.markdown.parse(cleanBody);
-              editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
-            } else {
-              (editor.commands as any).setContent(cleanBody, { contentType: "markdown", emitUpdate: false });
-            }
-          } finally {
-            setTimeout(() => {
-              isProgrammaticUpdateRef.current = false;
-            }, 50);
+
+    const run = async () => {
+      if (prev && snapshotForPrev && prev !== activePath) {
+        const didWrite = await saveNow(prev, snapshotForPrev);
+        if (didWrite) await handlePostSave(prev, wasNewPrev, true);
+      }
+      if (cancelled) return;
+
+      // Draft new note: no file on disk yet, init empty
+      if (isNewDraft) {
+        isProgrammaticUpdateRef.current = true;
+        useEditorStore.setState({
+          loadedPath: activePath,
+          frontmatter: null,
+          lastSavedFrontmatter: null,
+          body: "",
+          lastSavedBody: "",
+          isDirty: false,
+          isLoading: false,
+          error: null,
+          hasConflict: false,
+        } as any);
+        editor.commands.setContent("", { emitUpdate: false } as any);
+        setTimeout(() => {
+          isProgrammaticUpdateRef.current = false;
+        }, 50);
+        return;
+      }
+
+      try {
+        const body = await loadNote(activePath);
+        if (cancelled || !editor) return;
+        isProgrammaticUpdateRef.current = true;
+        try {
+          const cleanBody = healEscapedMarkdown(body);
+          const ed = editor as any;
+          if (ed.markdown?.parse) {
+            const parsedDoc = ed.markdown.parse(cleanBody);
+            editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
+          } else {
+            (editor.commands as any).setContent(cleanBody, { contentType: "markdown", emitUpdate: false });
           }
+        } finally {
+          setTimeout(() => {
+            isProgrammaticUpdateRef.current = false;
+          }, 50);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         log.error("Failed to load note content:", err);
-      });
+      }
+    };
+
+    void run();
 
     return () => {
       cancelled = true;
-      void flushPendingAutoSave();
     };
-  }, [activePath, isNewDraft, reloadCount, editor, loadNote, saveNow, flushPendingAutoSave, handlePostSave]);
+  }, [activePath, isNewDraft, reloadCount, editor, loadNote, saveNow, handlePostSave]);
 
   // When toggling from raw → rich, sync editor content from body
   const prevRawRef = useRef(isRawMode);
@@ -654,7 +680,7 @@ export const EditorSurface: React.FC = () => {
         <div className="w-full max-w-editor m-auto self-center text-[15px] leading-relaxed flex flex-col justify-center">
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground min-h-[360px]">
             <h1 className="text-[18px] font-semibold text-foreground">snipnote</h1>
-            <p className="text-sm text-muted-foreground">The full-size local Markdown companion for Claude Code.</p>
+            <p className="text-sm text-muted-foreground">A fast local Markdown file editor.</p>
             <Button onClick={openVaultDialog} className="mt-2">Open Local Vault</Button>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { useVaultStore } from "../../stores/useVaultStore";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { showNativeContextMenu } from "../../utils/nativeContextMenu";
+import { flushActiveNote } from "../../lib/flushActiveNote";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,12 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
   const isActive = !node.isDirectory && activePath === node.path;
   const isRovingActive = rovingPath ? rovingPath === node.path : isActive;
 
+  const openNote = async (path: string, name: string) => {
+    if (path === useTabStore.getState().activePath) return;
+    if (!(await flushActiveNote())) return;
+    selectNote(path, name);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === " " && !node.isDirectory) {
       e.preventDefault();
@@ -150,7 +157,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
     if (e.key === "Enter" || (e.key === " " && node.isDirectory)) {
       e.preventDefault();
       if (node.isDirectory) setIsOpen((prev) => !prev);
-      else selectNote(node.path, node.name);
+      else void openNote(node.path, node.name);
     }
   };
 
@@ -246,7 +253,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
       aria-selected={isActive}
       tabIndex={isRovingActive ? 0 : -1}
       onKeyDown={handleKeyDown}
-      onClick={() => selectNote(node.path, node.name)}
+      onClick={() => void openNote(node.path, node.name)}
       onContextMenu={handleContextMenu}
       draggable
       onDragStart={handleDragStart}

@@ -6,6 +6,7 @@ import { useVaultStore } from "./useVaultStore";
 const log = createLogger("editor");
 
 interface EditorState {
+  loadedPath: string | null;
   frontmatter: string | null;
   lastSavedFrontmatter: string | null;
   body: string;
@@ -26,7 +27,7 @@ interface EditorState {
   clearNote: () => void;
   setConflict: (val: boolean) => void;
   resolveConflictReload: (path: string) => Promise<string>;
-  resolveConflictKeepMine: () => void;
+  resolveConflictKeepMine: (path?: string) => Promise<void>;
   toggleRawMode: () => void;
   setRawMode: (val: boolean) => void;
 }
@@ -36,6 +37,7 @@ const saveQueues = new Map<string, Promise<void>>();
 const savedSnapshots = new Map<string, { body: string; frontmatter: string | null }>();
 
 export const useEditorStore = create<EditorState>((set, get) => ({
+  loadedPath: null,
   frontmatter: null,
   lastSavedFrontmatter: null,
   body: "",
@@ -51,7 +53,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   loadNote: async (path: string) => {
     const requestId = ++latestLoadRequestId;
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, loadedPath: path });
     log.debug("loadNote start:", path);
     try {
       const vaultPath = useVaultStore.getState().vaultPath;
@@ -64,6 +66,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (requestId === latestLoadRequestId) {
         savedSnapshots.set(path, { body: envelope.body, frontmatter: envelope.frontmatter });
         set({
+          loadedPath: path,
           frontmatter: envelope.frontmatter,
           lastSavedFrontmatter: envelope.frontmatter,
           body: envelope.body,
@@ -106,11 +109,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const previous = saveQueues.get(filePath) ?? Promise.resolve();
     const operation = previous.catch(() => {}).then(async () => {
       const current = get();
+      // Without an explicit snapshot, only the currently loaded note may be saved
+      // from the live buffer — otherwise a tab switch can write note B into path A.
+      if (!snapshot && current.loadedPath && current.loadedPath !== filePath) {
+        log.error("saveNow refused: live buffer is for", current.loadedPath, "not", filePath);
+        return;
+      }
       const snapshotBody = snapshot ? snapshot.body : current.body;
       const snapshotFrontmatter = snapshot ? snapshot.frontmatter : current.frontmatter;
       const savedForPath = savedSnapshots.get(filePath);
       const isDirty = snapshot
-        ? snapshotBody !== (savedForPath?.body ?? current.lastSavedBody) || snapshotFrontmatter !== (savedForPath?.frontmatter ?? current.lastSavedFrontmatter)
+        ? snapshotBody !== (savedForPath?.body ?? current.lastSavedBody) ||
+          snapshotFrontmatter !== (savedForPath?.frontmatter ?? current.lastSavedFrontmatter)
         : current.isDirty;
       if (!isDirty) return;
 
@@ -131,7 +141,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         didWrite = true;
         savedSnapshots.set(filePath, { body: snapshotBody, frontmatter: snapshotFrontmatter });
         set({ lastSelfWrite: { path: filePath, at: Date.now() }, error: null });
-        if (get().body === snapshotBody && get().frontmatter === snapshotFrontmatter) {
+        if (
+          get().loadedPath === filePath &&
+          get().body === snapshotBody &&
+          get().frontmatter === snapshotFrontmatter
+        ) {
           set({
             lastSavedBody: snapshotBody,
             lastSavedFrontmatter: snapshotFrontmatter,
@@ -167,6 +181,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearNote: () => {
     latestLoadRequestId++;
     set({
+      loadedPath: null,
       frontmatter: null,
       lastSavedFrontmatter: null,
       body: "",
@@ -192,8 +207,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return body;
   },
 
-  resolveConflictKeepMine: () => {
+  resolveConflictKeepMine: async (path) => {
+    const filePath = path ?? get().loadedPath;
     set({ hasConflict: false });
+    if (!filePath) return;
+    const { body, frontmatter } = get();
+    await get().saveNow(filePath, { body, frontmatter });
   },
 
   toggleRawMode: () => {

@@ -324,12 +324,15 @@ pub fn write_file(
     frontmatter: Option<String>,
 ) -> Result<(), String> {
     let dest_path = resolve_vault_path(&vault_path, &file_path, true)?;
+    // Record before rename so the FS event cannot race ahead of suppression.
+    state.echo_cache.record_write(&dest_path);
     match internal_write_file(&dest_path, &body, frontmatter.as_deref()) {
         Ok(()) => {
             crate::logger::debug(
                 "storage",
                 &format!("write_file ok ({} body bytes): {}", body.len(), file_path),
             );
+            // Re-record after rename so canonicalize succeeds for new files.
             state.echo_cache.record_write(&dest_path);
             Ok(())
         }
