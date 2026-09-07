@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onToggleSideba
 
       <div className="px-3 py-2 border-b border-border-translucent shrink-0">
         <Input
-          className="h-[26px] bg-muted-translucent border-transparent focus-visible:ring-1 focus-visible:ring-ring text-[13px] cursor-pointer"
+          className="h-[26px] bg-muted-translucent border-transparent  text-[13px] cursor-pointer"
           placeholder="Search notes... (⌘P)"
           readOnly
           onClick={onOpenPalette}
@@ -122,16 +122,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onToggleSideba
             title={vaultPath || "Open vault"}
           >
             {vaultPath ? "Switch" : "Open..."}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onOpenSettings?.()}
-            title="Settings (⌘,)"
-            aria-label="Open settings"
-            className="h-[22px] w-[22px] rounded-sm text-muted-foreground hover:bg-hover-translucent hover:text-foreground"
-          >
-            <Settings className="h-[14px] w-[14px]" />
           </Button>
         </div>
       </div>

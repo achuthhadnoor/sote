@@ -3,12 +3,19 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type Theme = "light" | "dark" | "system";
 
+const DEFAULT_TINT_HUE = 220;
+const DEFAULT_TINT_AMOUNT = 12;
+
 interface ThemeState {
   theme: Theme;
   setTheme: (t: Theme) => void;
   effectiveTheme: "light" | "dark";
   bgOpacity: number;
   setBgOpacity: (opacity: number) => void;
+  tintHue: number;
+  setTintHue: (hue: number) => void;
+  tintAmount: number;
+  setTintAmount: (amount: number) => void;
 }
 
 function getSystemTheme(): "light" | "dark" {
@@ -43,6 +50,18 @@ function syncNativeWindowTheme(theme: Theme) {
   invoke("set_window_theme", { theme }).catch(() => {});
 }
 
+function applyBgOpacityToDom(opacity: number) {
+  if (typeof document === "undefined") return;
+  document.documentElement.style.setProperty("--bg-opacity", `${opacity / 100}`);
+}
+
+function applyTintToDom(hue: number, amount: number) {
+  if (typeof document === "undefined") return;
+  const el = document.documentElement;
+  el.style.setProperty("--theme-tint-hue", String(hue));
+  el.style.setProperty("--theme-tint-amount", String(amount));
+}
+
 function loadInitialTheme(): Theme {
   try {
     const saved = localStorage.getItem("snipnote-theme") as Theme | null;
@@ -64,10 +83,38 @@ function loadInitialBgOpacity(): number {
   return 85;
 }
 
+function loadInitialTintHue(): number {
+  try {
+    const saved = localStorage.getItem("snipnote-theme-tint-hue");
+    if (saved !== null) {
+      const parsed = Number(saved);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 360) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return DEFAULT_TINT_HUE;
+}
+
+function loadInitialTintAmount(): number {
+  try {
+    const saved = localStorage.getItem("snipnote-theme-tint-amount");
+    if (saved !== null) {
+      const parsed = Number(saved);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 40) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return DEFAULT_TINT_AMOUNT;
+}
+
 export const useThemeStore = create<ThemeState>((set) => ({
   theme: loadInitialTheme(),
   effectiveTheme: computeEffective(loadInitialTheme()),
   bgOpacity: loadInitialBgOpacity(),
+  tintHue: loadInitialTintHue(),
+  tintAmount: loadInitialTintAmount(),
   setTheme: (t) =>
     set(() => {
       try {
@@ -82,10 +129,26 @@ export const useThemeStore = create<ThemeState>((set) => ({
     try {
       localStorage.setItem("snipnote-bg-opacity", String(opacity));
     } catch {}
-    if (typeof document !== "undefined") {
-      document.documentElement.style.setProperty("--bg-opacity", `${opacity / 100}`);
-    }
+    applyBgOpacityToDom(opacity);
     set({ bgOpacity: opacity });
+  },
+  setTintHue: (hue) => {
+    const clamped = Math.min(360, Math.max(0, Math.round(hue)));
+    try {
+      localStorage.setItem("snipnote-theme-tint-hue", String(clamped));
+    } catch {}
+    const { tintAmount } = useThemeStore.getState();
+    applyTintToDom(clamped, tintAmount);
+    set({ tintHue: clamped });
+  },
+  setTintAmount: (amount) => {
+    const clamped = Math.min(40, Math.max(0, Math.round(amount)));
+    try {
+      localStorage.setItem("snipnote-theme-tint-amount", String(clamped));
+    } catch {}
+    const { tintHue } = useThemeStore.getState();
+    applyTintToDom(tintHue, clamped);
+    set({ tintAmount: clamped });
   },
 }));
 
@@ -98,7 +161,11 @@ if (typeof window !== "undefined") {
   syncNativeWindowTheme(initial);
 
   const initialOpacity = loadInitialBgOpacity();
-  document.documentElement.style.setProperty("--bg-opacity", `${initialOpacity / 100}`);
+  applyBgOpacityToDom(initialOpacity);
+
+  const initialHue = loadInitialTintHue();
+  const initialAmount = loadInitialTintAmount();
+  applyTintToDom(initialHue, initialAmount);
 
   // Keep effectiveTheme in sync when system changes and mode is system
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

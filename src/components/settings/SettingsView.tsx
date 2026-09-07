@@ -7,11 +7,18 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
+const HUE_TRACK =
+  "linear-gradient(to right, hsl(0 70% 50%), hsl(60 70% 50%), hsl(120 70% 50%), hsl(180 70% 50%), hsl(240 70% 50%), hsl(300 70% 50%), hsl(360 70% 50%))";
+
 export const SettingsView: React.FC = () => {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   const bgOpacity = useThemeStore((s) => s.bgOpacity);
   const setBgOpacity = useThemeStore((s) => s.setBgOpacity);
+  const tintHue = useThemeStore((s) => s.tintHue);
+  const setTintHue = useThemeStore((s) => s.setTintHue);
+  const tintAmount = useThemeStore((s) => s.tintAmount);
+  const setTintAmount = useThemeStore((s) => s.setTintAmount);
   const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
   const setSpellCheckEnabled = useSpellCheckStore((s) => s.setEnabled);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
@@ -88,17 +95,17 @@ export const SettingsView: React.FC = () => {
           </p>
 
           <div className="flex flex-col gap-2 mt-1">
-            <Option value="light" label="Light" desc="Monochrome white, translucent over Sidebar/Mica" />
-            <Option value="dark" label="Dark" desc="Near-black with muted grays, keeps contrast" />
+            <Option value="light" label="Light" desc="Cool gray whites, translucent over Sidebar/Mica" />
+            <Option value="dark" label="Dark" desc="Charcoal agents window, soft hierarchy" />
             <Option value="system" label="System" desc="Follow macOS / Windows appearance automatically" />
           </div>
 
           <div className="mt-4 pt-4 border-t border-border-translucent">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <span className="text-[13px] font-medium text-foreground">Background Opacity</span>
+                <span className="text-[13px] font-medium text-foreground">Transparency</span>
                 <p className="text-[12px] text-muted-foreground">
-                  Adjust the window translucency and vibrancy effect
+                  Window translucency over Sidebar / Mica vibrancy
                 </p>
               </div>
               <span className="text-[12px] font-mono font-medium text-muted-foreground px-2 py-0.5 rounded bg-muted-translucent">
@@ -106,22 +113,80 @@ export const SettingsView: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-3 pt-1">
-              <span className="text-[11px] text-muted-foreground shrink-0">Translucent</span>
+              <span className="text-[11px] text-muted-foreground shrink-0">Clear</span>
               <Slider
                 value={bgOpacity}
                 min={10}
                 max={100}
                 step={1}
                 onChange={setBgOpacity}
-                aria-label="Background Opacity"
+                aria-label="Transparency"
                 className="flex-1"
               />
               <span className="text-[11px] text-muted-foreground shrink-0">Opaque</span>
             </div>
           </div>
 
+          <div className="mt-4 pt-4 border-t border-border-translucent">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <span className="text-[13px] font-medium text-foreground">Tint</span>
+                <p className="text-[12px] text-muted-foreground">
+                  Soft chrome color over translucent surfaces
+                </p>
+              </div>
+              <span
+                className="w-6 h-6 rounded-md border border-border-translucent shrink-0 shadow-2xs"
+                style={{
+                  background: `color-mix(in srgb, hsl(${tintHue} 32% 50%) ${tintAmount}%, var(--muted))`,
+                }}
+                title={`Hue ${tintHue}°, intensity ${tintAmount}`}
+                aria-hidden="true"
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">Hue</span>
+                  <span className="text-[11px] font-mono text-muted-foreground">{tintHue}°</span>
+                </div>
+                <Slider
+                  value={tintHue}
+                  min={0}
+                  max={360}
+                  step={1}
+                  onChange={setTintHue}
+                  trackBackground={HUE_TRACK}
+                  aria-label="Tint hue"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">Intensity</span>
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    {tintAmount === 0 ? "None" : tintAmount}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-muted-foreground shrink-0">None</span>
+                  <Slider
+                    value={tintAmount}
+                    min={0}
+                    max={40}
+                    step={1}
+                    onChange={setTintAmount}
+                    aria-label="Tint intensity"
+                    className="flex-1"
+                  />
+                  <span className="text-[11px] text-muted-foreground shrink-0">Strong</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 bg-muted-translucent border border-border-translucent rounded-md">
-            Shortcut: <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">⌘,</kbd> or <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">Ctrl ,</kbd> to open settings. Theme and opacity persist automatically.
+            Shortcut: <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">⌘,</kbd> or <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">Ctrl ,</kbd> to open settings. Theme, transparency, and tint persist automatically.
           </div>
         </section>
 

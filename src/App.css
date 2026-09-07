@@ -76,39 +76,67 @@ html.theming *::after {
 }
 
 :root {
-  /* macOS / Cursor Light theme — refined monochrome with subtle hierarchy */
-  --bg: #FFFFFF;
-  --fg: #1F2328;
-  --sidebar: #F6F8FA;
-  --sidebar-fg: #1F2328;
-  --border: #E1E4E8;
-  --input: #E1E4E8;
-  --primary: #1F2328;
-  --primary-fg: #FFFFFF;
-  --muted: #F3F4F6;
-  --muted-fg: #656D76;
-  /* Monochrome Accent & Hierarchy */
-  --accent: #1F2328;
-  --accent-fg: #FFFFFF;
+  /* Cursor Agents-window light — cool gray whites */
+  --bg: #fcfcfc;
+  --fg: #1a1a1a;
+  --sidebar: #f3f3f3;
+  --sidebar-fg: #1a1a1a;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --primary: #1a1a1a;
+  --primary-fg: #ffffff;
+  --muted: #f0f0f0;
+  --muted-fg: #6b6b6b;
+  /* Monochrome accent (near-black on light) */
+  --accent: #1a1a1a;
+  --accent-fg: #ffffff;
   --accent-strong: #000000;
-  --accent-subtle: rgba(31, 35, 40, 0.08);
-  --link: #1F2328;
-  --status-bar: #F6F8FA;
+  --accent-subtle: rgba(26, 26, 26, 0.08);
+  --link: #1a1a1a;
+  --status-bar: #f3f3f3;
   --destructive: #CF222E;
-  /* Text / editor selection — neutral graphite selection */
-  --selection-bg: #E1E4E8;
-  --selection-fg: #1F2328;
+  --selection-bg: #e5e5e5;
+  --selection-fg: #1a1a1a;
 
   --bg-opacity: 0.85;
 
-  /* Translucent surfaces computed from --bg-opacity over native Sidebar/Mica */
-  --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
-  --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
-  --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
-  --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
-  --accent-translucent: rgba(31, 35, 40, 0.10);
-  --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
-  --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
+  /* Appearance tint — hue 0–360, amount 0–40 (mixed into translucent chrome) */
+  --theme-tint-hue: 220;
+  --theme-tint-amount: 12;
+  --theme-tint: hsl(var(--theme-tint-hue) 32% 52%);
+
+  /* Translucent surfaces: opacity over vibrancy, then subtle tint mix */
+  --bg-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --sidebar-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --border-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 0.5%),
+    color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent)
+  );
+  --muted-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --accent-translucent: rgba(26, 26, 26, 0.10);
+  --status-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --hover-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
+  );
 
   /* Typography — SF Pro first for native macOS feel, Inter as fallback */
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
@@ -133,87 +161,140 @@ html.theming *::after {
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
   /* Prose code tokens — subtle layered surfaces */
-  --inline-code-bg: rgba(31, 35, 40, 0.06);
-  --inline-code-border: rgba(31, 35, 40, 0.10);
-  --code-bg: #F6F8FA;
-  --code-fg: #1F2328;
-  --code-border: #D0D7DE;
-  --code-header-bg: #EAEFF4;
+  --inline-code-bg: rgba(26, 26, 26, 0.06);
+  --inline-code-border: rgba(26, 26, 26, 0.10);
+  --code-bg: #f0f0f0;
+  --code-fg: #1a1a1a;
+  --code-border: #e0e0e0;
+  --code-header-bg: #e8e8e8;
 }
 
 [data-theme="light"] {
-  --bg: #FFFFFF;
-  --fg: #1F2328;
-  --sidebar: #F6F8FA;
-  --sidebar-fg: #1F2328;
-  --border: #E1E4E8;
-  --input: #E1E4E8;
-  --primary: #1F2328;
-  --primary-fg: #FFFFFF;
-  --muted: #F3F4F6;
-  --muted-fg: #656D76;
-  --accent: #1F2328;
-  --accent-fg: #FFFFFF;
+  --bg: #fcfcfc;
+  --fg: #1a1a1a;
+  --sidebar: #f3f3f3;
+  --sidebar-fg: #1a1a1a;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --primary: #1a1a1a;
+  --primary-fg: #ffffff;
+  --muted: #f0f0f0;
+  --muted-fg: #6b6b6b;
+  --accent: #1a1a1a;
+  --accent-fg: #ffffff;
   --accent-strong: #000000;
-  --accent-subtle: rgba(31, 35, 40, 0.08);
-  --link: #1F2328;
-  --status-bar: #F6F8FA;
+  --accent-subtle: rgba(26, 26, 26, 0.08);
+  --link: #1a1a1a;
+  --status-bar: #f3f3f3;
   --destructive: #CF222E;
-  --selection-bg: #E1E4E8;
-  --selection-fg: #1F2328;
+  --selection-bg: #e5e5e5;
+  --selection-fg: #1a1a1a;
 
-  --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
-  --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
-  --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
-  --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
-  --accent-translucent: rgba(31, 35, 40, 0.10);
-  --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
-  --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
+  --theme-tint: hsl(var(--theme-tint-hue) 32% 52%);
 
-  --inline-code-bg: rgba(31, 35, 40, 0.06);
-  --inline-code-border: rgba(31, 35, 40, 0.10);
-  --code-bg: #F6F8FA;
-  --code-fg: #1F2328;
-  --code-border: #D0D7DE;
-  --code-header-bg: #EAEFF4;
+  --bg-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --sidebar-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --border-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 0.5%),
+    color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent)
+  );
+  --muted-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --accent-translucent: rgba(26, 26, 26, 0.10);
+  --status-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --hover-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
+  );
+
+  --inline-code-bg: rgba(26, 26, 26, 0.06);
+  --inline-code-border: rgba(26, 26, 26, 0.10);
+  --code-bg: #f0f0f0;
+  --code-fg: #1a1a1a;
+  --code-border: #e0e0e0;
+  --code-header-bg: #e8e8e8;
 }
 
-/* Dark theme — Full Cursor Monochrome */
+/* Dark theme — Cursor Agents charcoal (not blue-black) */
 [data-theme="dark"] {
-  --bg: #0E0E0E;
-  --fg: #E4E4E7;
-  --sidebar: #171717;
-  --sidebar-fg: #E4E4E7;
-  --border: #232323;
-  --input: #232323;
-  --primary: #F4F4F5;
-  --primary-fg: #0E0E0E;
-  --muted: #1F1F1F;
-  --muted-fg: #8A8A8A;
-  --accent: #F4F4F5;
-  --accent-fg: #0E0E0E;
-  --accent-strong: #FFFFFF;
-  --accent-subtle: rgba(244, 244, 245, 0.12);
-  --link: #F4F4F5;
-  --status-bar: #18181B;
+  --bg: #111111;
+  --fg: #e8e8e8;
+  --sidebar: #1a1a1a;
+  --sidebar-fg: #e8e8e8;
+  --border: #2a2a2a;
+  --input: #2a2a2a;
+  --primary: #f4f4f4;
+  --primary-fg: #111111;
+  --muted: #1c1c1c;
+  --muted-fg: #8b8b8b;
+  --accent: #f4f4f4;
+  --accent-fg: #111111;
+  --accent-strong: #ffffff;
+  --accent-subtle: rgba(244, 244, 244, 0.12);
+  --link: #f4f4f4;
+  --status-bar: #181818;
   --destructive: #F87171;
-  --selection-bg: rgba(255, 255, 255, 0.18);
-  --selection-fg: #FFFFFF;
+  --selection-bg: rgba(255, 255, 255, 0.16);
+  --selection-fg: #ffffff;
 
-  --bg-translucent: color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent);
-  --sidebar-translucent: color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent);
-  --border-translucent: color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent);
-  --muted-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
-  --accent-translucent: rgba(244, 244, 245, 0.14);
-  --status-translucent: color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent);
-  --hover-translucent: color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent);
+  /* Slightly cooler / deeper tint mix on dark chrome */
+  --theme-tint: hsl(var(--theme-tint-hue) 28% 42%);
 
-  --inline-code-bg: rgba(255,255,255,0.06);
-  --inline-code-border: rgba(255,255,255,0.08);
-  --code-bg: #1E1E22;
-  --code-fg: #EDEEF0;
-  --code-border: #2A2A2E;
-  --code-header-bg: #252529;
+  --bg-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --sidebar-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --border-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 0.5%),
+    color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent)
+  );
+  --muted-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --accent-translucent: rgba(244, 244, 244, 0.14);
+  --status-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent)
+  );
+  --hover-translucent: color-mix(
+    in srgb,
+    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
+  );
+
+  --inline-code-bg: rgba(255, 255, 255, 0.06);
+  --inline-code-border: rgba(255, 255, 255, 0.08);
+  --code-bg: #1c1c1c;
+  --code-fg: #ededed;
+  --code-border: #2a2a2a;
+  --code-header-bg: #222222;
 }
 
 /* NOTE: no global margin/padding reset here — Tailwind preflight handles resets. */
@@ -244,13 +325,24 @@ input, textarea, [contenteditable] {
 }
 /* One focus recipe for every interactive surface. */
 :where(button, a, input, textarea, [contenteditable], [role="treeitem"], [role="option"], [role="menuitem"], [role="tab"]):focus-visible {
-  outline: 2px solid var(--focus-ring);
+  /* outline: 2px solid var(--focus-ring); */
   outline-offset: 2px;
   box-shadow: none;
 }
 textarea.frontmatter-textarea:focus-visible {
   outline: none;
   outline-offset: 0;
+}
+
+/* Titlebar tab strip — scrollable without a visible scrollbar */
+.tab-strip {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tab-strip::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 @layer components {

@@ -4,7 +4,6 @@ import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { flushActiveNote } from "../../lib/flushActiveNote";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronLeft, ChevronRight, PanelLeft, Plus, Settings } from "lucide-react";
 import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 
@@ -87,7 +86,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
     // Only drag on primary click (left mouse button) and if not clicking an interactive child element
     if (e.button !== 0) return;
     const target = e.target as HTMLElement | null;
-    if (target && target.closest('button, input, [role="button"], [role="tab"], .tab-item, a')) {
+    if (target && target.closest('button, input, [role="button"], [role="tab"], .tab-item, a, .tab-strip')) {
       return;
     }
     // Double click to maximize/unmaximize window (native macOS/Windows behavior)
@@ -96,6 +95,15 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
       return;
     }
     getCurrentWindow().startDragging().catch(() => {});
+  };
+
+  const handleTabsWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    // Trackpads often report vertical delta; map it to horizontal tab scrolling.
+    if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
   };
 
   return (
@@ -150,14 +158,19 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
         </Button>
       </div>
 
-      {/* Tabs: always left-packed after the arrows. */}
-      <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full justify-start" data-tauri-drag-region>
+      {/* Tabs: horizontal scroll when they overflow the titlebar. */}
+      <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full justify-start">
         {tabs.length === 0 ? (
-          <div className="text-xs text-muted-foreground text-center">No open notes</div>
+          <div className="text-xs text-muted-foreground text-center" data-tauri-drag-region>
+            No open notes
+          </div>
         ) : (
-          <ScrollArea className="w-full h-full [&>div>div]:!flex [&>div>div]:!items-center [&>div>div]:!min-w-full [&>div>div]:!h-full">
+          <div
+            className="tab-strip w-full h-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
+            onWheel={handleTabsWheel}
+          >
             <div
-              className="flex items-center gap-1.5 h-full px-2 py-1.5 w-fit shrink-0"
+              className="flex items-center gap-1.5 h-full px-2 py-1.5 w-max min-w-full"
               role="tablist"
               aria-label="Open notes"
               onKeyDown={(e) => {
@@ -174,6 +187,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                   tabsEls.forEach((el) => (el.tabIndex = -1));
                   tabsEls[nextIdx].tabIndex = 0;
                   tabsEls[nextIdx].focus();
+                  tabsEls[nextIdx].scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
                   const el = tabsEls[nextIdx];
                   const path = el.getAttribute("data-tab-path");
                   const title = el.getAttribute("data-tab-title");
@@ -181,64 +195,65 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                 }
               }}
             >
-            {tabs.map((tab) => {
-              const isActive = tab.path === activePath;
-              const isDraft = !!tab.isNew;
-              const isVirtual = isVirtualTab(tab.path);
-              const showDirty = isActive && !isVirtual && isDirty && !isSaving;
-              const showSaving = isActive && !isVirtual && isSaving;
-              return (
-                <button
-                  key={tab.path}
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-controls={`editor-${tab.path}`}
-                  tabIndex={isActive ? 0 : -1}
-                  data-tab-path={tab.path}
-                  data-tab-title={tab.title}
-                  className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] cursor-pointer ${
-                    isActive
-                      ? "bg-background border-border text-foreground shadow-xs"
-                      : "bg-transparent text-muted-foreground hover:bg-hover-translucent hover:text-foreground hover:border-border-translucent"
-                  }`}
-                  onClick={() => handleTabClick(tab.path, tab.title)}
-                  onFocus={(e) => {
-                    const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
-                    tabsEls.forEach((el) => (el.tabIndex = -1));
-                    (e.currentTarget as HTMLElement).tabIndex = 0;
-                  }}
-                  title={isDraft ? `${tab.path} — not yet saved` : isSettingsTab(tab.path) ? "Settings" : tab.path}
-                >
-                  {isSettingsTab(tab.path) ? (
-                    <Settings className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
-                  ) : (
-                    <FileTabIcon active={isActive} />
-                  )}
-                  <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
-                  {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
-                  {isActive && isDraft && !isDirty && <span className="text-[10px] text-muted-foreground italic font-normal shrink-0">draft</span>}
-                  {showDirty && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0 group-hover:opacity-0 transition-opacity" title="Unsaved changes" />
-                  )}
-                  {showSaving && (
-                    <span className="text-[10px] text-muted-foreground font-normal shrink-0">saving…</span>
-                  )}
-                  <span
-                    className="absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 bg-gradient-to-r from-transparent via-background/90 to-background"
-                    role="button"
-                    aria-label={`Close ${tab.title}`}
-                    onClick={(e) => handleClose(e, tab.path)}
-                    onMouseDown={(e) => e.preventDefault()}
+              {tabs.map((tab) => {
+                const isActive = tab.path === activePath;
+                const isDraft = !!tab.isNew;
+                const isVirtual = isVirtualTab(tab.path);
+                const showDirty = isActive && !isVirtual && isDirty && !isSaving;
+                const showSaving = isActive && !isVirtual && isSaving;
+                return (
+                  <button
+                    key={tab.path}
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls={`editor-${tab.path}`}
+                    tabIndex={isActive ? 0 : -1}
+                    data-tab-path={tab.path}
+                    data-tab-title={tab.title}
+                    className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] cursor-pointer ${
+                      isActive
+                        ? "bg-background border-border text-foreground shadow-xs"
+                        : "bg-transparent text-muted-foreground hover:bg-hover-translucent hover:text-foreground hover:border-border-translucent"
+                    }`}
+                    onClick={() => handleTabClick(tab.path, tab.title)}
+                    onFocus={(e) => {
+                      const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
+                      tabsEls.forEach((el) => (el.tabIndex = -1));
+                      (e.currentTarget as HTMLElement).tabIndex = 0;
+                      e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest" });
+                    }}
+                    title={isDraft ? `${tab.path} — not yet saved` : isSettingsTab(tab.path) ? "Settings" : tab.path}
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                </button>
-              );
-            })}
+                    {isSettingsTab(tab.path) ? (
+                      <Settings className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+                    ) : (
+                      <FileTabIcon active={isActive} />
+                    )}
+                    <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
+                    {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
+                    {isActive && isDraft && !isDirty && <span className="text-[10px] text-muted-foreground italic font-normal shrink-0">draft</span>}
+                    {showDirty && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0 group-hover:opacity-0 transition-opacity" title="Unsaved changes" />
+                    )}
+                    {showSaving && (
+                      <span className="text-[10px] text-muted-foreground font-normal shrink-0">saving…</span>
+                    )}
+                    <span
+                      className="absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 bg-gradient-to-r from-transparent via-background/90 to-background"
+                      role="button"
+                      aria-label={`Close ${tab.title}`}
+                      onClick={(e) => handleClose(e, tab.path)}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 

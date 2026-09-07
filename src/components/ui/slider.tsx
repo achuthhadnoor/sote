@@ -9,6 +9,8 @@ export interface SliderProps {
   onChange: (value: number) => void;
   className?: string;
   disabled?: boolean;
+  /** Full track background (e.g. rainbow for hue). When set, progress fill is skipped. */
+  trackBackground?: string;
   "aria-label"?: string;
 }
 
@@ -20,6 +22,7 @@ export const Slider: React.FC<SliderProps> = ({
   onChange,
   className,
   disabled = false,
+  trackBackground,
   "aria-label": ariaLabel = "Slider",
 }) => {
   const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
@@ -40,7 +43,9 @@ export const Slider: React.FC<SliderProps> = ({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full h-1.5 rounded-full appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
-          background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${percentage}%, var(--muted) ${percentage}%, var(--muted) 100%)`,
+          background:
+            trackBackground ??
+            `linear-gradient(to right, var(--accent) 0%, var(--accent) ${percentage}%, var(--muted) ${percentage}%, var(--muted) 100%)`,
         }}
       />
     </div>

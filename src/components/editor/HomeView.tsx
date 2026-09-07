@@ -88,8 +88,8 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
   };
 
   return (
-    <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
-      <div className="w-full max-w-[560px] m-auto self-center flex flex-col gap-5 animate-in fade-in duration-200">
+    <section className="flex-1 overflow-y-auto flex justify-center py-12 px-8 sm:px-6 relative scroll-smooth">
+      <div className="w-full max-w-[560px] flex flex-col gap-5 animate-in fade-in duration-200">
         <div className="ui-surface flex items-center gap-2 bg-background border border-border px-3 h-10 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
           <Search size={15} className="text-muted-foreground shrink-0" aria-hidden />
           <input
