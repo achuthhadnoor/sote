@@ -689,7 +689,7 @@ export const EditorSurface: React.FC = () => {
 
   if (!vaultPath) {
     return (
-      <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
+      <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth" data-editor-scroll>
         <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center">
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground min-h-[360px]">
             <h1 className="text-[18px] font-semibold text-foreground tracking-tight">snipnote</h1>
@@ -732,7 +732,7 @@ export const EditorSurface: React.FC = () => {
   }
 
   return (
-    <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
+    <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth" data-editor-scroll>
       <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center">
         {isLoading && (
           <div className="py-4 type-label text-muted-foreground">
@@ -762,7 +762,14 @@ export const EditorSurface: React.FC = () => {
         )}
       </div>
       {/* Floating outline — horizontal dashes at right center, expand on hover */}
-      <MarkdownOutline editor={editor} body={body} isRawMode={isRawMode} />
+      <MarkdownOutline
+        key={activePath ?? "outline"}
+        editor={editor}
+        body={body}
+        isRawMode={isRawMode}
+        notePath={activePath}
+        noteTitle={activeTab?.title ?? null}
+      />
       {!isRawMode && (
         <FindBar
           editor={editor}

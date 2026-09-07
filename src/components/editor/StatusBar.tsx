@@ -34,7 +34,7 @@ export const StatusBar: React.FC = () => {
 
   return (
     <footer
-      className="status-bar relative isolate flex h-status items-center justify-between gap-3 px-3 type-meta select-none border-t border-border-translucent bg-transparent shrink-0"
+      className="status-bar relative z-20 isolate flex h-status items-center border-t border-border-translucent bg-transparent shrink-0 overflow-visible"
       role="status"
       aria-live="polite"
       aria-atomic="true"
@@ -43,6 +43,7 @@ export const StatusBar: React.FC = () => {
         <div className="chrome-blur__layer" />
         <div className="chrome-blur__layer chrome-blur__soft" />
       </div>
+      <div className="relative z-10 flex w-full h-full items-center justify-between gap-3 px-3 type-meta select-none">
       <div className="flex items-center min-w-0 flex-1 mr-2">
         {notePath && (
           <span className="truncate" title={notePath}>
@@ -82,6 +83,7 @@ export const StatusBar: React.FC = () => {
           </svg>
           <span>{isRawMode ? "Rich" : "Raw"}</span>
         </Button>
+      </div>
       </div>
     </footer>
   );

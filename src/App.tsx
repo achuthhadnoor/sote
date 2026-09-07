@@ -546,7 +546,7 @@ function App() {
           onOpenPalette={() => setIsPaletteOpen(true)}
         />
       </div>
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
+      <main className="relative flex-1 flex flex-col h-full overflow-hidden bg-transparent">
         <TabBar
           onNewNote={handleNewNote}
           onOpenSettings={() => { void openSettingsTab(); }}

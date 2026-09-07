@@ -349,33 +349,36 @@ textarea.frontmatter-textarea:focus-visible {
   width: 0;
 }
 
-/* Progressive chrome blur — stacked opacity fades (Tailwind /N fails on color-mix tokens) */
+/* Progressive chrome blur — stacked opacity fades (Tailwind /N fails on color-mix tokens).
+   Keep layers at z-index 0 (not negative): isolate + z-index:-10 paints behind the
+   stacking-context background and the fade disappears in WebKit/Tauri. */
 .chrome-blur {
   position: absolute;
   inset-inline: 0;
-  z-index: -10;
+  z-index: 0;
   pointer-events: none;
   overflow: hidden;
 }
 .chrome-blur--header {
   top: 0;
-  height: calc(100% + 32px);
+  height: calc(100% + 40px);
 }
 .chrome-blur--footer {
   bottom: 0;
-  height: calc(100% + 32px);
+  height: calc(100% + 40px);
 }
 .chrome-blur__layer {
   position: absolute;
   inset: 0;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 .chrome-blur--header .chrome-blur__layer {
   background: linear-gradient(
     to bottom,
     var(--bg-translucent) 0%,
-    color-mix(in srgb, var(--bg-translucent) 55%, transparent) 55%,
+    color-mix(in srgb, var(--bg-translucent) 70%, transparent) 42%,
+    color-mix(in srgb, var(--bg-translucent) 28%, transparent) 72%,
     transparent 100%
   );
   opacity: 1;
@@ -385,16 +388,18 @@ textarea.frontmatter-textarea:focus-visible {
   -webkit-backdrop-filter: none;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 55%), transparent) 0%,
+    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 50%), transparent) 0%,
+    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 18%), transparent) 55%,
     transparent 100%
   );
-  opacity: 0.85;
+  opacity: 0.9;
 }
 .chrome-blur--footer .chrome-blur__layer {
   background: linear-gradient(
     to top,
     var(--status-translucent) 0%,
-    color-mix(in srgb, var(--status-translucent) 55%, transparent) 55%,
+    color-mix(in srgb, var(--status-translucent) 70%, transparent) 42%,
+    color-mix(in srgb, var(--status-translucent) 28%, transparent) 72%,
     transparent 100%
   );
 }
@@ -403,10 +408,11 @@ textarea.frontmatter-textarea:focus-visible {
   -webkit-backdrop-filter: none;
   background: linear-gradient(
     to top,
-    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 55%), transparent) 0%,
+    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 50%), transparent) 0%,
+    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 18%), transparent) 55%,
     transparent 100%
   );
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 /* Tabs — opacity-based surfaces over the frosted header */
@@ -711,6 +717,7 @@ html, body, #root {
   border-radius: 6px;
   color: var(--fg);
   font-weight: 500;
+  font-size: 0.6em;
 }
 .ProseMirror :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, pre code))::before,
 .ProseMirror :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, pre code))::after {
@@ -846,6 +853,7 @@ html, body, #root {
 /* Outline panel translucent surface */
 .outline-panel {
   background: var(--bg-translucent) !important;
+  background-color: var(--bg-translucent) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-color: var(--border-translucent) !important;

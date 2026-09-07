@@ -108,7 +108,7 @@ export const RawEditor: React.FC<RawEditorProps> = ({
       {/* Raw textarea */}
       <textarea
         ref={textareaRef}
-        className="flex-1 w-full min-h-[480px] font-mono text-[13px] leading-[1.6] text-foreground bg-transparent border-0 rounded-none p-3.5 resize-none outline-hidden whitespace-pre overflow-auto tab-2"
+        className="raw-editor flex-1 w-full min-h-[480px] font-mono text-[13px] leading-[1.6] text-foreground bg-transparent border-0 rounded-none p-3.5 resize-none outline-hidden whitespace-pre overflow-auto tab-2"
         value={value}
         onChange={(e) => {
           onChange(e.target.value);

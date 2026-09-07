@@ -130,7 +130,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
 
   return (
     <header
-      className="sticky top-0 z-20 isolate w-full flex h-header items-center gap-3 border-b border-border-translucent px-3 select-none bg-transparent"
+      className="sticky top-0 z-20 isolate w-full flex h-header items-center border-b border-border-translucent select-none bg-transparent overflow-visible"
       data-tauri-drag-region
       onMouseDown={handleStartDragging}
     >
@@ -139,6 +139,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
         <div className="chrome-blur__layer" />
         <div className="chrome-blur__layer chrome-blur__soft" />
       </div>
+      <div className="relative z-10 flex w-full h-full items-center gap-3 px-3">
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
           titlebar row. macOS reserves the traffic-lights zone on the left
           (only needed when the sidebar is collapsed and the bar reaches the
@@ -303,6 +304,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
         >
           <Settings className="h-[14px] w-[14px]" />
         </Button>
+      </div>
       </div>
     </header>
   );
