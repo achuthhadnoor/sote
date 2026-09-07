@@ -95,7 +95,7 @@ export const SettingsView: React.FC = () => {
           </p>
 
           <div className="flex flex-col gap-2 mt-1">
-            <Option value="light" label="Light" desc="Cool gray whites, translucent over Sidebar/Mica" />
+            <Option value="light" label="Light" desc="Bright white paper, soft pastel tint over Sidebar/Mica" />
             <Option value="dark" label="Dark" desc="Charcoal agents window, soft hierarchy" />
             <Option value="system" label="System" desc="Follow macOS / Windows appearance automatically" />
           </div>

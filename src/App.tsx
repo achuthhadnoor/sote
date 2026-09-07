@@ -547,7 +547,12 @@ function App() {
         />
       </div>
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
-        <TabBar onNewNote={handleNewNote} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((v) => !v)} />
+        <TabBar
+          onNewNote={handleNewNote}
+          onOpenSettings={() => { void openSettingsTab(); }}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
+        />
         <ConflictBanner />
         <Suspense fallback={<div className="flex-1" />}>
           <EditorSurface />

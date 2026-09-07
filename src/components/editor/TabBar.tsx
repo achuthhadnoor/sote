@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
@@ -9,6 +9,7 @@ import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 
 interface TabBarProps {
   onNewNote?: () => void;
+  onOpenSettings?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -48,7 +49,7 @@ const FileTabIcon: React.FC<{ active?: boolean }> = ({ active }) => (
   </svg>
 );
 
-export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onToggleSidebar }) => {
+export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sidebarCollapsed, onToggleSidebar }) => {
   const tabs = useTabStore((state) => state.tabs);
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
@@ -57,9 +58,30 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
   const canGoForward = useTabStore((state) => state.canGoForward);
   const goBack = useTabStore((state) => state.goBack);
   const goForward = useTabStore((state) => state.goForward);
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
+
+  // Keep the active tab visible inside the horizontal strip.
+  useEffect(() => {
+    const strip = tabsScrollRef.current;
+    const tab = activeTabRef.current;
+    if (!strip || !tab) return;
+
+    const pad = 12;
+    const tabLeft = tab.offsetLeft;
+    const tabRight = tabLeft + tab.offsetWidth;
+    const viewLeft = strip.scrollLeft;
+    const viewRight = viewLeft + strip.clientWidth;
+
+    if (tabLeft < viewLeft + pad) {
+      strip.scrollTo({ left: Math.max(0, tabLeft - pad), behavior: "smooth" });
+    } else if (tabRight > viewRight - pad) {
+      strip.scrollTo({ left: tabRight - strip.clientWidth + pad, behavior: "smooth" });
+    }
+  }, [activePath, tabs]);
 
   const handleTabClick = async (path: string, title: string) => {
     if (path !== activePath && !(await flushActiveNote())) return;
@@ -166,6 +188,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
           </div>
         ) : (
           <div
+            ref={tabsScrollRef}
             className="tab-strip w-full h-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
             onWheel={handleTabsWheel}
           >
@@ -204,6 +227,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                 return (
                   <button
                     key={tab.path}
+                    ref={isActive ? activeTabRef : undefined}
                     role="tab"
                     aria-selected={isActive}
                     aria-controls={`editor-${tab.path}`}
@@ -220,7 +244,6 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                       const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
                       tabsEls.forEach((el) => (el.tabIndex = -1));
                       (e.currentTarget as HTMLElement).tabIndex = 0;
-                      e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest" });
                     }}
                     title={isDraft ? `${tab.path} — not yet saved` : isSettingsTab(tab.path) ? "Settings" : tab.path}
                   >
@@ -259,7 +282,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
 
       {/* Right cluster: Windows reserves the caption-buttons zone on the
           right edge; other platforms need no reservation. */}
-      <div className={`flex items-center justify-end shrink-0 ${PLATFORM === "windows" ? "w-[196px] pr-[140px]" : "w-[56px]"}`} data-tauri-drag-region>
+      <div className={`flex items-center justify-end shrink-0 gap-1.5 ${PLATFORM === "windows" ? "w-[220px] pr-[140px]" : "w-[72px]"}`} data-tauri-drag-region>
         <Button
           variant="ghost"
           size="icon"
@@ -270,17 +293,16 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
         >
           <Plus className="h-4 w-4" />
         </Button>
-
         <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onOpenSettings?.()}
-            title="Settings (⌘,)"
-            aria-label="Open settings"
-            className="h-[22px] w-[22px] rounded-sm text-muted-foreground hover:bg-hover-translucent hover:text-foreground"
-          >
-            <Settings className="h-[14px] w-[14px]" />
-          </Button>
+          variant="ghost"
+          size="icon"
+          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+          onClick={() => onOpenSettings?.()}
+          title="Settings (⌘,)"
+          aria-label="Open settings"
+        >
+          <Settings className="h-[14px] w-[14px]" />
+        </Button>
       </div>
     </header>
   );

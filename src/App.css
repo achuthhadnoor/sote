@@ -76,65 +76,66 @@ html.theming *::after {
 }
 
 :root {
-  /* Cursor Agents-window light — cool gray whites */
-  --bg: #fcfcfc;
-  --fg: #1a1a1a;
-  --sidebar: #f3f3f3;
-  --sidebar-fg: #1a1a1a;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --primary: #1a1a1a;
+  /* Light — bright paper whites (tint must stay pastel so chrome doesn't muddy) */
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --sidebar: #f7f8fa;
+  --sidebar-fg: #1f2328;
+  --border: #e8eaed;
+  --input: #e8eaed;
+  --primary: #1f2328;
   --primary-fg: #ffffff;
-  --muted: #f0f0f0;
-  --muted-fg: #6b6b6b;
-  /* Monochrome accent (near-black on light) */
-  --accent: #1a1a1a;
+  --muted: #f4f5f7;
+  --muted-fg: #656d76;
+  --accent: #1f2328;
   --accent-fg: #ffffff;
   --accent-strong: #000000;
-  --accent-subtle: rgba(26, 26, 26, 0.08);
-  --link: #1a1a1a;
-  --status-bar: #f3f3f3;
+  --accent-subtle: rgba(31, 35, 40, 0.07);
+  --link: #1f2328;
+  --status-bar: #f7f8fa;
   --destructive: #CF222E;
-  --selection-bg: #e5e5e5;
-  --selection-fg: #1a1a1a;
+  --selection-bg: #e8eaed;
+  --selection-fg: #1f2328;
 
   --bg-opacity: 0.85;
 
   /* Appearance tint — hue 0–360, amount 0–40 (mixed into translucent chrome) */
   --theme-tint-hue: 220;
   --theme-tint-amount: 12;
-  --theme-tint: hsl(var(--theme-tint-hue) 32% 52%);
+  /* Pastel tint for light: high lightness so mix never darkens the chrome */
+  --theme-tint: hsl(var(--theme-tint-hue) 42% 90%);
+  --theme-tint-mix: calc(var(--theme-tint-amount) * 0.55%);
 
   /* Translucent surfaces: opacity over vibrancy, then subtle tint mix */
   --bg-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent)
   );
   --sidebar-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent)
   );
   --border-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 0.5%),
+    var(--theme-tint) calc(var(--theme-tint-amount) * 0.25%),
     color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent)
   );
   --muted-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
-  --accent-translucent: rgba(26, 26, 26, 0.10);
+  --accent-translucent: rgba(31, 35, 40, 0.08);
   --status-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent)
   );
   --hover-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
 
@@ -161,75 +162,77 @@ html.theming *::after {
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
   /* Prose code tokens — subtle layered surfaces */
-  --inline-code-bg: rgba(26, 26, 26, 0.06);
-  --inline-code-border: rgba(26, 26, 26, 0.10);
-  --code-bg: #f0f0f0;
-  --code-fg: #1a1a1a;
-  --code-border: #e0e0e0;
-  --code-header-bg: #e8e8e8;
+  --inline-code-bg: rgba(31, 35, 40, 0.05);
+  --inline-code-border: rgba(31, 35, 40, 0.08);
+  --code-bg: #f6f8fa;
+  --code-fg: #1f2328;
+  --code-border: #e8eaed;
+  --code-header-bg: #eef1f4;
 }
 
 [data-theme="light"] {
-  --bg: #fcfcfc;
-  --fg: #1a1a1a;
-  --sidebar: #f3f3f3;
-  --sidebar-fg: #1a1a1a;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --primary: #1a1a1a;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --sidebar: #f7f8fa;
+  --sidebar-fg: #1f2328;
+  --border: #e8eaed;
+  --input: #e8eaed;
+  --primary: #1f2328;
   --primary-fg: #ffffff;
-  --muted: #f0f0f0;
-  --muted-fg: #6b6b6b;
-  --accent: #1a1a1a;
+  --muted: #f4f5f7;
+  --muted-fg: #656d76;
+  --accent: #1f2328;
   --accent-fg: #ffffff;
   --accent-strong: #000000;
-  --accent-subtle: rgba(26, 26, 26, 0.08);
-  --link: #1a1a1a;
-  --status-bar: #f3f3f3;
+  --accent-subtle: rgba(31, 35, 40, 0.07);
+  --link: #1f2328;
+  --status-bar: #f7f8fa;
   --destructive: #CF222E;
-  --selection-bg: #e5e5e5;
-  --selection-fg: #1a1a1a;
+  --selection-bg: #e8eaed;
+  --selection-fg: #1f2328;
 
-  --theme-tint: hsl(var(--theme-tint-hue) 32% 52%);
+  /* Soft pastel tint — stays light even at high intensity */
+  --theme-tint: hsl(var(--theme-tint-hue) 42% 90%);
+  --theme-tint-mix: calc(var(--theme-tint-amount) * 0.55%);
 
   --bg-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent)
   );
   --sidebar-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent)
   );
   --border-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 0.5%),
+    var(--theme-tint) calc(var(--theme-tint-amount) * 0.25%),
     color-mix(in srgb, var(--border) calc(min(1, var(--bg-opacity) + 0.15) * 100%), transparent)
   );
   --muted-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
-  --accent-translucent: rgba(26, 26, 26, 0.10);
+  --accent-translucent: rgba(31, 35, 40, 0.08);
   --status-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent)
   );
   --hover-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
 
-  --inline-code-bg: rgba(26, 26, 26, 0.06);
-  --inline-code-border: rgba(26, 26, 26, 0.10);
-  --code-bg: #f0f0f0;
-  --code-fg: #1a1a1a;
-  --code-border: #e0e0e0;
-  --code-header-bg: #e8e8e8;
+  --inline-code-bg: rgba(31, 35, 40, 0.05);
+  --inline-code-border: rgba(31, 35, 40, 0.08);
+  --code-bg: #f6f8fa;
+  --code-fg: #1f2328;
+  --code-border: #e8eaed;
+  --code-header-bg: #eef1f4;
 }
 
 /* Dark theme — Cursor Agents charcoal (not blue-black) */
@@ -256,15 +259,16 @@ html.theming *::after {
 
   /* Slightly cooler / deeper tint mix on dark chrome */
   --theme-tint: hsl(var(--theme-tint-hue) 28% 42%);
+  --theme-tint-mix: calc(var(--theme-tint-amount) * 1%);
 
   --bg-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 100%), transparent)
   );
   --sidebar-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--sidebar) calc(var(--bg-opacity) * 100%), transparent)
   );
   --border-translucent: color-mix(
@@ -274,18 +278,18 @@ html.theming *::after {
   );
   --muted-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
   --accent-translucent: rgba(244, 244, 244, 0.14);
   --status-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 100%), transparent)
   );
   --hover-translucent: color-mix(
     in srgb,
-    var(--theme-tint) calc(var(--theme-tint-amount) * 1%),
+    var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
 
