@@ -83,15 +83,15 @@ html.theming *::after {
   --sidebar-fg: #1f2328;
   --border: #e8eaed;
   --input: #e8eaed;
-  --primary: #1f2328;
-  --primary-fg: #ffffff;
+  --primary: var(--accent);
+  --primary-fg: var(--accent-fg);
   --muted: #f4f5f7;
   --muted-fg: #656d76;
-  --accent: #1f2328;
+  --accent: hsl(var(--theme-tint-hue) 58% 42%);
   --accent-fg: #ffffff;
-  --accent-strong: #000000;
-  --accent-subtle: rgba(31, 35, 40, 0.07);
-  --link: #1f2328;
+  --accent-strong: hsl(var(--theme-tint-hue) 62% 32%);
+  --accent-subtle: hsl(var(--theme-tint-hue) 45% 50% / 0.12);
+  --link: var(--accent);
   --status-bar: #f7f8fa;
   --destructive: #CF222E;
   --selection-bg: #e8eaed;
@@ -127,7 +127,7 @@ html.theming *::after {
     var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
-  --accent-translucent: rgba(31, 35, 40, 0.08);
+  --accent-translucent: hsl(var(--theme-tint-hue) 50% 45% / 0.14);
   --status-translucent: color-mix(
     in srgb,
     var(--theme-tint) var(--theme-tint-mix),
@@ -177,15 +177,15 @@ html.theming *::after {
   --sidebar-fg: #1f2328;
   --border: #e8eaed;
   --input: #e8eaed;
-  --primary: #1f2328;
-  --primary-fg: #ffffff;
+  --primary: var(--accent);
+  --primary-fg: var(--accent-fg);
   --muted: #f4f5f7;
   --muted-fg: #656d76;
-  --accent: #1f2328;
+  --accent: hsl(var(--theme-tint-hue) 58% 42%);
   --accent-fg: #ffffff;
-  --accent-strong: #000000;
-  --accent-subtle: rgba(31, 35, 40, 0.07);
-  --link: #1f2328;
+  --accent-strong: hsl(var(--theme-tint-hue) 62% 32%);
+  --accent-subtle: hsl(var(--theme-tint-hue) 45% 50% / 0.12);
+  --link: var(--accent);
   --status-bar: #f7f8fa;
   --destructive: #CF222E;
   --selection-bg: #e8eaed;
@@ -215,7 +215,7 @@ html.theming *::after {
     var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
-  --accent-translucent: rgba(31, 35, 40, 0.08);
+  --accent-translucent: hsl(var(--theme-tint-hue) 50% 45% / 0.14);
   --status-translucent: color-mix(
     in srgb,
     var(--theme-tint) var(--theme-tint-mix),
@@ -243,15 +243,15 @@ html.theming *::after {
   --sidebar-fg: #e8e8e8;
   --border: #2a2a2a;
   --input: #2a2a2a;
-  --primary: #f4f4f4;
-  --primary-fg: #111111;
+  --primary: var(--accent);
+  --primary-fg: var(--accent-fg);
   --muted: #1c1c1c;
   --muted-fg: #8b8b8b;
-  --accent: #f4f4f4;
+  --accent: hsl(var(--theme-tint-hue) 72% 58%);
   --accent-fg: #111111;
-  --accent-strong: #ffffff;
-  --accent-subtle: rgba(244, 244, 244, 0.12);
-  --link: #f4f4f4;
+  --accent-strong: hsl(var(--theme-tint-hue) 75% 68%);
+  --accent-subtle: hsl(var(--theme-tint-hue) 55% 60% / 0.18);
+  --link: var(--accent);
   --status-bar: #181818;
   --destructive: #F87171;
   --selection-bg: rgba(255, 255, 255, 0.16);
@@ -281,7 +281,7 @@ html.theming *::after {
     var(--theme-tint) var(--theme-tint-mix),
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
-  --accent-translucent: rgba(244, 244, 244, 0.14);
+  --accent-translucent: hsl(var(--theme-tint-hue) 60% 55% / 0.2);
   --status-translucent: color-mix(
     in srgb,
     var(--theme-tint) var(--theme-tint-mix),
@@ -791,7 +791,7 @@ html, body, #root {
   border-radius: 6px;
   color: var(--fg);
   font-weight: 500;
-  font-size: 0.6em;
+  font-size: 0.8em;
 }
 .ProseMirror :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, pre code))::before,
 .ProseMirror :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, pre code))::after {

@@ -217,9 +217,9 @@ export const SettingsView: React.FC = () => {
                 />
                 <span
                   className="w-5 h-5 rounded-full border border-border-translucent shrink-0 shadow-xs"
-                  style={{ background: `hsl(${tintHue} 65% 48%)` }}
+                  style={{ background: "var(--accent)" }}
                   title={`${tintHue}°`}
-                  aria-label={`Hue preview ${tintHue} degrees`}
+                  aria-label={`Accent preview ${tintHue} degrees`}
                 />
               </div>
             }
