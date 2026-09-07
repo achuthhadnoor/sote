@@ -30,6 +30,25 @@ import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 const log = createLogger("editor-surface");
 const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/** Strip scheme/hash/query and decode so path checks work on marked output. */
+function hrefPathOnly(href: string): string {
+  let clean = href.trim().replace(/^file:\/\//i, "");
+  clean = clean.split("#")[0].split("?")[0].trim();
+  try {
+    clean = decodeURIComponent(clean);
+  } catch {
+    /* keep raw */
+  }
+  return clean;
+}
+
+function isMarkdownNoteHref(href: string): boolean {
+  const path = hrefPathOnly(href);
+  if (!path) return false;
+  const lower = path.toLowerCase();
+  return lower.endsWith(".md") || lower.endsWith(".markdown");
+}
+
 /**
  * Determines if a given href is an external web link that should open in the system default browser.
  */
@@ -37,8 +56,7 @@ function isExternalWebLink(href: string): boolean {
   const trimmed = href.trim();
   if (/^(https?:|mailto:|tel:|ftp:|\/\/)/i.test(trimmed)) return true;
   if (/^www\./i.test(trimmed)) return true;
-  const lower = trimmed.toLowerCase();
-  if (lower.endsWith(".md") || lower.endsWith(".markdown")) return false;
+  if (isMarkdownNoteHref(trimmed)) return false;
   if (trimmed.startsWith("./") || trimmed.startsWith("../") || trimmed.startsWith("/") || trimmed.startsWith("#")) {
     return false;
   }
@@ -54,10 +72,15 @@ function isExternalWebLink(href: string): boolean {
 
 /**
  * Opens any external link or non-markdown file in the system default browser or default application.
+ * Never opens `.md` / `.markdown` notes — those stay in snipnote.
  */
 async function openInExternalBrowser(href: string, activePath: string | null, vaultPath: string | null): Promise<void> {
   let target = href.trim();
   if (!target) return;
+  if (isMarkdownNoteHref(target)) {
+    log.warn("Refusing to open markdown note in external app:", target);
+    return;
+  }
 
   // 1. Normalize protocol-relative or extensionless web domains
   if (target.startsWith("//")) {
@@ -85,11 +108,9 @@ async function openInExternalBrowser(href: string, activePath: string | null, va
   }
 
   // 3. For local non-markdown files (e.g. PDF, image, etc.), resolve path and open with system default app
-  let filePath = target.replace(/^file:\/\//i, "");
-  filePath = filePath.split("#")[0].split("?")[0].trim();
-  try {
-    filePath = decodeURIComponent(filePath);
-  } catch {}
+  let filePath = hrefPathOnly(target);
+  if (!filePath) return;
+  if (isMarkdownNoteHref(filePath)) return;
 
   if (vaultPath && !filePath.startsWith("/") && !/^[a-zA-Z0-9+.-]+:\/\//.test(filePath)) {
     const dir = activePath ? activePath.substring(0, activePath.lastIndexOf("/")) : vaultPath;
@@ -187,19 +208,43 @@ function resolveMarkdownLink(href: string, activePath: string | null, vaultPath:
   return parts.join("/") || "/";
 }
 
+/** Ignore duplicate click/auxclick deliveries within a short window. */
+let lastLinkNavAt = 0;
+let lastLinkNavKey = "";
+function shouldSkipDuplicateLinkNav(key: string): boolean {
+  const now = Date.now();
+  if (key === lastLinkNavKey && now - lastLinkNavAt < 500) return true;
+  lastLinkNavKey = key;
+  lastLinkNavAt = now;
+  return false;
+}
+
 function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean {
   if (e.button !== 0) return false;
   const target = (e.target as HTMLElement)?.closest?.("a") as HTMLAnchorElement | null;
   if (!target) return false;
+  // Prefer the authored href; DOM `.href` is absolute and can re-trigger OS open.
   const hrefAttr = target.getAttribute("href");
   if (!hrefAttr) return false;
   const href = hrefAttr.trim();
   if (!href) return false;
 
-  // 1. In-page hash anchor (e.g. #heading)
+  // Always stop the webview from following <a href> (Cmd/Ctrl-click otherwise opens
+  // the browser, and target=_blank would open a second window).
+  e.preventDefault();
+  e.stopPropagation();
+  if (typeof e.stopImmediatePropagation === "function") {
+    e.stopImmediatePropagation();
+  }
+
+  const isMod = e.metaKey || e.ctrlKey;
+  const vaultPath = useVaultStore.getState().vaultPath;
+  const curActive = useTabStore.getState().activePath;
+
+  // 1. In-page hash anchor (e.g. #heading) — follow with ⌘/Ctrl-click
   if (href.startsWith("#")) {
-    e.preventDefault();
-    e.stopPropagation();
+    if (!isMod) return true;
+    if (shouldSkipDuplicateLinkNav(href)) return true;
     const slug = href.slice(1).toLowerCase();
     if (dom) {
       const headings = Array.from(dom.querySelectorAll("h1, h2, h3, h4, h5, h6"));
@@ -208,45 +253,39 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
       );
       if (match) {
         match.scrollIntoView({ behavior: "smooth", block: "start" });
-        return true;
       }
     }
     return true;
   }
 
-  const vaultPath = useVaultStore.getState().vaultPath;
-  const curActive = useTabStore.getState().activePath;
+  // 2. Markdown note inside the folder — ⌘/Ctrl-click opens in snipnote (never the browser)
+  const resolved = resolveMarkdownLink(href, curActive, vaultPath);
+  if (resolved || isMarkdownNoteHref(href)) {
+    if (!isMod) return true;
+    if (!resolved) {
+      log.warn("Could not resolve markdown link inside folder:", href);
+      return true;
+    }
+    if (shouldSkipDuplicateLinkNav(resolved)) return true;
+    const name = resolved.split("/").pop() || "Note";
+    void flushActiveNote().then((ok) => {
+      if (ok) useTabStore.getState().selectNote(resolved, name);
+    });
+    return true;
+  }
 
-  // 2. Explicit external web link -> open in external browser
+  // 3. External web links — open in the system browser (plain or modified click)
   if (isExternalWebLink(href)) {
-    e.preventDefault();
-    e.stopPropagation();
+    if (shouldSkipDuplicateLinkNav(href)) return true;
     openInExternalBrowser(href, curActive, vaultPath).catch((err) =>
       log.error("Failed to open external link:", err)
     );
     return true;
   }
 
-  // 3. Markdown note inside vault -> open in Snipnote tab
-  const resolved = resolveMarkdownLink(href, curActive, vaultPath);
-  if (resolved) {
-    e.preventDefault();
-    e.stopPropagation();
-    const name = resolved.split("/").pop() || "Note";
-    const isMod = e.metaKey || e.ctrlKey;
-    if (isMod) {
-      useTabStore.getState().openInNewBackgroundTab(resolved, name);
-    } else {
-      void flushActiveNote().then((ok) => {
-        if (ok) useTabStore.getState().selectNote(resolved, name);
-      });
-    }
-    return true;
-  }
-
-  // 4. All other links (non-markdown files, custom schemes, etc.) -> open in external browser / default app
-  e.preventDefault();
-  e.stopPropagation();
+  // 4. Other local files (PDF, images, etc.) — ⌘/Ctrl-click opens in the default app
+  if (!isMod) return true;
+  if (shouldSkipDuplicateLinkNav(href)) return true;
   openInExternalBrowser(href, curActive, vaultPath).catch((err) =>
     log.error("Failed to open link:", err)
   );
@@ -351,6 +390,13 @@ export const EditorSurface: React.FC = () => {
         },
       }).configure({
         openOnClick: false,
+        // TipTap defaults to target="_blank", which opens a second window/tab
+        // alongside our in-app / openUrl handling.
+        HTMLAttributes: {
+          target: null,
+          rel: null,
+          class: null,
+        },
       }),
       TaskList,
       TaskItem.configure({
@@ -447,10 +493,33 @@ export const EditorSurface: React.FC = () => {
 
         return false;
       },
-      handleClick: (view: any, _pos: number, event: MouseEvent) => {
-        if (event.defaultPrevented) return true;
-        const dom = (view?.dom as HTMLElement | undefined) ?? null;
-        return handleEditorLinkClick(event, dom);
+      // Stop webview default navigation on click; TipTap's default target=_blank
+      // is disabled above so we never open twice.
+      handleDOMEvents: {
+        click: (view: any, event: MouseEvent) => {
+          return handleEditorLinkClick(event, (view?.dom as HTMLElement | undefined) ?? null);
+        },
+        auxclick: (_view: any, event: MouseEvent) => {
+          // Middle-click on .md links should open a background tab, never the browser.
+          if (event.button !== 1) return false;
+          const target = (event.target as HTMLElement)?.closest?.("a") as HTMLAnchorElement | null;
+          if (!target?.getAttribute("href")) return false;
+          event.preventDefault();
+          event.stopPropagation();
+          const href = target.getAttribute("href")!.trim();
+          if (!href || href.startsWith("#") || isExternalWebLink(href)) return true;
+          const vaultPath = useVaultStore.getState().vaultPath;
+          const curActive = useTabStore.getState().activePath;
+          const resolved = resolveMarkdownLink(href, curActive, vaultPath);
+          if (resolved || isMarkdownNoteHref(href)) {
+            if (!resolved) return true;
+            if (shouldSkipDuplicateLinkNav(`aux:${resolved}`)) return true;
+            const name = resolved.split("/").pop() || "Note";
+            useTabStore.getState().openInNewBackgroundTab(resolved, name);
+            return true;
+          }
+          return true;
+        },
       },
     },
     onUpdate: ({ editor }) => {

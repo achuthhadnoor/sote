@@ -1,14 +1,113 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Theme, useThemeStore } from "../../stores/useThemeStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { formatLogsAsText, getRecentLogs, getBackendLogPath, createLogger, isStreamLogs, setStreamLogs } from "../../lib/logger";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
-const HUE_TRACK =
-  "linear-gradient(to right, hsl(0 70% 50%), hsl(60 70% 50%), hsl(120 70% 50%), hsl(180 70% 50%), hsl(240 70% 50%), hsl(300 70% 50%), hsl(360 70% 50%))";
+const THEME_OPTIONS: { value: Theme; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+
+function SettingsSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="px-0.5 text-[12px] font-medium text-muted-foreground">{title}</h2>
+      <div className="overflow-hidden rounded-[10px] border border-border-translucent bg-[color-mix(in_srgb,var(--muted)_55%,transparent)]">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function SettingsRow({
+  title,
+  description,
+  control,
+  children,
+  last = false,
+}: {
+  title: string;
+  description: string;
+  control?: React.ReactNode;
+  children?: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <div className={cn(!last && "border-b border-border-translucent")}>
+      <div className="flex items-center justify-between gap-6 px-4 py-3.5">
+        <div className="min-w-0 flex flex-col gap-0.5 pr-2">
+          <span className="text-[13px] font-medium text-foreground leading-snug">{title}</span>
+          <span className="text-[12px] text-muted-foreground leading-snug">{description}</span>
+        </div>
+        {control ? <div className="shrink-0 flex items-center justify-end">{control}</div> : null}
+      </div>
+      {children ? <div className="px-4 pb-3.5 -mt-1">{children}</div> : null}
+    </div>
+  );
+}
+
+function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      className="inline-flex items-center rounded-lg bg-background/60 p-0.5 border border-border-translucent"
+      role="radiogroup"
+      aria-label={ariaLabel}
+    >
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "h-7 px-2.5 rounded-md text-[12px] font-medium transition-colors",
+              active
+                ? "bg-muted text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CompactSlider(props: React.ComponentProps<typeof Slider> & { valueLabel?: string }) {
+  const { valueLabel, className, ...rest } = props;
+  return (
+    <div className="flex items-center gap-2.5 min-w-[160px] max-w-[200px]">
+      <Slider {...rest} className={cn("w-[140px]", className)} />
+      {valueLabel != null ? (
+        <span className="w-9 text-right text-[12px] tabular-nums text-muted-foreground">{valueLabel}</span>
+      ) : null}
+    </div>
+  );
+}
 
 export const SettingsView: React.FC = () => {
   const theme = useThemeStore((s) => s.theme);
@@ -27,7 +126,15 @@ export const SettingsView: React.FC = () => {
   const [logPath, setLogPath] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
   const [streamToTerminal, setStreamToTerminal] = useState(isStreamLogs());
+  const lastTranslucentOpacity = useRef(bgOpacity < 100 ? bgOpacity : 72);
   const log = createLogger("settings");
+
+  const reduceTransparency = bgOpacity >= 100;
+  const tintPercent = Math.round((tintAmount / 40) * 100);
+
+  useEffect(() => {
+    if (bgOpacity < 100) lastTranslucentOpacity.current = bgOpacity;
+  }, [bgOpacity]);
 
   useEffect(() => {
     (async () => {
@@ -42,355 +149,227 @@ export const SettingsView: React.FC = () => {
     })();
   }, []);
 
-  const Option = ({ value, label, desc }: { value: Theme; label: string; desc: string }) => {
-    const active = theme === value;
-    return (
-      <button
-        className={cn(
-          "ui-row flex items-center justify-between gap-3 p-3 border text-left cursor-pointer transition-all duration-150",
-          active
-            ? "border-accent bg-transparent shadow-xs"
-            : "border-border bg-transparent hover:border-foreground/30 hover:bg-muted-translucent"
-        )}
-        onClick={() => setTheme(value)}
-        aria-pressed={active}
-      >
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[13px] font-semibold text-foreground">{label}</span>
-          <span className="text-[11px] text-muted-foreground leading-normal">{desc}</span>
-        </div>
-        <span
-          className={cn(
-            "w-[18px] h-[18px] rounded-full border-[1.5px] bg-background inline-flex items-center justify-center shrink-0",
-            active ? "border-accent bg-accent" : "border-border"
-          )}
-          aria-hidden="true"
-        >
-          {active && <span className="w-[7px] h-[7px] rounded-full bg-background block" />}
-        </span>
-      </button>
-    );
+  const checkForUpdates = async () => {
+    setChecking(true);
+    setUpdateStatus("Checking…");
+    try {
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const update = await check();
+      if (!update) {
+        setUpdateStatus("Up to date");
+        setTimeout(() => setUpdateStatus(null), 3000);
+      } else {
+        setUpdateStatus(`Update ${update.version} available — restart to install`);
+      }
+    } catch (e: any) {
+      setUpdateStatus(`Check failed: ${e?.message || e}`);
+      setTimeout(() => setUpdateStatus(null), 3000);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const toggleAutostart = async (checked?: boolean) => {
+    try {
+      const { enable, disable, isEnabled } = await import("@tauri-apps/plugin-autostart");
+      const next = checked ?? !autostartEnabled;
+      if (next) await enable();
+      else await disable();
+      setAutostartEnabled(await isEnabled());
+    } catch {}
   };
 
   return (
     <section className="flex-1 overflow-y-auto flex justify-center py-10 px-8 sm:px-6 scroll-smooth">
-      <div className="w-full max-w-[560px] m-auto flex flex-col gap-5 pb-12">
-        <header className="flex flex-col gap-1 pb-1">
-          <h1 className="text-base font-semibold text-foreground">Settings</h1>
-          <p className="text-xs text-muted-foreground">
-            Manage appearance and behavior. Close this tab or press ⌘, again to dismiss.
+      <div className="w-full max-w-[640px] m-auto flex flex-col gap-7 pb-16">
+        <header className="flex flex-col gap-1">
+          <h1 className="text-[18px] font-semibold tracking-tight text-foreground">Settings</h1>
+          <p className="text-[13px] text-muted-foreground">
+            Appearance and behavior. Press ⌘, again to close.
           </p>
         </header>
 
-        <section className="flex flex-col gap-2.5">
-          <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M12 1V3M12 21V23M4.2 4.2L5.6 5.6M18.4 18.4L19.8 19.8M1 12H3M21 12H23M4.2 19.8L5.6 18.4M18.4 5.6L19.8 4.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-            Appearance
-          </h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Choose how snipnote looks. <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">System</code> follows your OS light/dark setting and keeps the vibrant Sidebar/Mica in sync.
-          </p>
-
-          <div className="flex flex-col gap-2 mt-1">
-            <Option value="light" label="Light" desc="Bright white paper, soft pastel tint over Sidebar/Mica" />
-            <Option value="dark" label="Dark" desc="Charcoal agents window, soft hierarchy" />
-            <Option value="system" label="System" desc="Follow macOS / Windows appearance automatically" />
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-border-translucent">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <span className="text-[13px] font-medium text-foreground">Transparency</span>
-                <p className="text-[12px] text-muted-foreground">
-                  Window translucency over Sidebar / Mica vibrancy
-                </p>
-              </div>
-              <span className="text-[12px] font-mono font-medium text-muted-foreground px-2 py-0.5 rounded bg-transparent">
-                {bgOpacity}%
-              </span>
-            </div>
-            <div className="flex items-center gap-3 pt-1">
-              <span className="text-[11px] text-muted-foreground shrink-0">Clear</span>
-              <Slider
-                value={bgOpacity}
-                min={10}
-                max={100}
-                step={1}
-                onChange={setBgOpacity}
-                aria-label="Transparency"
-                className="flex-1"
+        <SettingsSection title="Appearance">
+          <SettingsRow
+            title="Theme"
+            description="Light, dark, or follow the system appearance"
+            control={
+              <SegmentedControl
+                value={theme}
+                options={THEME_OPTIONS}
+                onChange={setTheme}
+                ariaLabel="Theme"
               />
-              <span className="text-[11px] text-muted-foreground shrink-0">Opaque</span>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-border-translucent">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <span className="text-[13px] font-medium text-foreground">Tint</span>
-                <p className="text-[12px] text-muted-foreground">
-                  Soft chrome color over translucent surfaces
-                </p>
-              </div>
-              <span
-                className="w-6 h-6 rounded-md border border-border-translucent shrink-0 shadow-2xs"
-                style={{
-                  background: `color-mix(in srgb, hsl(${tintHue} 32% 50%) ${tintAmount}%, var(--muted))`,
-                }}
-                title={`Hue ${tintHue}°, intensity ${tintAmount}`}
-                aria-hidden="true"
-              />
-            </div>
-
-            <div className="flex flex-col gap-3 pt-1">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">Hue</span>
-                  <span className="text-[11px] font-mono text-muted-foreground">{tintHue}°</span>
-                </div>
-                <Slider
+            }
+          />
+          <SettingsRow
+            title="Hue"
+            description="Choose a tint color"
+            control={
+              <div className="flex items-center gap-3">
+                <CompactSlider
                   value={tintHue}
                   min={0}
                   max={360}
                   step={1}
                   onChange={setTintHue}
-                  trackBackground={HUE_TRACK}
                   aria-label="Tint hue"
                 />
+                <span
+                  className="w-5 h-5 rounded-full border border-border-translucent shrink-0 shadow-xs"
+                  style={{ background: `hsl(${tintHue} 65% 48%)` }}
+                  title={`${tintHue}°`}
+                  aria-label={`Hue preview ${tintHue} degrees`}
+                />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">Intensity</span>
-                  <span className="text-[11px] font-mono text-muted-foreground">
-                    {tintAmount === 0 ? "None" : tintAmount}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-muted-foreground shrink-0">None</span>
-                  <Slider
-                    value={tintAmount}
-                    min={0}
-                    max={40}
-                    step={1}
-                    onChange={setTintAmount}
-                    aria-label="Tint intensity"
-                    className="flex-1"
-                  />
-                  <span className="text-[11px] text-muted-foreground shrink-0">Strong</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 bg-transparent border border-border-translucent rounded-md">
-            Shortcut: <kbd className="font-mono text-[10px] bg-transparent border border-border-translucent px-1.5 py-0.5 rounded text-foreground">⌘,</kbd> or <kbd className="font-mono text-[10px] bg-transparent border border-border-translucent px-1.5 py-0.5 rounded text-foreground">Ctrl ,</kbd> to open settings. Theme, transparency, and tint persist automatically.
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-2.5">
-          <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 7V17M20 7V17M8 7V17M12 7V17M16 7V17M4 12H20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              <path d="M9 9L15 15M15 9L9 15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
-            </svg>
-            Writing
-          </h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Editor spellcheck uses your OS dictionary. Toggle persists in <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">snipnote-spellcheck</code>.
-          </p>
-          <div className="flex flex-col gap-2 mt-1">
-            <div
-              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
-              role="button"
-              tabIndex={0}
-              onClick={() => setSpellCheckEnabled(!spellCheckEnabled)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSpellCheckEnabled(!spellCheckEnabled); }}}
-              aria-pressed={spellCheckEnabled}
-              aria-label="Spellcheck toggle"
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-semibold text-foreground">Spellcheck</span>
-                <span className="text-[11px] text-muted-foreground leading-normal">Underline misspellings and show suggestions on right-click</span>
-              </div>
-              <Switch checked={spellCheckEnabled} onCheckedChange={setSpellCheckEnabled} onClick={(e) => e.stopPropagation()} aria-hidden="true" />
-            </div>
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-2.5">
-          <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 3V13M12 3L7 8M12 3L17 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M4 16V19A2 2 0 0 0 6 21H18A2 2 0 0 0 20 19V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Updates & System
-          </h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Keep snipnote fresh and launch at login. Checks are manual for v1.
-          </p>
-          <div className="flex flex-col gap-2 mt-1">
-            <button
-              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent text-left cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
-              onClick={async () => {
-                setChecking(true);
-                setUpdateStatus("Checking…");
-                try {
-                  const { check } = await import("@tauri-apps/plugin-updater");
-                  const update = await check();
-                  if (!update) {
-                    setUpdateStatus("Up to date ✓");
-                    setTimeout(() => setUpdateStatus(null), 3000);
+            }
+          />
+          <SettingsRow
+            title="Intensity"
+            description="Control how strongly the tint is applied"
+            control={
+              <CompactSlider
+                value={tintAmount}
+                min={0}
+                max={40}
+                step={1}
+                onChange={setTintAmount}
+                aria-label="Tint intensity"
+                valueLabel={`${tintPercent}%`}
+              />
+            }
+          />
+          <SettingsRow
+            title="Reduce Transparency"
+            description="Replace translucent surfaces with opaque backgrounds"
+            last
+            control={
+              <Switch
+                checked={reduceTransparency}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    if (bgOpacity < 100) lastTranslucentOpacity.current = bgOpacity;
+                    setBgOpacity(100);
                   } else {
-                    setUpdateStatus(`Update available ${update.version} — restart to update`);
+                    setBgOpacity(lastTranslucentOpacity.current || 72);
                   }
-                } catch (e: any) {
-                  setUpdateStatus(`Check failed: ${e?.message || e}`);
-                  setTimeout(() => setUpdateStatus(null), 3000);
-                } finally {
-                  setChecking(false);
-                }
-              }}
-              disabled={checking}
-              aria-label="Check for updates"
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-semibold text-foreground">Check for Updates</span>
-                <span className="text-[11px] text-muted-foreground leading-normal">{updateStatus || "Manual check via updater plugin"}</span>
-              </div>
-              <span className="text-xs font-medium text-muted-foreground" aria-hidden="true">
-                {checking ? "Checking…" : "Check"}
-              </span>
-            </button>
-            <div
-              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
-              role="button"
-              tabIndex={0}
-              onClick={async () => {
-                try {
-                  const { enable, disable, isEnabled } = await import("@tauri-apps/plugin-autostart");
-                  if (autostartEnabled) {
-                    await disable();
-                  } else {
-                    await enable();
-                  }
-                  setAutostartEnabled(await isEnabled());
-                } catch {}
-                try { (navigator as any).vibrate?.(10); } catch {}
-              }}
-              onKeyDown={async (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  try {
-                    const { enable, disable, isEnabled } = await import("@tauri-apps/plugin-autostart");
-                    if (autostartEnabled) await disable(); else await enable();
-                    setAutostartEnabled(await isEnabled());
-                  } catch {}
-                }
-              }}
-              aria-pressed={autostartEnabled}
-              aria-label="Launch at login toggle"
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-semibold text-foreground">Launch at Login</span>
-                <span className="text-[11px] text-muted-foreground leading-normal">Open snipnote when you log in (LaunchAgent)</span>
-              </div>
+                }}
+                aria-label="Reduce transparency"
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="Writing">
+          <SettingsRow
+            title="Spellcheck"
+            description="Underline misspellings using the system dictionary"
+            last
+            control={
+              <Switch
+                checked={spellCheckEnabled}
+                onCheckedChange={setSpellCheckEnabled}
+                aria-label="Spellcheck"
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="System">
+          <SettingsRow
+            title="Launch at Login"
+            description="Open snipnote when you sign in to this Mac"
+            control={
               <Switch
                 checked={autostartEnabled}
-                onCheckedChange={async (checked) => {
-                  try {
-                    const { enable, disable, isEnabled } = await import("@tauri-apps/plugin-autostart");
-                    if (checked) await enable(); else await disable();
-                    setAutostartEnabled(await isEnabled());
-                  } catch {}
-                }}
-                onClick={(e) => e.stopPropagation()}
-                aria-hidden="true"
+                onCheckedChange={(checked) => void toggleAutostart(checked)}
+                aria-label="Launch at login"
               />
-            </div>
-          </div>
-        </section>
+            }
+          />
+          <SettingsRow
+            title="Check for Updates"
+            description={updateStatus || "Look for a newer version"}
+            last
+            control={
+              <button
+                type="button"
+                onClick={() => void checkForUpdates()}
+                disabled={checking}
+                className="h-7 px-3 rounded-md border border-border-translucent bg-background/50 text-[12px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {checking ? "Checking…" : "Check"}
+              </button>
+            }
+          />
+        </SettingsSection>
 
-        <section className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">Diagnostics</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Debug logs live at <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">{logPath || "…loading"}</code>
-            {import.meta.env.DEV ? " (debug level in dev)" : " (info level in production)"}.
-            Frontend warnings/errors are always appended to the same file.
-          </p>
-          <div
-            className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              const next = !streamToTerminal;
-              setStreamLogs(next);
-              setStreamToTerminal(next);
-              log.info(next ? "Log streaming to terminal enabled" : "Log streaming to terminal disabled");
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                const next = !streamToTerminal;
-                setStreamLogs(next);
-                setStreamToTerminal(next);
-              }
-            }}
-            aria-pressed={streamToTerminal}
-            aria-label="Stream logs to terminal toggle"
-          >
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] font-semibold text-foreground">Stream logs to terminal</span>
-              <span className="text-[11px] text-muted-foreground leading-normal">Forward all frontend logs to the log file and dev terminal (on by default in dev)</span>
-            </div>
-            <Switch checked={streamToTerminal} onCheckedChange={(checked) => { setStreamLogs(checked); setStreamToTerminal(checked); }} onClick={(e) => e.stopPropagation()} aria-hidden="true" />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="text-xs"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(formatLogsAsText(getRecentLogs(200)));
-                  setLogStatus("Copied recent logs ✓");
-                } catch (e) {
-                  log.error("Copy logs failed", e);
-                  setLogStatus("Copy failed");
-                }
-                setTimeout(() => setLogStatus(null), 2500);
-              }}
-            >
-              Copy recent logs
-            </Button>
-            <Button
-              variant="outline"
-              className="text-xs"
-              onClick={async () => {
-                try {
-                  const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
-                  const p = logPath || (await getBackendLogPath());
-                  if (p) await revealItemInDir(p);
-                  else setLogStatus("Log path unavailable");
-                } catch (e) {
-                  log.error("Reveal log file failed", e);
-                  setLogStatus("Reveal failed");
-                }
-              }}
-            >
-              Show log file
-            </Button>
-            {logStatus && <span className="text-[11px] text-muted-foreground self-center">{logStatus}</span>}
-          </div>
-        </section>
+        <SettingsSection title="Diagnostics">
+          <SettingsRow
+            title="Stream Logs to Terminal"
+            description="Forward frontend logs to the log file and dev terminal"
+            control={
+              <Switch
+                checked={streamToTerminal}
+                onCheckedChange={(checked) => {
+                  setStreamLogs(checked);
+                  setStreamToTerminal(checked);
+                }}
+                aria-label="Stream logs to terminal"
+              />
+            }
+          />
+          <SettingsRow
+            title="Log File"
+            description={logPath || "Resolving log path…"}
+            last
+            control={
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="h-7 px-3 rounded-md border border-border-translucent bg-background/50 text-[12px] font-medium text-foreground hover:bg-muted"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(formatLogsAsText(getRecentLogs(200)));
+                      setLogStatus("Copied");
+                    } catch (e) {
+                      log.error("Copy logs failed", e);
+                      setLogStatus("Copy failed");
+                    }
+                    setTimeout(() => setLogStatus(null), 2500);
+                  }}
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  className="h-7 px-3 rounded-md border border-border-translucent bg-background/50 text-[12px] font-medium text-foreground hover:bg-muted"
+                  onClick={async () => {
+                    try {
+                      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+                      const p = logPath || (await getBackendLogPath());
+                      if (p) await revealItemInDir(p);
+                      else setLogStatus("Unavailable");
+                    } catch (e) {
+                      log.error("Reveal log file failed", e);
+                      setLogStatus("Reveal failed");
+                    }
+                    setTimeout(() => setLogStatus(null), 2500);
+                  }}
+                >
+                  Show
+                </button>
+                {logStatus ? (
+                  <span className="text-[11px] text-muted-foreground">{logStatus}</span>
+                ) : null}
+              </div>
+            }
+          />
+        </SettingsSection>
 
-        <section className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">About</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            snipnote · local-first markdown companion for Claude Code. Vibrant window via <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">EffectsBuilder</code> (Sidebar on macOS, Mica on Windows).
-          </p>
-        </section>
+        <p className="px-0.5 text-[12px] text-muted-foreground leading-relaxed">
+          snipnote · local-first markdown notes. Theme and tint preferences save automatically.
+        </p>
       </div>
     </section>
   );
