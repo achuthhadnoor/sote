@@ -187,7 +187,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
   }
 
   return (
-    <Card className="mb-6 overflow-hidden border-0 shadow-none">
+    <Card className="mb-6 overflow-hidden border-0 bg-transparent shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 bg-transparent px-3 py-2">
         <button
           className="flex items-center gap-2 text-sm font-medium hover:text-foreground transition-colors"
@@ -195,7 +195,9 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
         >
           {isCollapsed ? <ChevronRight className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
           Properties
-          <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-mono">{properties.length}</Badge>
+          <Badge variant="outline" className="ml-1 border-border-translucent bg-transparent px-1.5 py-0 text-[10px] font-mono">
+            {properties.length}
+          </Badge>
         </button>
 
         {!isCollapsed && (
@@ -203,7 +205,10 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
             <Button
               variant={viewMode === "table" ? "secondary" : "ghost"}
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className={cn(
+                "h-6 px-2 text-[11px]",
+                viewMode === "table" && "bg-transparent border border-border-translucent shadow-none"
+              )}
               onClick={() => setViewMode("table")}
             >
               Table
@@ -211,16 +216,19 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
             <Button
               variant={viewMode === "raw" ? "secondary" : "ghost"}
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className={cn(
+                "h-6 px-2 text-[11px]",
+                viewMode === "raw" && "bg-transparent border border-border-translucent shadow-none"
+              )}
               onClick={() => setViewMode("raw")}
             >
               Raw YAML
             </Button>
             {viewMode === "table" && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-[11px] ml-1"
+                className="h-6 px-2 text-[11px] ml-1 border border-dashed border-border-translucent bg-transparent"
                 onClick={() => setIsAddingProperty(!isAddingProperty)}
               >
                 {isAddingProperty ? "Cancel" : "+ Add"}
@@ -234,7 +242,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
         <CardContent className="p-0">
           {viewMode === "raw" ? (
             <Textarea
-              className="frontmatter-textarea frontmatter-raw-textarea min-h-[120px] w-full rounded-none border-0 font-mono text-xs leading-5 focus-visible:ring-0 p-3 outline-none"
+              className="frontmatter-textarea frontmatter-raw-textarea min-h-[120px] w-full rounded-none border-0 bg-transparent font-mono text-xs leading-5 shadow-none focus-visible:ring-0 p-3 outline-none"
               value={rawText}
               onChange={handleRawChange}
               placeholder="key: value..."
@@ -252,7 +260,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
                           {prop.key}
                         </span>
                       </TableCell>
-                      <TableCell className="p-2 align-middle">
+                      <TableCell className="bg-transparent p-2 align-middle">
                         <PropertyValueRenderer
                           prop={prop}
                           onUpdate={(newVal) => handleValueChange(idx, newVal)}
@@ -263,11 +271,11 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
                           }
                         />
                       </TableCell>
-                      <TableCell className="w-[36px] p-1 text-center align-middle">
+                      <TableCell className="w-[36px] bg-transparent p-1 text-center align-middle">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 opacity-60 hover:opacity-100 hover:text-transparent "
+                          className="h-6 w-6 opacity-60 hover:opacity-100 hover:bg-transparent hover:text-destructive"
                           onClick={() => handleDeleteProperty(idx)}
                           title={`Delete ${prop.key}`}
                         >
@@ -353,11 +361,15 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
     return (
       <div className="flex flex-wrap gap-1.5 items-center">
         {prop.value.map((item, i) => (
-          <Badge key={i} variant="secondary" className="gap-1 pr-1 font-mono text-[11px]">
+          <Badge
+            key={i}
+            variant="outline"
+            className="gap-1 border-border-translucent bg-transparent pr-1 font-mono text-[11px]"
+          >
             <span>{String(item)}</span>
             <button
               type="button"
-              className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+              className="ml-1 rounded-full p-0.5 hover:bg-muted-translucent"
               onClick={() => onRemoveListItem(i)}
             >
               <X className="h-3 w-3" />

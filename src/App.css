@@ -162,9 +162,9 @@ html.theming *::after {
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
   /* Prose code tokens — subtle layered surfaces */
-  --inline-code-bg: rgba(31, 35, 40, 0.05);
-  --inline-code-border: rgba(31, 35, 40, 0.08);
-  --code-bg: #f6f8fa;
+  --inline-code-bg: transparent;
+  --inline-code-border: rgba(31, 35, 40, 0.12);
+  --code-bg: transparent;
   --code-fg: #1f2328;
   --code-border: #e8eaed;
   --code-header-bg: #eef1f4;
@@ -227,9 +227,9 @@ html.theming *::after {
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
 
-  --inline-code-bg: rgba(31, 35, 40, 0.05);
-  --inline-code-border: rgba(31, 35, 40, 0.08);
-  --code-bg: #f6f8fa;
+  --inline-code-bg: transparent;
+  --inline-code-border: rgba(31, 35, 40, 0.12);
+  --code-bg: transparent;
   --code-fg: #1f2328;
   --code-border: #e8eaed;
   --code-header-bg: #eef1f4;
@@ -293,9 +293,9 @@ html.theming *::after {
     color-mix(in srgb, var(--muted) calc(var(--bg-opacity) * 100%), transparent)
   );
 
-  --inline-code-bg: rgba(255, 255, 255, 0.06);
-  --inline-code-border: rgba(255, 255, 255, 0.08);
-  --code-bg: #1c1c1c;
+  --inline-code-bg: transparent;
+  --inline-code-border: rgba(255, 255, 255, 0.12);
+  --code-bg: transparent;
   --code-fg: #ededed;
   --code-border: #2a2a2a;
   --code-header-bg: #222222;
@@ -682,11 +682,22 @@ html, body, #root {
   content: "" !important;
 }
 
-/* Code block — Card-based chrome */
-.code-block-card { border-radius: var(--surface-radius-lg); box-shadow: var(--surface-shadow); }
+/* Code block — transparent chrome over the editor surface */
+.code-block-card {
+  border-radius: var(--surface-radius-lg);
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+.code-block-card pre,
+.ProseMirror .code-block-card,
+.ProseMirror [data-node-view-wrapper] .code-block-card {
+  background: transparent;
+}
 
 .ProseMirror pre {
-  background: var(--code-bg);
+  background: transparent !important;
+  background-color: transparent !important;
   color: var(--code-fg);
   border: none;
   border-radius: 0;

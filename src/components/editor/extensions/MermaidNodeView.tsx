@@ -669,7 +669,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
 
     return (
       <NodeViewWrapper as="div" className="not-prose my-[18px]">
-        <Card className="code-block-card group relative overflow-hidden border shadow-sm">
+        <Card className="code-block-card group relative overflow-hidden border bg-transparent shadow-none">
           {/* Floating actions */}
           <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border bg-background/80 p-0.5 shadow-sm backdrop-blur transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
             <span className="px-1.5 text-[10px] font-mono text-muted-foreground select-none">
@@ -710,7 +710,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
 
   return (
     <NodeViewWrapper as="div" className="not-prose my-[18px]">
-        <Card className="group relative overflow-hidden border shadow-sm">
+        <Card className="code-block-card group relative overflow-hidden border bg-transparent shadow-none">
           {/* Floating actions */}
           <div
             className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border bg-background/80 p-0.5 shadow-sm backdrop-blur transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100"

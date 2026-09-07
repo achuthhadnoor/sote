@@ -49,8 +49,8 @@ export const SettingsView: React.FC = () => {
         className={cn(
           "ui-row flex items-center justify-between gap-3 p-3 border text-left cursor-pointer transition-all duration-150",
           active
-            ? "border-accent bg-accent-subtle shadow-xs"
-            : "border-border bg-background hover:border-foreground/30 hover:bg-muted"
+            ? "border-accent bg-transparent shadow-xs"
+            : "border-border bg-transparent hover:border-foreground/30 hover:bg-muted-translucent"
         )}
         onClick={() => setTheme(value)}
         aria-pressed={active}
@@ -91,7 +91,7 @@ export const SettingsView: React.FC = () => {
             Appearance
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Choose how snipnote looks. <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">System</code> follows your OS light/dark setting and keeps the vibrant Sidebar/Mica in sync.
+            Choose how snipnote looks. <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">System</code> follows your OS light/dark setting and keeps the vibrant Sidebar/Mica in sync.
           </p>
 
           <div className="flex flex-col gap-2 mt-1">
@@ -108,7 +108,7 @@ export const SettingsView: React.FC = () => {
                   Window translucency over Sidebar / Mica vibrancy
                 </p>
               </div>
-              <span className="text-[12px] font-mono font-medium text-muted-foreground px-2 py-0.5 rounded bg-muted-translucent">
+              <span className="text-[12px] font-mono font-medium text-muted-foreground px-2 py-0.5 rounded bg-transparent">
                 {bgOpacity}%
               </span>
             </div>
@@ -185,8 +185,8 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 bg-muted-translucent border border-border-translucent rounded-md">
-            Shortcut: <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">⌘,</kbd> or <kbd className="font-mono text-[10px] bg-background border border-border px-1.5 py-0.5 rounded shadow-2xs text-foreground">Ctrl ,</kbd> to open settings. Theme, transparency, and tint persist automatically.
+          <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 bg-transparent border border-border-translucent rounded-md">
+            Shortcut: <kbd className="font-mono text-[10px] bg-transparent border border-border-translucent px-1.5 py-0.5 rounded text-foreground">⌘,</kbd> or <kbd className="font-mono text-[10px] bg-transparent border border-border-translucent px-1.5 py-0.5 rounded text-foreground">Ctrl ,</kbd> to open settings. Theme, transparency, and tint persist automatically.
           </div>
         </section>
 
@@ -199,11 +199,11 @@ export const SettingsView: React.FC = () => {
             Writing
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Editor spellcheck uses your OS dictionary. Toggle persists in <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">snipnote-spellcheck</code>.
+            Editor spellcheck uses your OS dictionary. Toggle persists in <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">snipnote-spellcheck</code>.
           </p>
           <div className="flex flex-col gap-2 mt-1">
             <div
-              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
               role="button"
               tabIndex={0}
               onClick={() => setSpellCheckEnabled(!spellCheckEnabled)}
@@ -233,7 +233,7 @@ export const SettingsView: React.FC = () => {
           </p>
           <div className="flex flex-col gap-2 mt-1">
             <button
-              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background text-left cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent text-left cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
               onClick={async () => {
                 setChecking(true);
                 setUpdateStatus("Checking…");
@@ -265,7 +265,7 @@ export const SettingsView: React.FC = () => {
               </span>
             </button>
             <div
-              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+              className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
               role="button"
               tabIndex={0}
               onClick={async () => {
@@ -316,12 +316,12 @@ export const SettingsView: React.FC = () => {
         <section className="flex flex-col gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">Diagnostics</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Debug logs live at <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">{logPath || "…loading"}</code>
+            Debug logs live at <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">{logPath || "…loading"}</code>
             {import.meta.env.DEV ? " (debug level in dev)" : " (info level in production)"}.
             Frontend warnings/errors are always appended to the same file.
           </p>
           <div
-            className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-background cursor-pointer hover:border-foreground/30 hover:bg-muted transition-all"
+            className="ui-row flex items-center justify-between gap-3 p-3 border border-border bg-transparent cursor-pointer hover:border-foreground/30 hover:bg-muted-translucent transition-all"
             role="button"
             tabIndex={0}
             onClick={() => {
@@ -388,7 +388,7 @@ export const SettingsView: React.FC = () => {
         <section className="flex flex-col gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">About</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            snipnote · local-first markdown companion for Claude Code. Vibrant window via <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded border border-border">EffectsBuilder</code> (Sidebar on macOS, Mica on Windows).
+            snipnote · local-first markdown companion for Claude Code. Vibrant window via <code className="font-mono text-[11px] bg-transparent px-0.5 rounded border-0">EffectsBuilder</code> (Sidebar on macOS, Mica on Windows).
           </p>
         </section>
       </div>
