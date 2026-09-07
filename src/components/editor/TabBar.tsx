@@ -112,11 +112,11 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
       data-tauri-drag-region
       onMouseDown={handleStartDragging}
     >
-      {/* Frosted header blur wash */}
-      <div
-        className="absolute inset-x-0 top-0 -z-10 h-[calc(100%+32px)] pointer-events-none backdrop-blur-[14px] [mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_65%,transparent_100%)] bg-gradient-to-b from-bg-translucent via-bg-translucent/45 to-transparent"
-        aria-hidden="true"
-      />
+      {/* Progressive frosted wash — blur + opacity fade (not mask) */}
+      <div className="chrome-blur chrome-blur--header" aria-hidden="true">
+        <div className="chrome-blur__layer" />
+        <div className="chrome-blur__layer chrome-blur__soft" />
+      </div>
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
           titlebar row. macOS reserves the traffic-lights zone on the left
           (only needed when the sidebar is collapsed and the bar reaches the
@@ -212,8 +212,8 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                     data-tab-title={tab.title}
                     className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] cursor-pointer ${
                       isActive
-                        ? "bg-background border-border text-foreground shadow-xs"
-                        : "bg-transparent text-muted-foreground hover:bg-hover-translucent hover:text-foreground hover:border-border-translucent"
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                     onClick={() => handleTabClick(tab.path, tab.title)}
                     onFocus={(e) => {
@@ -239,7 +239,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
                       <span className="text-[10px] text-muted-foreground font-normal shrink-0">saving…</span>
                     )}
                     <span
-                      className="absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 bg-gradient-to-r from-transparent via-background/90 to-background"
+                      className="tab-item__close absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
                       role="button"
                       aria-label={`Close ${tab.title}`}
                       onClick={(e) => handleClose(e, tab.path)}
@@ -270,6 +270,17 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, sidebarCollapsed, onT
         >
           <Plus className="h-4 w-4" />
         </Button>
+
+        <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onOpenSettings?.()}
+            title="Settings (⌘,)"
+            aria-label="Open settings"
+            className="h-[22px] w-[22px] rounded-sm text-muted-foreground hover:bg-hover-translucent hover:text-foreground"
+          >
+            <Settings className="h-[14px] w-[14px]" />
+          </Button>
       </div>
     </header>
   );

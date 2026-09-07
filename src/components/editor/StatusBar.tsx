@@ -39,10 +39,10 @@ export const StatusBar: React.FC = () => {
       aria-live="polite"
       aria-atomic="true"
     >
-      <div
-        className="status-blur absolute inset-x-0 bottom-0 -z-10 h-[calc(100%+32px)] pointer-events-none backdrop-blur-[14px] [mask-image:linear-gradient(to_top,black_0%,black_65%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_top,black_0%,black_65%,transparent_100%)] bg-gradient-to-t from-status-translucent via-status-translucent/45 to-transparent"
-        aria-hidden="true"
-      />
+      <div className="chrome-blur chrome-blur--footer status-blur" aria-hidden="true">
+        <div className="chrome-blur__layer" />
+        <div className="chrome-blur__layer chrome-blur__soft" />
+      </div>
       <div className="flex items-center min-w-0 flex-1 mr-2">
         {notePath && (
           <span className="truncate" title={notePath}>

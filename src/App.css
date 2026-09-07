@@ -345,6 +345,88 @@ textarea.frontmatter-textarea:focus-visible {
   width: 0;
 }
 
+/* Progressive chrome blur — stacked opacity fades (Tailwind /N fails on color-mix tokens) */
+.chrome-blur {
+  position: absolute;
+  inset-inline: 0;
+  z-index: -10;
+  pointer-events: none;
+  overflow: hidden;
+}
+.chrome-blur--header {
+  top: 0;
+  height: calc(100% + 32px);
+}
+.chrome-blur--footer {
+  bottom: 0;
+  height: calc(100% + 32px);
+}
+.chrome-blur__layer {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.chrome-blur--header .chrome-blur__layer {
+  background: linear-gradient(
+    to bottom,
+    var(--bg-translucent) 0%,
+    color-mix(in srgb, var(--bg-translucent) 55%, transparent) 55%,
+    transparent 100%
+  );
+  opacity: 1;
+}
+.chrome-blur--header .chrome-blur__soft {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 55%), transparent) 0%,
+    transparent 100%
+  );
+  opacity: 0.85;
+}
+.chrome-blur--footer .chrome-blur__layer {
+  background: linear-gradient(
+    to top,
+    var(--status-translucent) 0%,
+    color-mix(in srgb, var(--status-translucent) 55%, transparent) 55%,
+    transparent 100%
+  );
+}
+.chrome-blur--footer .chrome-blur__soft {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 55%), transparent) 0%,
+    transparent 100%
+  );
+  opacity: 0.85;
+}
+
+/* Tabs — opacity-based surfaces over the frosted header */
+.tab-item {
+  background-color: transparent;
+}
+.tab-item[aria-selected="true"] {
+  background-color: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--fg) 6%, transparent);
+}
+.tab-item:not([aria-selected="true"]):hover {
+  background-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  border-color: color-mix(in srgb, var(--border) 45%, transparent);
+}
+.tab-item__close {
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--bg) 88%, transparent) 40%,
+    color-mix(in srgb, var(--bg) 92%, transparent)
+  );
+}
+
 @layer components {
   .ui-surface {
     border-radius: var(--surface-radius);
@@ -719,9 +801,24 @@ html, body, #root {
   .file-context-menu,
   .outline-dashes,
   .outline-panel,
-  .status-blur {
+  .status-blur,
+  .chrome-blur__layer,
+  .chrome-blur__soft {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+  .chrome-blur--header .chrome-blur__layer {
+    background: var(--bg);
+  }
+  .chrome-blur--footer .chrome-blur__layer {
+    background: var(--status-bar);
+  }
+  .chrome-blur__soft {
+    display: none;
+  }
+  .tab-item[aria-selected="true"] {
+    background-color: var(--bg);
+    border-color: var(--border);
   }
   .status-bar {
     background-color: var(--status-bar);
