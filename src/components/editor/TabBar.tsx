@@ -186,7 +186,7 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
       </div>
 
       {/* Tabs: horizontal scroll when they overflow the titlebar. */}
-      <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full justify-start">
+      <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full justify-start" data-tauri-drag-region>
         {tabs.length === 0 ? (
           <div className="text-xs text-muted-foreground text-center" data-tauri-drag-region>
             No open notes
@@ -196,11 +196,13 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
             ref={tabsScrollRef}
             className="tab-strip w-full h-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
             onWheel={handleTabsWheel}
+            data-tauri-drag-region
           >
             <div
               className="flex items-center gap-1.5 h-full px-2 py-1.5 w-max min-w-full"
               role="tablist"
               aria-label="Open notes"
+              data-tauri-drag-region
               onKeyDown={(e) => {
                 if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
                 const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));

@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { VaultNode } from "../../types/vault";
 import { useTabStore } from "../../stores/useTabStore";
 import { useVaultStore } from "../../stores/useVaultStore";
+import { useFileTreeExpandStore } from "../../stores/useFileTreeExpandStore";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { showNativeContextMenu } from "../../utils/nativeContextMenu";
 import { flushActiveNote } from "../../lib/flushActiveNote";
+import { handleFileTreeKeyDown } from "./fileTreeKeyboard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -94,7 +96,16 @@ const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
 );
 
 const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) => {
-  const [isOpen, setIsOpen] = useState(level === 0);
+  const vaultPath = useVaultStore((s) => s.vaultPath);
+  const defaultOpen = level === 0;
+  const isOpen = useFileTreeExpandStore((s) => {
+    if (!vaultPath) return defaultOpen;
+    const entry = s.byVault[vaultPath]?.[node.path];
+    return entry === undefined ? defaultOpen : entry;
+  });
+  const setExpanded = useFileTreeExpandStore((s) => s.setExpanded);
+  const setIsOpen = (open: boolean) => setExpanded(vaultPath, node.path, open);
+
   const [isDragOver, setIsDragOver] = useState(false);
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
@@ -108,57 +119,15 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === " " && !node.isDirectory) {
-      e.preventDefault();
-      openPath(node.path).catch(() => {});
-      return;
-    }
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const items = Array.from(document.querySelectorAll<HTMLElement>('[role="treeitem"]'));
-      const idx = items.findIndex((el) => el === e.currentTarget);
-      if (idx === -1) return;
-      const nextIdx = e.key === "ArrowDown" ? Math.min(items.length - 1, idx + 1) : Math.max(0, idx - 1);
-      const next = items[nextIdx];
-      items.forEach((el) => (el.tabIndex = -1));
-      next.tabIndex = 0;
-      next.focus();
-      return;
-    }
-    if (node.isDirectory && e.key === "ArrowRight") {
-      e.preventDefault();
-      if (!isOpen) setIsOpen(true);
-      else {
-        const items = Array.from(document.querySelectorAll<HTMLElement>('[role="treeitem"]'));
-        const idx = items.findIndex((el) => el === e.currentTarget);
-        const next = items[idx + 1];
-        if (next) {
-          items.forEach((el) => (el.tabIndex = -1));
-          next.tabIndex = 0;
-          next.focus();
-        }
-      }
-      return;
-    }
-    if (node.isDirectory && e.key === "ArrowLeft") {
-      e.preventDefault();
-      if (isOpen) setIsOpen(false);
-      else {
-        const parent = (e.currentTarget as HTMLElement).closest(".tree-dir-item")?.parentElement?.closest('[role="treeitem"]') as HTMLElement | null;
-        if (parent) {
-          const items = Array.from(document.querySelectorAll<HTMLElement>('[role="treeitem"]'));
-          items.forEach((el) => (el.tabIndex = -1));
-          parent.tabIndex = 0;
-          parent.focus();
-        }
-      }
-      return;
-    }
-    if (e.key === "Enter" || (e.key === " " && node.isDirectory)) {
-      e.preventDefault();
-      if (node.isDirectory) setIsOpen((prev) => !prev);
-      else void openNote(node.path, node.name);
-    }
+    handleFileTreeKeyDown(e, {
+      isDirectory: node.isDirectory,
+      isOpen,
+      setOpen: setIsOpen,
+      openNote: () => void openNote(node.path, node.name),
+      openWithDefault: () => {
+        openPath(node.path).catch(() => {});
+      },
+    });
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -177,6 +146,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
   };
   const handleFolderDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
   };
   const handleFolderDragEnd = () => setIsDragOver(false);

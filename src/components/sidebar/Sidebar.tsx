@@ -6,15 +6,14 @@ import { showNativeContextMenu } from "../../utils/nativeContextMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Settings, PanelLeft } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 
 interface SidebarProps {
-  onOpenSettings?: () => void;
   onToggleSidebar?: () => void;
   onOpenPalette?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onToggleSidebar, onOpenPalette }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette }) => {
   const { vaultPath, tree, isLoading, error, openVaultDialog } = useVaultStore();
 
   const folderName = vaultPath ? vaultPath.split("/").pop() || vaultPath : null;

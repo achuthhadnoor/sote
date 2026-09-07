@@ -541,7 +541,6 @@ function App() {
         aria-hidden={sidebarCollapsed}
       >
         <Sidebar
-          onOpenSettings={() => { void openSettingsTab(); }}
           onToggleSidebar={() => setSidebarCollapsed(true)}
           onOpenPalette={() => setIsPaletteOpen(true)}
         />

@@ -63,10 +63,13 @@ function getLanguageLabel(lang: string | null | undefined): string {
   return LANGUAGE_LABELS[lower] || lang.charAt(0).toUpperCase() + lang.slice(1);
 }
 
-/** App palette only — diagrams stay monochrome in both themes. */
+/** App palette only — diagrams stay monochrome in both themes.
+ *  Keep these aligned with `[data-theme]` tokens in App.css so dual-rendered
+ *  SVGs match Light/Dark/System chrome. Dark borders must stay well above the
+ *  panel luminance or node outlines disappear on the transparent canvas. */
 const APP = {
-  light: { bg: "#FFFFFF", panel: "#F3F4F6", border: "#E1E4E8", ink: "#1F2328", softInk: "#656D76" },
-  dark: { bg: "#0E0E0E", panel: "#1F1F1F", border: "#232323", ink: "#E4E4E7", softInk: "#8A8A8A" },
+  light: { bg: "#FFFFFF", panel: "#F4F5F7", border: "#E8EAED", ink: "#1F2328", softInk: "#656D76" },
+  dark: { bg: "#111111", panel: "#1C1C1C", border: "#404040", ink: "#E8E8E8", softInk: "#8B8B8B" },
 } as const;
 
 type Palette = { bg: string; panel: string; border: string; ink: string; softInk: string };
@@ -84,7 +87,7 @@ const CSS_PASSTHROUGH = new Set([
   "context-stroke",
 ]);
 
-const MERMAID_CACHE_VERSION = "mermaid-render-v2";
+const MERMAID_CACHE_VERSION = "mermaid-render-v4";
 const MERMAID_SANITIZE_CONFIG = {
   USE_PROFILES: { svg: true, svgFilters: true },
   FORBID_TAGS: ["script", "foreignObject", "iframe", "object", "embed"],
@@ -173,11 +176,6 @@ function grayOf(r: number, g: number, b: number): number {
   return Math.max(0, Math.min(255, Math.round(0.299 * r + 0.587 * g + 0.114 * b)));
 }
 
-function grayHex(color: RGB): string {
-  const value = grayOf(color.r, color.g, color.b).toString(16).padStart(2, "0");
-  return color.alpha ? `#${value}${value}${value}${color.alpha}` : `#${value}${value}${value}`;
-}
-
 function resolveNamedToRgb(name: string): string | null {
   const key = name.toLowerCase();
   if (namedColorRgbCache.has(key)) return namedColorRgbCache.get(key) ?? null;
@@ -201,7 +199,39 @@ function resolveNamedToRgb(name: string): string | null {
   }
 }
 
-function monochromeColorValue(value: string, paletteKeys: Set<string>, namedCache: Map<string, string>): string {
+function formatColor(parsed: RGB, asHex: boolean, hex: string): string {
+  if (asHex) {
+    return parsed.alpha ? `#${hex}${hex}${hex}${parsed.alpha}` : `#${hex}${hex}${hex}`;
+  }
+  const g = Number.parseInt(hex, 16);
+  return parsed.alpha === undefined
+    ? `rgb(${g}, ${g}, ${g})`
+    : `rgba(${g}, ${g}, ${g}, ${parsed.alpha})`;
+}
+
+/** Map Mermaid’s leftover pure-black geometry onto the active palette so
+ *  edges/markers stay visible when themeVariables miss a few attributes. */
+function themeAwareGray(parsed: RGB, palette: Palette, darkMode: boolean, asHex: boolean): string {
+  const gray = grayOf(parsed.r, parsed.g, parsed.b);
+  // Default Mermaid black strokes/markers vanish on dark canvases after desaturate.
+  if (darkMode && gray <= 45) {
+    const target = parseHexColor(palette.softInk);
+    if (target) {
+      const hex = grayOf(target.r, target.g, target.b).toString(16).padStart(2, "0");
+      return formatColor({ ...target, alpha: parsed.alpha }, asHex, hex);
+    }
+  }
+  const hex = gray.toString(16).padStart(2, "0");
+  return formatColor(parsed, asHex, hex);
+}
+
+function monochromeColorValue(
+  value: string,
+  palette: Palette,
+  paletteKeys: Set<string>,
+  namedCache: Map<string, string>,
+  darkMode: boolean
+): string {
   const leading = value.match(/^\s*/)?.[0] ?? "";
   const trailing = value.match(/\s*$/)?.[0] ?? "";
   const trimmed = value.trim();
@@ -214,12 +244,7 @@ function monochromeColorValue(value: string, paletteKeys: Set<string>, namedCach
   const parsed = core.startsWith("#") ? parseHexColor(core) : parseRgbColor(core);
   if (parsed) {
     if (paletteKeys.has(rgbKey(parsed)) && !parsed.alpha) return value;
-    const gray = grayOf(parsed.r, parsed.g, parsed.b);
-    const converted = core.startsWith("#")
-      ? grayHex(parsed)
-      : parsed.alpha === undefined
-        ? `rgb(${gray}, ${gray}, ${gray})`
-        : `rgba(${gray}, ${gray}, ${gray}, ${parsed.alpha})`;
+    const converted = themeAwareGray(parsed, palette, darkMode, core.startsWith("#"));
     return `${leading}${converted}${important}${trailing}`;
   }
 
@@ -232,35 +257,41 @@ function monochromeColorValue(value: string, paletteKeys: Set<string>, namedCach
     }
     const named = namedCache.get(key) ?? core;
     if (named === core) return value;
-    return monochromeColorValue(`${leading}${named}${important}${trailing}`, paletteKeys, namedCache);
+    return monochromeColorValue(`${leading}${named}${important}${trailing}`, palette, paletteKeys, namedCache, darkMode);
   }
 
   // Keep CSS functions, variables, gradients, and other constructs intact.
   return value;
 }
 
-function transformColorDeclarations(css: string, paletteKeys: Set<string>, namedCache: Map<string, string>): string {
+function transformColorDeclarations(
+  css: string,
+  palette: Palette,
+  paletteKeys: Set<string>,
+  namedCache: Map<string, string>,
+  darkMode: boolean
+): string {
   return css.replace(
     /(^|[;{}]\s*)((?:fill|stroke|stop-color|flood-color|lighting-color|color)\s*:\s*)([^;{}]+)/gim,
     (_match, separator: string, prefix: string, value: string) =>
-      `${separator}${prefix}${monochromeColorValue(value, paletteKeys, namedCache)}`
+      `${separator}${prefix}${monochromeColorValue(value, palette, paletteKeys, namedCache, darkMode)}`
   );
 }
 
 /** Desaturate concrete SVG colors while preserving safe CSS constructs and app palette colors. */
-function toMonochrome(svg: string, palette: Palette): string {
+function toMonochrome(svg: string, palette: Palette, darkMode: boolean): string {
   const paletteKeys = paletteRgbKeys(palette);
   const namedCache = new Map<string, string>();
   let out = svg.replace(
     /\b(fill|stroke|stop-color|flood-color|lighting-color|color)\s*=\s*(["'])(.*?)\2/gi,
     (_match, property: string, quote: string, value: string) =>
-      `${property}=${quote}${monochromeColorValue(value, paletteKeys, namedCache)}${quote}`
+      `${property}=${quote}${monochromeColorValue(value, palette, paletteKeys, namedCache, darkMode)}${quote}`
   );
   out = out.replace(/\bstyle\s*=\s*(["'])(.*?)\1/gi, (_match, quote: string, value: string) =>
-    `style=${quote}${transformColorDeclarations(value, paletteKeys, namedCache)}${quote}`
+    `style=${quote}${transformColorDeclarations(value, palette, paletteKeys, namedCache, darkMode)}${quote}`
   );
   out = out.replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi, (_match, open: string, css: string, close: string) =>
-    `${open}${transformColorDeclarations(css, paletteKeys, namedCache)}${close}`
+    `${open}${transformColorDeclarations(css, palette, paletteKeys, namedCache, darkMode)}${close}`
   );
   return out;
 }
@@ -443,13 +474,16 @@ async function renderDiagram(
     themeVariables: themeVars,
     securityLevel: "strict",
     fontFamily: "var(--font-sans)",
+    // Mermaid 11 prefers global htmlLabels; flowchart.htmlLabels alone still
+    // leaves nodes on HTML/foreignObject labels, which DOMPurify strips —
+    // producing empty shapes with only SVG edge labels visible.
+    htmlLabels: false,
     sequence: { useMaxWidth: false, showSequenceNumbers: true },
-    // Keep flowchart labels in the SVG text layer so their theme color is
-    // consistent and sanitization never has to preserve foreignObject HTML.
     flowchart: { useMaxWidth: false, htmlLabels: false },
   });
   const { svg } = await mermaid.render(renderId, text);
-  return sanitizeSvg(toMonochrome(sanitizeSvg(svg), palette));
+  const darkMode = themeVars.darkMode === true;
+  return sanitizeSvg(toMonochrome(sanitizeSvg(svg), palette, darkMode));
 }
 
 async function renderBothThemes(source: string, renderId: string): Promise<{ light: string; dark: string }> {

@@ -901,6 +901,48 @@ html, body, #root {
 .snipnote-table-container tr:last-child td { border-bottom: none; }
 .snipnote-table-container tr:hover td { background: var(--muted-translucent); }
 
+/* Mermaid diagram NodeView — layout + theme-aware SVG chrome.
+   Dual light/dark SVGs are swapped in MermaidNodeView; these rules keep
+   text/labels on --fg and sizing correct after the Tailwind migration purge. */
+.mermaid-preview-container {
+  padding: 20px;
+  align-items: flex-start;
+  background-color: transparent;
+}
+.mermaid-preview-container.is-fit {
+  height: auto;
+  max-height: none;
+  overflow: hidden;
+}
+.mermaid-svg-surface.fit-width {
+  width: 100%;
+}
+.mermaid-svg-surface.fit-width svg {
+  max-width: 100%;
+  height: auto;
+}
+.mermaid-svg-surface.natural-width {
+  width: auto;
+}
+.mermaid-svg-surface.natural-width svg {
+  max-width: none !important;
+  height: auto;
+}
+.mermaid-svg-surface svg {
+  background: transparent !important;
+}
+/* Target text nodes only — applying fill to `.label` groups can paint
+   label background rects the same color as the text (invisible labels). */
+.mermaid-svg-surface svg text,
+.mermaid-svg-surface svg tspan {
+  fill: var(--fg) !important;
+  color: var(--fg) !important;
+}
+.mermaid-svg-surface svg .edgeLabel rect,
+.mermaid-svg-surface svg .labelBox rect {
+  fill: transparent !important;
+}
+
 /* Find matches — decorations from SearchHighlight.ts */
 .ProseMirror .search-highlight {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
