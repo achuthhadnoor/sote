@@ -134,10 +134,14 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
       data-tauri-drag-region
       onMouseDown={handleStartDragging}
     >
-      {/* Progressive frosted wash — blur + opacity fade (not mask) */}
+      {/* Progressive blur — stacked radii (weakest feathers furthest) + tint wash */}
       <div className="chrome-blur chrome-blur--header" aria-hidden="true">
-        <div className="chrome-blur__layer" />
-        <div className="chrome-blur__layer chrome-blur__soft" />
+        <div className="chrome-blur__layer chrome-blur__b1" />
+        <div className="chrome-blur__layer chrome-blur__b2" />
+        <div className="chrome-blur__layer chrome-blur__b3" />
+        <div className="chrome-blur__layer chrome-blur__b4" />
+        <div className="chrome-blur__layer chrome-blur__b5" />
+        <div className="chrome-blur__layer chrome-blur__tint" />
       </div>
       <div className="relative z-10 flex w-full h-full items-center gap-3 px-3">
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the

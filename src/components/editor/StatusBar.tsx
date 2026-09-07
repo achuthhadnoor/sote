@@ -40,8 +40,12 @@ export const StatusBar: React.FC = () => {
       aria-atomic="true"
     >
       <div className="chrome-blur chrome-blur--footer status-blur" aria-hidden="true">
-        <div className="chrome-blur__layer" />
-        <div className="chrome-blur__layer chrome-blur__soft" />
+        <div className="chrome-blur__layer chrome-blur__b1" />
+        <div className="chrome-blur__layer chrome-blur__b2" />
+        <div className="chrome-blur__layer chrome-blur__b3" />
+        <div className="chrome-blur__layer chrome-blur__b4" />
+        <div className="chrome-blur__layer chrome-blur__b5" />
+        <div className="chrome-blur__layer chrome-blur__tint" />
       </div>
       <div className="relative z-10 flex w-full h-full items-center justify-between gap-3 px-3 type-meta select-none">
       <div className="flex items-center min-w-0 flex-1 mr-2">

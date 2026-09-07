@@ -349,10 +349,18 @@ textarea.frontmatter-textarea:focus-visible {
   width: 0;
 }
 
-/* Progressive chrome blur — stacked opacity fades (Tailwind /N fails on color-mix tokens).
-   Keep layers at z-index 0 (not negative): isolate + z-index:-10 paints behind the
-   stacking-context background and the fade disappears in WebKit/Tauri. */
+/* Progressive chrome blur — stacked variable-radius backdrop layers.
+   A single backdrop-filter has uniform radius with a hard cutoff; real
+   progressive blur needs several layers whose radii step down away from the
+   chrome, each masked so the strongest fades first and the weakest feathers
+   to transparent at the far edge. Overlapping compounds sub-additively
+   (dominated by the max), so the falloff reads as one smooth gradient.
+   Tint is a separate non-blurred layer (background gradient only) so color
+   density is controlled independently of blur.
+   Keep layers at z-index 0 (not negative): isolate + z-index:-10 paints behind
+   the stacking-context background and the fade disappears in WebKit/Tauri. */
 .chrome-blur {
+  --chrome-fade: 40px;
   position: absolute;
   inset-inline: 0;
   z-index: 0;
@@ -361,19 +369,94 @@ textarea.frontmatter-textarea:focus-visible {
 }
 .chrome-blur--header {
   top: 0;
-  height: calc(100% + 40px);
+  height: calc(100% + var(--chrome-fade));
 }
 .chrome-blur--footer {
   bottom: 0;
-  height: calc(100% + 40px);
+  height: calc(100% + var(--chrome-fade));
 }
 .chrome-blur__layer {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+  background: transparent;
+}
+/* Blur radii — exponential steps, max matches the old single-layer look. */
+.chrome-blur__b1 {
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+.chrome-blur__b2 {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.chrome-blur__b3 {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.chrome-blur__b4 {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.chrome-blur__b5 {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
-.chrome-blur--header .chrome-blur__layer {
+/* Header masks (fade downward). Strongest is opaque only over the bar itself
+   (--header-height) then feathers out; weakest stays opaque longest so the
+   far edge dissolves instead of cutting. */
+.chrome-blur--header .chrome-blur__b5 {
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black var(--header-height), transparent calc(var(--header-height) + 20px));
+  mask-image: linear-gradient(to bottom, black 0, black var(--header-height), transparent calc(var(--header-height) + 20px));
+}
+.chrome-blur--header .chrome-blur__b4 {
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 10px), transparent calc(var(--header-height) + 28px));
+  mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 10px), transparent calc(var(--header-height) + 28px));
+}
+.chrome-blur--header .chrome-blur__b3 {
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 18px), transparent calc(var(--header-height) + 34px));
+  mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 18px), transparent calc(var(--header-height) + 34px));
+}
+.chrome-blur--header .chrome-blur__b2 {
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 24px), transparent calc(var(--header-height) + 38px));
+  mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 24px), transparent calc(var(--header-height) + 38px));
+}
+.chrome-blur--header .chrome-blur__b1 {
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 30px), transparent calc(var(--header-height) + 40px));
+  mask-image: linear-gradient(to bottom, black 0, black calc(var(--header-height) + 30px), transparent calc(var(--header-height) + 40px));
+}
+/* Footer masks (fade upward, mirrored around --status-height). */
+.chrome-blur--footer .chrome-blur__b5 {
+  -webkit-mask-image: linear-gradient(to top, black 0, black var(--status-height), transparent calc(var(--status-height) + 20px));
+  mask-image: linear-gradient(to top, black 0, black var(--status-height), transparent calc(var(--status-height) + 20px));
+}
+.chrome-blur--footer .chrome-blur__b4 {
+  -webkit-mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 10px), transparent calc(var(--status-height) + 28px));
+  mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 10px), transparent calc(var(--status-height) + 28px));
+}
+.chrome-blur--footer .chrome-blur__b3 {
+  -webkit-mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 18px), transparent calc(var(--status-height) + 34px));
+  mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 18px), transparent calc(var(--status-height) + 34px));
+}
+.chrome-blur--footer .chrome-blur__b2 {
+  -webkit-mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 24px), transparent calc(var(--status-height) + 38px));
+  mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 24px), transparent calc(var(--status-height) + 38px));
+}
+.chrome-blur--footer .chrome-blur__b1 {
+  -webkit-mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 30px), transparent calc(var(--status-height) + 40px));
+  mask-image: linear-gradient(to top, black 0, black calc(var(--status-height) + 30px), transparent calc(var(--status-height) + 40px));
+}
+/* Tint wash — color only, no blur. Opaque over the bar, dissolving across the
+   fade so text keeps contrast while scrolled content melts underneath. */
+.chrome-blur__tint,
+.chrome-blur__soft {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.chrome-blur--header .chrome-blur__tint,
+.chrome-blur--header .chrome-blur__soft {
   background: linear-gradient(
     to bottom,
     var(--bg-translucent) 0%,
@@ -383,18 +466,8 @@ textarea.frontmatter-textarea:focus-visible {
   );
   opacity: 1;
 }
-.chrome-blur--header .chrome-blur__soft {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 50%), transparent) 0%,
-    color-mix(in srgb, var(--bg) calc(var(--bg-opacity) * 18%), transparent) 55%,
-    transparent 100%
-  );
-  opacity: 0.9;
-}
-.chrome-blur--footer .chrome-blur__layer {
+.chrome-blur--footer .chrome-blur__tint,
+.chrome-blur--footer .chrome-blur__soft {
   background: linear-gradient(
     to top,
     var(--status-translucent) 0%,
@@ -402,17 +475,18 @@ textarea.frontmatter-textarea:focus-visible {
     color-mix(in srgb, var(--status-translucent) 28%, transparent) 72%,
     transparent 100%
   );
+  opacity: 1;
 }
-.chrome-blur--footer .chrome-blur__soft {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 50%), transparent) 0%,
-    color-mix(in srgb, var(--status-bar) calc(var(--bg-opacity) * 18%), transparent) 55%,
-    transparent 100%
-  );
-  opacity: 0.9;
+/* No backdrop-filter support: tint alone still keeps chrome legible. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .chrome-blur--header .chrome-blur__tint,
+  .chrome-blur--header .chrome-blur__soft {
+    background: var(--bg-translucent);
+  }
+  .chrome-blur--footer .chrome-blur__tint,
+  .chrome-blur--footer .chrome-blur__soft {
+    background: var(--status-translucent);
+  }
 }
 
 /* Tabs — opacity-based surfaces over the frosted header */
@@ -904,18 +978,31 @@ html, body, #root {
   .outline-panel,
   .status-blur,
   .chrome-blur__layer,
-  .chrome-blur__soft {
+  .chrome-blur__soft,
+  .chrome-blur__tint,
+  .chrome-blur__b1,
+  .chrome-blur__b2,
+  .chrome-blur__b3,
+  .chrome-blur__b4,
+  .chrome-blur__b5 {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
   }
-  .chrome-blur--header .chrome-blur__layer {
-    background: var(--bg);
-  }
-  .chrome-blur--footer .chrome-blur__layer {
-    background: var(--status-bar);
-  }
+  .chrome-blur__b1,
+  .chrome-blur__b2,
+  .chrome-blur__b3,
+  .chrome-blur__b4,
+  .chrome-blur__b5,
   .chrome-blur__soft {
     display: none;
+  }
+  .chrome-blur--header .chrome-blur__tint {
+    background: var(--bg);
+  }
+  .chrome-blur--footer .chrome-blur__tint {
+    background: var(--status-bar);
   }
   .tab-item[aria-selected="true"] {
     background-color: var(--bg);
