@@ -844,10 +844,14 @@ html, body, #root {
   word-break: normal;
 }
 
-/* Links */
+/* Links — stay near body color but remain clearly interactive */
 .ProseMirror a {
   color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
   text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent);
+  cursor: pointer;
 }
 .ProseMirror a:hover {
   text-decoration-color: var(--link);

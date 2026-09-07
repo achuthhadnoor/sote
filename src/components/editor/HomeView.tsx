@@ -177,7 +177,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                     : "No notes yet — create your first one to get started."}
                 </p>
                 {allNotes.length > 0 && (
-                  <ul className="list-none m-0 p-0 flex flex-col gap-0.5" aria-label="Notes in vault">
+                  <ul className="list-none m-0 p-0 flex flex-col gap-0.5" aria-label="Notes in folder">
                     {allNotes.slice(0, 8).map((n) => (
                       <li key={n.path}>
                         <button

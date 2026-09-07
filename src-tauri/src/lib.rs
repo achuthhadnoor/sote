@@ -47,14 +47,14 @@ fn build_and_set_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
     let recent = load_recent_vaults(app);
 
     let new_note = MenuItem::with_id(app, "new_note", "New Note", true, Some("CmdOrCtrl+N"))?;
-    let open_vault = MenuItem::with_id(app, "open_vault", "Open Vault…", true, Some("CmdOrCtrl+O"))?;
+    let open_vault = MenuItem::with_id(app, "open_vault", "Open Folder…", true, Some("CmdOrCtrl+O"))?;
 
     let recent_submenu = if recent.is_empty() {
         Submenu::with_items(
             app,
             "Open Recent",
             true,
-            &[&MenuItem::with_id(app, "recent_empty", "(No Recent Vaults)", false, None::<&str>)?],
+            &[&MenuItem::with_id(app, "recent_empty", "(No Recent Folders)", false, None::<&str>)?],
         )?
     } else {
         let sm = Submenu::new(app, "Open Recent", true)?;

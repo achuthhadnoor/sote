@@ -115,8 +115,8 @@ export async function showNativeContextMenu(
   if (!node) {
     if (!vaultPath) return;
     try {
-      const revealVault = await MenuItem.new({
-        text: `Reveal Vault in ${isMac ? "Finder" : "Explorer"}`,
+      const revealFolder = await MenuItem.new({
+        text: `Reveal in ${isMac ? "Finder" : "Explorer"}`,
         action: async () => {
           try {
             await revealItemInDir(vaultPath);
@@ -135,8 +135,8 @@ export async function showNativeContextMenu(
         action: () => useSidebarActionsStore.getState().startCreate(vaultPath, "folder"),
       });
       const sep2 = await PredefinedMenuItem.new({ item: "Separator" });
-      const copyVaultPath = await MenuItem.new({
-        text: "Copy Vault Path",
+      const copyFolderPath = await MenuItem.new({
+        text: "Copy Path",
         action: async () => {
           try {
             await navigator.clipboard.writeText(vaultPath);
@@ -144,7 +144,7 @@ export async function showNativeContextMenu(
         },
       });
       const menu = await Menu.new({
-        items: [revealVault, sep1, newFile, newFolder, sep2, copyVaultPath],
+        items: [revealFolder, sep1, newFile, newFolder, sep2, copyFolderPath],
       });
       await menu.popup();
     } catch (err) {

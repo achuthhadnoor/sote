@@ -30,7 +30,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Select Notes Vault",
+        title: "Select Folder",
       });
 
       if (selected && typeof selected === "string") {
@@ -60,7 +60,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         } catch (watchErr: any) {
           log.error("watch_vault failed:", path, watchErr?.message || String(watchErr));
           set({
-            error: `Vault opened, but live file watching failed: ${watchErr?.message || String(watchErr)}`,
+            error: `Folder opened, but live file watching failed: ${watchErr?.message || String(watchErr)}`,
           });
         }
       }

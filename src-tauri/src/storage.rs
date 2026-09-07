@@ -24,9 +24,9 @@ pub struct NoteEnvelope {
 /// Canonicalize a vault root and reject non-directory roots.
 pub fn canonical_vault_root(vault_path: &str) -> Result<PathBuf, String> {
     let root = fs::canonicalize(vault_path)
-        .map_err(|e| format!("Invalid vault path: {}", e))?;
+        .map_err(|e| format!("Invalid folder path: {}", e))?;
     if !root.is_dir() {
-        return Err("Vault path is not a directory".to_string());
+        return Err("Selected path is not a directory".to_string());
     }
     Ok(root)
 }
@@ -45,7 +45,7 @@ pub fn resolve_vault_path(vault_path: &str, requested: &str, allow_missing: bool
         fs::canonicalize(&candidate).map_err(|e| format!("Invalid path: {}", e))?
     };
     if !resolved.starts_with(&root) {
-        return Err("Path escapes the selected vault".to_string());
+        return Err("Path escapes the selected folder".to_string());
     }
     Ok(resolved)
 }
@@ -350,7 +350,7 @@ pub fn internal_create_note(vault_path: &Path) -> Result<PathBuf, String> {
         .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
 
     if !canonical.is_dir() {
-        return Err(format!("Vault path is not a directory: {:?}", canonical));
+        return Err(format!("Selected path is not a directory: {:?}", canonical));
     }
 
     let mut idx = 0;
@@ -393,7 +393,7 @@ pub fn rename_path(vault_path: String, old_path: String, new_name: String) -> Re
     validate_file_name(&new_name)?;
     let new_path = parent.join(&new_name);
     if !new_path.starts_with(canonical_vault_root(&vault_path)?) {
-        return Err("Path escapes the selected vault".to_string());
+        return Err("Path escapes the selected folder".to_string());
     }
     if new_path.exists() {
         return Err(format!("Target already exists: {:?}", new_path));

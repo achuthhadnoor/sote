@@ -48,7 +48,7 @@ export class ErrorBoundary extends React.Component<
             Something went wrong
           </h1>
           <p className="type-label text-muted-foreground mb-3">
-            The editor hit an unexpected error instead of loading your vault.
+            The editor hit an unexpected error instead of loading your folder.
             Your files are untouched.
           </p>
           <pre className="ui-surface type-diagnostic whitespace-pre-wrap break-words bg-muted border border-border p-3 max-h-[220px] overflow-auto mb-3">

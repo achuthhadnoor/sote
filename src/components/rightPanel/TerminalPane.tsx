@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 export const TerminalPane: React.FC = () => {
   const [lines, setLines] = useState<string[]>([
     "snipnote terminal — local PTY coming soon",
-    "vault: ~/snipnote-vault",
+    "folder: ~/Documents/notes",
     'hint: type "help" for mock commands',
     "",
   ]);
@@ -28,7 +28,7 @@ export const TerminalPane: React.FC = () => {
     } else if (cmd === "ls") {
       next.push("Daily Notes/  Projects/  Website Redesign/  Tech Stack Decisions.md");
     } else if (cmd === "pwd") {
-      next.push("~/snipnote-vault");
+      next.push("~/Documents/notes");
     } else if (cmd.startsWith("echo ")) {
       next.push(cmd.slice(5));
     } else {

@@ -37,7 +37,7 @@ function dialogCopy(dialog: NonNullable<ReturnType<typeof useSidebarActionsStore
     case "create-folder":
       return {
         title: "New Folder",
-        description: "Create a folder in the vault.",
+        description: "Create a new folder here.",
         label: "Folder name",
         confirm: "Create",
         defaultValue: "New Folder",

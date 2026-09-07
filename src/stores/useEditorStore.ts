@@ -57,7 +57,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     log.debug("loadNote start:", path);
     try {
       const vaultPath = useVaultStore.getState().vaultPath;
-      if (!vaultPath) throw new Error("No vault is open");
+      if (!vaultPath) throw new Error("No folder is open");
       const envelope = await loggedInvoke<NoteEnvelope>("editor", "read_file", {
         vaultPath,
         filePath: path,
@@ -131,7 +131,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       set({ isSaving: true });
       try {
         const vaultPath = useVaultStore.getState().vaultPath;
-        if (!vaultPath) throw new Error("No vault is open");
+        if (!vaultPath) throw new Error("No folder is open");
         await loggedInvoke("editor", "write_file", {
           vaultPath,
           filePath,

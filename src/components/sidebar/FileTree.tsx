@@ -37,7 +37,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ nodes, level = 0 }) => {
     <div
       className="flex flex-col gap-0.5 w-full"
       role="tree"
-      aria-label="Vault files"
+      aria-label="Files"
       onContextMenu={level === 0 ? handleEmptyContextMenu : undefined}
     >
       {nodes.map((node) => (

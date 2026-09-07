@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette
         <ScrollArea className="flex-1 h-full [&>div>div]:!block">
           <div className="p-2">
           {isLoading && (
-            <div className="p-4 text-center type-label text-muted-foreground leading-relaxed">Scanning vault...</div>
+            <div className="p-4 text-center type-label text-muted-foreground leading-relaxed">Scanning folder...</div>
           )}
 
           {error && (
@@ -82,10 +82,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette
           {!isLoading && !error && tree.length === 0 && (
             <div className="p-4 text-center type-label text-muted-foreground leading-relaxed">
               {vaultPath ? (
-                "No markdown files found in this vault."
+                "No markdown files found in this folder."
               ) : (
                 <>
-                  No vault opened.<br />
+                  No folder opened.<br />
                   <Button
                     variant="link"
                     size="sm"
@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette
             size="sm"
             onClick={openVaultDialog}
             className="h-7 px-2 text-[13px] font-medium text-foreground hover:bg-hover-translucent"
-            title={vaultPath || "Open vault"}
+            title={vaultPath || "Open folder"}
           >
             {vaultPath ? "Switch" : "Open..."}
           </Button>

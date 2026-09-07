@@ -143,11 +143,11 @@ pub fn watch_vault(
     let path = PathBuf::from(&vault_path);
     let canonical = path
         .canonicalize()
-        .map_err(|e| format!("Failed to canonicalize vault path: {}", e))?;
+        .map_err(|e| format!("Failed to canonicalize folder path: {}", e))?;
 
     if !canonical.is_dir() {
         crate::logger::warn("watcher", &format!("watch_vault not a directory: {:?}", canonical));
-        return Err(format!("Vault path is not a directory: {:?}", canonical));
+        return Err(format!("Selected path is not a directory: {:?}", canonical));
     }
     crate::logger::info("watcher", &format!("watching: {}", canonical.to_string_lossy()));
 
@@ -195,7 +195,7 @@ pub fn watch_vault(
 
     watcher
         .watch(&canonical, RecursiveMode::Recursive)
-        .map_err(|e| format!("Failed to watch vault directory: {}", e))?;
+        .map_err(|e| format!("Failed to watch folder: {}", e))?;
 
     *watcher_lock = Some(watcher);
     *watched_path_lock = Some(canonical);

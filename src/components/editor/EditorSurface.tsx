@@ -11,7 +11,7 @@ import { CustomTableBlock } from "./extensions/CustomTableBlock";
 import { SearchHighlight } from "./extensions/SearchHighlight";
 import { FrontmatterTable } from "./FrontmatterTable";
 import { MarkdownOutline } from "./MarkdownOutline";
-import { healEscapedMarkdown } from "../../utils/markdownUtils";
+import { formatMarkdownLinkDestination, prepareMarkdownForEditor } from "../../utils/markdownUtils";
 import { FindBar } from "./FindBar";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
@@ -342,7 +342,14 @@ export const EditorSurface: React.FC = () => {
       CustomCodeBlock,
       CustomTableBlock,
       SearchHighlight,
-      Link.configure({
+      Link.extend({
+        renderMarkdown(node, helpers) {
+          const href = String(node.attrs?.href ?? "");
+          const title = (node.attrs?.title as string | null | undefined) ?? null;
+          const text = helpers.renderChildren(node);
+          return `[${text}](${formatMarkdownLinkDestination(href, title)})`;
+        },
+      }).configure({
         openOnClick: false,
       }),
       TaskList,
@@ -423,7 +430,7 @@ export const EditorSurface: React.FC = () => {
         // Intercept plain text paste if it contains markdown formatting syntax or if no HTML present
         if (text && (!html || /[*_`#~\[\]>|\n]/.test(text))) {
           event.preventDefault();
-          const cleanText = healEscapedMarkdown(text);
+          const cleanText = prepareMarkdownForEditor(text);
           const e = editor as any;
           if (e) {
             try {
@@ -633,7 +640,7 @@ export const EditorSurface: React.FC = () => {
         if (cancelled || !editor) return;
         isProgrammaticUpdateRef.current = true;
         try {
-          const cleanBody = healEscapedMarkdown(body);
+          const cleanBody = prepareMarkdownForEditor(body);
           const ed = editor as any;
           if (ed.markdown?.parse) {
             const parsedDoc = ed.markdown.parse(cleanBody);
@@ -667,7 +674,7 @@ export const EditorSurface: React.FC = () => {
       isProgrammaticUpdateRef.current = true;
       const ed = editor as any;
       try {
-        const cleanBody = healEscapedMarkdown(body || "");
+        const cleanBody = prepareMarkdownForEditor(body || "");
         if (ed.markdown?.parse) {
           const parsedDoc = ed.markdown.parse(cleanBody);
           editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
@@ -694,7 +701,7 @@ export const EditorSurface: React.FC = () => {
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground min-h-[360px]">
             <h1 className="text-[18px] font-semibold text-foreground tracking-tight">snipnote</h1>
             <p className="type-chrome text-muted-foreground">A fast local Markdown file editor.</p>
-            <Button onClick={openVaultDialog} className="mt-2">Open Local Vault</Button>
+            <Button onClick={openVaultDialog} className="mt-2">Open Folder</Button>
           </div>
         </div>
       </section>
