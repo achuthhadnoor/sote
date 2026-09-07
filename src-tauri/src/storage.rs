@@ -410,25 +410,16 @@ pub fn rename_path(vault_path: String, old_path: String, new_name: String) -> Re
     }
 }
 
-/// Tauri command to delete a file or folder (recursive for folders).
+/// Tauri command to move a file or folder to the system Trash.
 #[tauri::command]
 pub fn delete_path(vault_path: String, path: String) -> Result<(), String> {
     let p = resolve_vault_path(&vault_path, &path, false)?;
-    let res = if p.is_dir() {
-        fs::remove_dir_all(&p).map_err(|e| e.to_string())
-    } else {
-        fs::remove_file(&p).map_err(|e| e.to_string())
-    };
-    match res {
-        Ok(()) => {
-            crate::logger::info("storage", &format!("delete_path ok: {}", path));
-            Ok(())
-        }
-        Err(e) => {
-            crate::logger::error("storage", &format!("delete_path failed for {}: {}", path, e));
-            Err(e)
-        }
-    }
+    trash::delete(&p).map_err(|e| {
+        crate::logger::error("storage", &format!("delete_path (trash) failed for {}: {}", path, e));
+        e.to_string()
+    })?;
+    crate::logger::info("storage", &format!("delete_path moved to trash: {}", path));
+    Ok(())
 }
 
 /// Tauri command to create an empty file at a given directory with a name.

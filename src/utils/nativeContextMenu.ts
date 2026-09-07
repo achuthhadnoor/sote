@@ -1,28 +1,116 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
-import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useVaultStore } from "../stores/useVaultStore";
 import { useTabStore } from "../stores/useTabStore";
+import { useSidebarActionsStore } from "../stores/useSidebarActionsStore";
+import { useFileTreeExpandStore } from "../stores/useFileTreeExpandStore";
 import type { VaultNode } from "../types/vault";
 import { createLogger } from "../lib/logger";
 
 const log = createLogger("context-menu");
+
+async function refreshVault() {
+  const vaultPath = useVaultStore.getState().vaultPath;
+  if (!vaultPath) return;
+  try {
+    await useVaultStore.getState().loadVault(vaultPath);
+  } catch {}
+}
+
+function closeTabsUnder(path: string, isDirectory: boolean) {
+  const tabs = useTabStore.getState().tabs;
+  tabs.forEach((t) => {
+    if (t.path === path || (isDirectory && t.path.startsWith(path + "/"))) {
+      useTabStore.getState().closeTab(t.path);
+    }
+  });
+}
+
+function retargetTabsAfterRename(oldPath: string, newPath: string, isDirectory: boolean, newName: string) {
+  const tabs = useTabStore.getState().tabs;
+  if (!isDirectory) {
+    const tab = tabs.find((t) => t.path === oldPath);
+    if (tab) {
+      useTabStore.getState().closeTab(oldPath);
+      useTabStore.getState().selectNote(newPath, newName);
+    }
+    return;
+  }
+  tabs.forEach((t) => {
+    if (t.path === oldPath || t.path.startsWith(oldPath + "/")) {
+      const newTabPath = t.path.replace(oldPath, newPath);
+      const title = newTabPath.split("/").pop() || t.title;
+      useTabStore.getState().closeTab(t.path);
+      useTabStore.getState().selectNote(newTabPath, title);
+    }
+  });
+}
+
+/** Confirm rename from the sidebar name dialog. Throws on failure. */
+export async function commitRename(oldPath: string, newName: string, isDirectory: boolean) {
+  const vaultPath = useVaultStore.getState().vaultPath;
+  if (!vaultPath) {
+    useSidebarActionsStore.getState().clear();
+    return;
+  }
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed === oldPath.split("/").pop()) {
+    useSidebarActionsStore.getState().clear();
+    return;
+  }
+  const newPath = await invoke<string>("rename_path", {
+    vaultPath,
+    oldPath,
+    newName: trimmed,
+  });
+  retargetTabsAfterRename(oldPath, newPath, isDirectory, trimmed);
+  await refreshVault();
+  useSidebarActionsStore.getState().clear();
+}
+
+/** Confirm create from the sidebar name dialog. Throws on failure. */
+export async function commitCreate(dirPath: string, kind: "file" | "folder", name: string) {
+  const vaultPath = useVaultStore.getState().vaultPath;
+  if (!vaultPath) {
+    useSidebarActionsStore.getState().clear();
+    return;
+  }
+  const trimmed = name.trim();
+  if (!trimmed) {
+    useSidebarActionsStore.getState().clear();
+    return;
+  }
+  if (kind === "file") {
+    const newPath = await invoke<string>("create_file_at_path", {
+      vaultPath,
+      dirPath,
+      fileName: trimmed,
+    });
+    await refreshVault();
+    useFileTreeExpandStore.getState().setExpanded(vaultPath, dirPath, true);
+    const title = newPath.split("/").pop() || trimmed;
+    useTabStore.getState().selectNote(newPath, title);
+  } else {
+    const newPath = await invoke<string>("create_folder_at_path", {
+      vaultPath,
+      dirPath,
+      folderName: trimmed,
+    });
+    await refreshVault();
+    useFileTreeExpandStore.getState().setExpanded(vaultPath, dirPath, true);
+    useFileTreeExpandStore.getState().setExpanded(vaultPath, newPath, true);
+  }
+  useSidebarActionsStore.getState().clear();
+}
 
 export async function showNativeContextMenu(
   node: VaultNode | null,
   _event?: React.MouseEvent
 ) {
   const vaultPath = useVaultStore.getState().vaultPath;
-  const loadVault = useVaultStore.getState().loadVault;
-  const isMac = typeof navigator !== "undefined" && navigator.platform.includes("Mac");
-
-  const refresh = async () => {
-    if (vaultPath) {
-      try {
-        await loadVault(vaultPath);
-      } catch {}
-    }
-  };
+  const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
 
   if (!node) {
     if (!vaultPath) return;
@@ -40,39 +128,11 @@ export async function showNativeContextMenu(
       const sep1 = await PredefinedMenuItem.new({ item: "Separator" });
       const newFile = await MenuItem.new({
         text: "New File…",
-        action: async () => {
-          const name = window.prompt("New file name (e.g. Note.md):", "Untitled.md");
-          if (!name || !name.trim()) return;
-          try {
-            const newPath = await invoke<string>("create_file_at_path", {
-              vaultPath,
-              dirPath: vaultPath,
-              fileName: name.trim(),
-            });
-            await refresh();
-            const title = newPath.split("/").pop() || name;
-            useTabStore.getState().selectNote(newPath, title);
-          } catch (e: any) {
-            alert(`Create file failed: ${e?.message || e}`);
-          }
-        },
+        action: () => useSidebarActionsStore.getState().startCreate(vaultPath, "file"),
       });
       const newFolder = await MenuItem.new({
         text: "New Folder…",
-        action: async () => {
-          const name = window.prompt("New folder name:", "New Folder");
-          if (!name || !name.trim()) return;
-          try {
-            await invoke<string>("create_folder_at_path", {
-              vaultPath,
-              dirPath: vaultPath,
-              folderName: name.trim(),
-            });
-            await refresh();
-          } catch (e: any) {
-            alert(`Create folder failed: ${e?.message || e}`);
-          }
-        },
+        action: () => useSidebarActionsStore.getState().startCreate(vaultPath, "folder"),
       });
       const sep2 = await PredefinedMenuItem.new({ item: "Separator" });
       const copyVaultPath = await MenuItem.new({
@@ -95,6 +155,7 @@ export async function showNativeContextMenu(
 
   const isDirectory = node.isDirectory;
   const parentDir = node.path.substring(0, node.path.lastIndexOf("/")) || vaultPath || "";
+  const targetDir = isDirectory ? node.path : parentDir;
 
   try {
     const reveal = await MenuItem.new({
@@ -108,164 +169,94 @@ export async function showNativeContextMenu(
       },
     });
 
-    const open = await MenuItem.new({
-      text: "Open with Default App",
-      action: async () => {
-        try {
-          await openPath(node.path);
-        } catch {}
-      },
-    });
+    const items: any[] = [reveal];
 
-    let quickLook: any = null;
-    if (!isDirectory) {
-      quickLook = await MenuItem.new({
-        text: "Quick Look",
-        // accelerator hint for macOS; ignore if unsupported
-        // @ts-ignore
-        accelerator: "Space",
+    items.push(await PredefinedMenuItem.new({ item: "Separator" }));
+
+    items.push(
+      await MenuItem.new({
+        text: "Rename…",
+        action: () =>
+          useSidebarActionsStore.getState().startRename(node.path, node.name, isDirectory),
+      })
+    );
+
+    items.push(
+      await MenuItem.new({
+        text: "Move to Trash",
+        action: async () => {
+          const ok = await ask(`Move “${node.name}” to the Trash?`, {
+            title: "Move to Trash",
+            kind: "warning",
+            okLabel: "Move to Trash",
+            cancelLabel: "Cancel",
+          });
+          if (!ok) return;
+          try {
+            await invoke("delete_path", { vaultPath, path: node.path });
+            closeTabsUnder(node.path, isDirectory);
+            await refreshVault();
+          } catch (e: any) {
+            alert(`Trash failed: ${e?.message || e}`);
+          }
+        },
+      })
+    );
+
+    items.push(await PredefinedMenuItem.new({ item: "Separator" }));
+
+    items.push(
+      await MenuItem.new({
+        text: "Copy Path",
         action: async () => {
           try {
-            await openPath(node.path);
+            await navigator.clipboard.writeText(node.path);
           } catch {}
         },
-      });
-    }
+      })
+    );
 
-    const sep1 = await PredefinedMenuItem.new({ item: "Separator" });
+    items.push(
+      await MenuItem.new({
+        text: "Copy Relative Path",
+        action: async () => {
+          const vp = useVaultStore.getState().vaultPath;
+          const rel =
+            vp && node.path.startsWith(vp)
+              ? node.path.slice(vp.length).replace(/^\/+/, "")
+              : node.path;
+          try {
+            await navigator.clipboard.writeText(rel);
+          } catch {}
+        },
+      })
+    );
 
-    const renameItem = await MenuItem.new({
-      text: "Rename…",
-      action: async () => {
-        const current = node.name;
-        const next = window.prompt(`Rename "${current}" to:`, current);
-        if (!next || next === current || !next.trim()) return;
-        try {
-          const newPath = await invoke<string>("rename_path", {
-            vaultPath,
-            oldPath: node.path,
-            newName: next.trim(),
-          });
-          const tabs = useTabStore.getState().tabs;
-          const tab = tabs.find((t) => t.path === node.path);
-          if (tab) {
-            useTabStore.getState().closeTab(node.path);
-            useTabStore.getState().selectNote(newPath, next.trim());
-          }
-          if (isDirectory) {
-            const allTabs = useTabStore.getState().tabs;
-            allTabs.forEach((t) => {
-              if (t.path.startsWith(node.path + "/")) {
-                const newTabPath = t.path.replace(node.path, newPath);
-                const title = newTabPath.split("/").pop() || t.title;
-                useTabStore.getState().closeTab(t.path);
-                useTabStore.getState().selectNote(newTabPath, title);
-              }
-            });
-          }
-          await refresh();
-        } catch (e: any) {
-          alert(`Rename failed: ${e?.message || e}`);
-        }
-      },
-    });
+    items.push(await PredefinedMenuItem.new({ item: "Separator" }));
 
-    const del = await MenuItem.new({
-      text: "Move to Trash",
-      action: async () => {
-        const ok = window.confirm(`Move "${node.name}" to Trash?`);
-        if (!ok) return;
-        try {
-          await invoke("delete_path", { vaultPath, path: node.path });
-          const tabs = useTabStore.getState().tabs;
-          tabs.forEach((t) => {
-            if (t.path === node.path || t.path.startsWith(node.path + "/")) {
-              useTabStore.getState().closeTab(t.path);
-            }
-          });
-          await refresh();
-        } catch (e: any) {
-          alert(`Delete failed: ${e?.message || e}`);
-        }
-      },
-    });
+    items.push(
+      await MenuItem.new({
+        text: "New File…",
+        action: () => {
+          if (!targetDir) return;
+          useFileTreeExpandStore.getState().setExpanded(vaultPath, targetDir, true);
+          useSidebarActionsStore.getState().startCreate(targetDir, "file");
+        },
+      })
+    );
 
-    const sep2 = await PredefinedMenuItem.new({ item: "Separator" });
+    items.push(
+      await MenuItem.new({
+        text: "New Folder…",
+        action: () => {
+          if (!targetDir) return;
+          useFileTreeExpandStore.getState().setExpanded(vaultPath, targetDir, true);
+          useSidebarActionsStore.getState().startCreate(targetDir, "folder");
+        },
+      })
+    );
 
-    const copyPath = await MenuItem.new({
-      text: "Copy Path",
-      action: async () => {
-        try {
-          await navigator.clipboard.writeText(node.path);
-        } catch {}
-      },
-    });
-
-    const copyRel = await MenuItem.new({
-      text: "Copy Relative Path",
-      action: async () => {
-        const vp = useVaultStore.getState().vaultPath;
-        const rel =
-          vp && node.path.startsWith(vp)
-            ? node.path.slice(vp.length).replace(/^\/+/, "")
-            : node.path;
-        try {
-          await navigator.clipboard.writeText(rel);
-        } catch {}
-      },
-    });
-
-    const sep3 = await PredefinedMenuItem.new({ item: "Separator" });
-
-    const targetDir = isDirectory ? node.path : parentDir || vaultPath || "";
-
-    const newFile = await MenuItem.new({
-      text: "New File…",
-      action: async () => {
-        const name = window.prompt("New file name (e.g. Note.md):", "Untitled.md");
-        if (!name || !name.trim()) return;
-        try {
-          const dirPath = targetDir;
-          const newPath = await invoke<string>("create_file_at_path", {
-            vaultPath,
-            dirPath,
-            fileName: name.trim(),
-          });
-          await refresh();
-          const title = newPath.split("/").pop() || name;
-          useTabStore.getState().selectNote(newPath, title);
-        } catch (e: any) {
-          alert(`Create file failed: ${e?.message || e}`);
-        }
-      },
-    });
-
-    const newFolder = await MenuItem.new({
-      text: "New Folder…",
-      action: async () => {
-        const name = window.prompt("New folder name:", "New Folder");
-        if (!name || !name.trim()) return;
-        try {
-          const dirPath = targetDir;
-          await invoke<string>("create_folder_at_path", {
-            vaultPath,
-            dirPath,
-            folderName: name.trim(),
-          });
-          await refresh();
-        } catch (e: any) {
-          alert(`Create folder failed: ${e?.message || e}`);
-        }
-      },
-    });
-
-    const items: any[] = isDirectory
-      ? [reveal, open, sep1, renameItem, del, sep2, copyPath, copyRel, sep3, newFile, newFolder]
-      : [reveal, open, quickLook, sep1, renameItem, del, sep2, copyPath, copyRel, sep3, newFile, newFolder];
-
-    const filtered = items.filter(Boolean);
-
-    const menu = await Menu.new({ items: filtered });
+    const menu = await Menu.new({ items });
     await menu.popup();
   } catch (err) {
     log.error("Native menu failed", err);

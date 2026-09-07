@@ -27,6 +27,9 @@ const EditorSurface = lazy(() =>
 const CommandPalette = lazy(() =>
   import("./components/palette/CommandPalette").then((m) => ({ default: m.CommandPalette }))
 );
+const SidebarNameDialog = lazy(() =>
+  import("./components/sidebar/SidebarNameDialog").then((m) => ({ default: m.SidebarNameDialog }))
+);
 
 const log = createLogger("app");
 
@@ -564,6 +567,9 @@ function App() {
           isOpen={isPaletteOpen}
           onClose={() => setIsPaletteOpen(false)}
         />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SidebarNameDialog />
       </Suspense>
     </div>
   );

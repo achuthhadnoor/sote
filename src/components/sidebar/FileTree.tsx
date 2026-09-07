@@ -158,11 +158,18 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
     if (!vp) return;
     const files = Array.from(e.dataTransfer.files) as unknown as Array<File & { path?: string }>;
     if (files.length === 0) return;
-    const valid = files.map((f) => (f as any).path as string | undefined).filter((p): p is string => !!p && typeof p === "string");
+    const valid = files
+      .map((f) => (f as any).path as string | undefined)
+      .filter((p): p is string => !!p && typeof p === "string");
     if (valid.length === 0) return;
-    const vaultPath = useVaultStore.getState().vaultPath;
-    if (!vaultPath) return;
-    await Promise.allSettled(valid.map((srcPath) => invoke("copy_external_file", { vaultPath, srcPath, destDir: node.path }).catch((err) => { log.error("copy_external_file failed", err); throw err; })));
+    await Promise.allSettled(
+      valid.map((srcPath) =>
+        invoke("copy_external_file", { vaultPath: vp, srcPath, destDir: node.path }).catch((err) => {
+          log.error("copy_external_file failed", err);
+          throw err;
+        })
+      )
+    );
     try {
       await useVaultStore.getState().loadVault(vp);
     } catch {}
@@ -195,12 +202,11 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
               onDrop={handleFolderDrop}
               data-folder-path={node.path}
               title={node.path}
-              style={{
-                paddingLeft: `${8 + level * 16}px`,
-              }}
+              style={{ paddingLeft: `${8 + level * 16}px` }}
               className={cn(
                 "group flex h-7 w-full items-center gap-1.5 rounded-md pr-2 py-0 text-[13px] font-normal justify-start hover:bg-[var(--hover-translucent)] hover:text-foreground select-none",
-                isDragOver && "bg-[var(--accent-subtle)] outline outline-1 outline-dashed outline-[var(--accent)] outline-offset-[-1px]"
+                isDragOver &&
+                  "bg-[var(--accent-subtle)] outline outline-1 outline-dashed outline-[var(--accent)] outline-offset-[-1px]"
               )}
             >
               <ChevronIcon open={isOpen} />
@@ -209,7 +215,9 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
-            {node.children && <FileTreeSubGroup nodes={node.children} level={level + 1} rovingPath={rovingPath} />}
+            {node.children && (
+              <FileTreeSubGroup nodes={node.children} level={level + 1} rovingPath={rovingPath} />
+            )}
           </CollapsibleContent>
         </Collapsible>
       </div>
@@ -228,12 +236,11 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
       draggable
       onDragStart={handleDragStart}
       title={node.path}
-      style={{
-        paddingLeft: `${8 + level * 16}px`,
-      }}
+      style={{ paddingLeft: `${8 + level * 16}px` }}
       className={cn(
         "group flex h-7 w-full items-center gap-1.5 rounded-md pr-2 py-0 text-[13px] font-normal justify-start hover:bg-[var(--hover-translucent)] hover:text-foreground select-none",
-        isActive && "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] shadow-sm font-medium",
+        isActive &&
+          "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] shadow-sm font-medium",
         !isActive && "text-[var(--sidebar-fg)]"
       )}
     >
@@ -244,7 +251,11 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
   );
 };
 
-const FileTreeSubGroup: React.FC<FileTreeProps & { rovingPath?: string | null }> = ({ nodes, level = 0, rovingPath }) => {
+const FileTreeSubGroup: React.FC<FileTreeProps & { rovingPath?: string | null }> = ({
+  nodes,
+  level = 0,
+  rovingPath,
+}) => {
   return (
     <div className="flex flex-col gap-0.5 w-full" role="group">
       {nodes.map((node) => (
