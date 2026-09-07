@@ -179,7 +179,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
   if (!frontmatter && properties.length === 0) {
     return (
       <div className="mb-3 flex">
-        <Button variant="outline" size="sm" onClick={handleInitFrontmatter} className="border-dashed text-xs h-7">
+        <Button variant="outline" size="sm" onClick={handleInitFrontmatter} className="border-dashed type-label h-7 bg-transparent">
           <Plus className="mr-1 h-3 w-3" /> Add Properties
         </Button>
       </div>
@@ -187,15 +187,15 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
   }
 
   return (
-    <Card className="mb-6 overflow-hidden border-0 bg-transparent shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 bg-transparent px-3 py-2">
+    <Card className="mb-4 overflow-hidden border-0 bg-transparent shadow-none">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 bg-transparent px-0 py-2">
         <button
-          className="flex items-center gap-2 text-sm font-medium hover:text-foreground transition-colors"
+          className="flex items-center gap-2 type-chrome font-medium hover:text-foreground transition-colors"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? <ChevronRight className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
           Properties
-          <Badge variant="outline" className="ml-1 border-border-translucent bg-transparent px-1.5 py-0 text-[10px] font-mono">
+          <Badge variant="outline" className="ml-1 border-border-translucent bg-transparent px-1.5 py-0 type-meta">
             {properties.length}
           </Badge>
         </button>
@@ -206,7 +206,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
               variant={viewMode === "table" ? "secondary" : "ghost"}
               size="sm"
               className={cn(
-                "h-6 px-2 text-[11px]",
+                "h-6 px-2 type-meta",
                 viewMode === "table" && "bg-transparent border border-border-translucent shadow-none"
               )}
               onClick={() => setViewMode("table")}
@@ -217,7 +217,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
               variant={viewMode === "raw" ? "secondary" : "ghost"}
               size="sm"
               className={cn(
-                "h-6 px-2 text-[11px]",
+                "h-6 px-2 type-meta",
                 viewMode === "raw" && "bg-transparent border border-border-translucent shadow-none"
               )}
               onClick={() => setViewMode("raw")}
@@ -228,7 +228,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-[11px] ml-1 border border-dashed border-border-translucent bg-transparent"
+                className="h-6 px-2 type-meta ml-1 border border-dashed border-border-translucent bg-transparent"
                 onClick={() => setIsAddingProperty(!isAddingProperty)}
               >
                 {isAddingProperty ? "Cancel" : "+ Add"}
@@ -242,7 +242,7 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
         <CardContent className="p-0">
           {viewMode === "raw" ? (
             <Textarea
-              className="frontmatter-textarea frontmatter-raw-textarea min-h-[120px] w-full rounded-none border-0 bg-transparent font-mono text-xs leading-5 shadow-none focus-visible:ring-0 p-3 outline-none"
+              className="frontmatter-textarea frontmatter-raw-textarea min-h-[120px] w-full rounded-none border-0 bg-transparent font-mono text-[13px] leading-[1.6] shadow-none focus-visible:ring-0 p-3 outline-none"
               value={rawText}
               onChange={handleRawChange}
               placeholder="key: value..."
@@ -251,12 +251,12 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
             />
           ) : (
             <>
-              <Table className="text-xs">
+              <Table className="type-label">
                 <TableBody>
                   {properties.map((prop, idx) => (
                     <TableRow key={`${prop.key}-${idx}`} className="border-0 hover:bg-transparent">
                       <TableCell className="w-[160px] max-w-[200px] bg-transparent p-2 align-top">
-                        <span className="font-mono text-[11px] font-medium text-muted-foreground truncate block" title={prop.key}>
+                        <span className="type-meta font-medium truncate block" title={prop.key}>
                           {prop.key}
                         </span>
                       </TableCell>
@@ -296,16 +296,16 @@ export const FrontmatterTable: React.FC<FrontmatterTableProps> = ({
                     placeholder="Property name"
                     value={newKey}
                     onChange={(e) => setNewKey(e.target.value)}
-                    className="w-[150px] font-mono text-xs outline-none"
+                    className="w-[150px] font-mono text-[13px] leading-[1.6] outline-none"
                     autoFocus
                   />
                   <AutoResizeTextarea
                     placeholder="Value"
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
-                    className="flex-1 text-xs outline-none"
+                    className="flex-1 font-mono text-[13px] leading-[1.6] outline-none"
                   />
-                  <Button type="submit" size="sm" className="h-7 px-3 text-xs">
+                  <Button type="submit" size="sm" className="h-7 px-3 type-label">
                     Add
                   </Button>
                 </form>
@@ -352,7 +352,7 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
     return (
       <div className="flex items-center gap-2">
         <Switch checked={!!prop.value} onCheckedChange={onToggleBoolean} />
-        <span className="font-mono text-xs">{prop.value ? "true" : "false"}</span>
+        <span className="font-mono text-[13px] leading-[1.6]">{prop.value ? "true" : "false"}</span>
       </div>
     );
   }
@@ -364,7 +364,7 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
           <Badge
             key={i}
             variant="outline"
-            className="gap-1 border-border-translucent bg-transparent pr-1 font-mono text-[11px]"
+            className="gap-1 border-border-translucent bg-transparent pr-1 type-meta"
           >
             <span>{String(item)}</span>
             <button
@@ -378,7 +378,7 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
         ))}
 
         <AutoResizeTextarea
-          className="w-[100px] text-xs outline-none"
+          className="w-[100px] font-mono text-[13px] leading-[1.6] outline-none"
           value={newChipText}
           onChange={(e) => setNewChipText(e.target.value)}
           onKeyDown={(e) => {
@@ -407,11 +407,11 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
       <div className="flex flex-col gap-1">
         {Object.entries(prop.value).map(([subK, subV]) => (
           <div key={subK} className="flex items-start gap-1.5">
-            <span className="shrink-0 pt-0.5 font-mono text-[11px] font-medium text-muted-foreground">
+            <span className="shrink-0 pt-0.5 type-meta font-medium">
               {subK}:
             </span>
             <AutoResizeTextarea
-              className="font-mono text-[11px] outline-none"
+              className="font-mono text-[13px] leading-[1.6] outline-none"
               value={String(subV ?? "")}
               onChange={(e) => {
                 onUpdate({ ...prop.value, [subK]: e.target.value });
@@ -425,7 +425,7 @@ const PropertyValueRenderer: React.FC<PropertyValueRendererProps> = ({
 
   return (
     <AutoResizeTextarea
-      className="text-xs outline-none"
+      className="font-mono text-[13px] leading-[1.6] outline-none"
       value={textDraft}
       onChange={(e) => setTextDraft(e.target.value)}
       onBlur={() => commitText(textDraft)}

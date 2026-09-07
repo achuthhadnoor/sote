@@ -505,17 +505,50 @@ html, body, #root {
   border-bottom: 1px solid var(--border-translucent);
 }
 
-/* Compact rhythm: strip prose's before/after block margins inside the editor.
-   Typography v4 styles are zero-specificity `:where()` selectors, so this
-   single class-scoped rule wins by source order. */
+/* Cursor-like compact rhythm: tight blocks, a little air between paragraphs. */
 .ProseMirror :where(p, ul, ol, li, blockquote, hr, figure, table) {
   margin-top: 0;
   margin-bottom: 0;
 }
+.ProseMirror > p + p,
+.ProseMirror > ul + p,
+.ProseMirror > ol + p,
+.ProseMirror > p + ul,
+.ProseMirror > p + ol {
+  margin-top: 0.55em;
+}
+.ProseMirror > ul + ul,
+.ProseMirror > ol + ol,
+.ProseMirror > ul + ol,
+.ProseMirror > ol + ul {
+  margin-top: 0.35em;
+}
 /* Air above headings so sections breathe; bottom stays flush. */
 .ProseMirror :where(h1, h2, h3, h4, h5, h6) {
-  margin-top: 0.5em;
-  margin-bottom: 0;
+  margin-top: 1.15em;
+  margin-bottom: 0.35em;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.ProseMirror :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  font-size: 1.65em;
+  line-height: 1.25;
+}
+.ProseMirror :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  font-size: 1.35em;
+  line-height: 1.3;
+}
+.ProseMirror :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  font-size: 1.15em;
+  line-height: 1.35;
+}
+.ProseMirror > :first-child {
+  margin-top: 0 !important;
+}
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border-translucent);
+  margin: 1.25em 0;
 }
 
 /* Subtle placeholder when empty */
@@ -628,8 +661,8 @@ html, body, #root {
   width: 15px;
   height: 15px;
   border-radius: 4px;
-  border: 1.5px solid var(--border);
-  background: var(--bg);
+  border: 1.5px solid var(--border-translucent);
+  background: transparent;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -658,13 +691,15 @@ html, body, #root {
   transform: rotate(45deg) translate(-0.5px, -0.5px);
 }
 
-/* Blockquote theme accent styling */
+/* Blockquote — thin accent rail, no filled slab */
 .ProseMirror blockquote {
-  border-left-color: var(--accent);
-  background: var(--accent-subtle);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  padding: 12px 16px 12px 18px;
-  font-style: italic;
+  border-left: 2px solid var(--accent);
+  background: transparent;
+  border-radius: 0;
+  padding: 0.15em 0 0.15em 1em;
+  margin: 0.75em 0;
+  font-style: normal;
+  color: var(--muted-fg);
 }
 
 /* Inline code with theme variables */
@@ -688,21 +723,28 @@ html, body, #root {
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
+  border-color: var(--border-translucent) !important;
 }
 .code-block-card pre,
 .ProseMirror .code-block-card,
 .ProseMirror [data-node-view-wrapper] .code-block-card {
   background: transparent;
 }
+.code-block-card pre {
+  border: none !important;
+  margin: 0 !important;
+  border-radius: 0;
+  padding: 14px 16px;
+}
 
 .ProseMirror pre {
   background: transparent !important;
   background-color: transparent !important;
   color: var(--code-fg);
-  border: none;
-  border-radius: 0;
-  padding: 16px 18px;
-  margin: 0;
+  border: 1px solid var(--border-translucent);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin: 0.75em 0;
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 13px;
@@ -744,27 +786,32 @@ html, body, #root {
   text-align: center;
 }
 
-/* Custom table block container */
+/* Custom table block — translucent, matches code-block density */
+.snipnote-table-wrapper {
+  margin: 0.75em 0;
+}
 .snipnote-table-container table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   margin: 0;
   font-size: 13px;
+  font-family: var(--font-sans);
 }
 .snipnote-table-container th {
-  background: var(--muted);
+  background: var(--muted-translucent);
   font-weight: 600;
   text-align: left;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border-translucent);
   border-right: 1px solid var(--border-translucent);
-  color: var(--fg);
+  color: var(--muted-fg);
   font-size: 12px;
+  font-family: var(--font-sans);
 }
 .snipnote-table-container th:last-child { border-right: none; }
 .snipnote-table-container td {
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-bottom: 1px solid var(--border-translucent);
   border-right: 1px solid var(--border-translucent);
   vertical-align: top;
@@ -772,6 +819,38 @@ html, body, #root {
 .snipnote-table-container td:last-child { border-right: none; }
 .snipnote-table-container tr:last-child td { border-bottom: none; }
 .snipnote-table-container tr:hover td { background: var(--muted-translucent); }
+
+/* Find matches — decorations from SearchHighlight.ts */
+.ProseMirror .search-highlight {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.ProseMirror .search-highlight-active {
+  background: color-mix(in srgb, var(--accent) 42%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 0;
+}
+
+/* Find bar — frosted overlay like bubble menu */
+.find-bar {
+  background: var(--bg-translucent) !important;
+  background-color: var(--bg-translucent) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-translucent);
+  box-shadow: var(--overlay-shadow);
+}
+
+/* Outline panel translucent surface */
+.outline-panel {
+  background: var(--bg-translucent) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: var(--border-translucent) !important;
+  box-shadow: var(--overlay-shadow);
+}
 
 
 /* Reduced motion / transparency — respect OS accessibility */
@@ -814,7 +893,6 @@ html, body, #root {
   .palette-overlay,
   .find-bar,
   .file-context-menu,
-  .outline-dashes,
   .outline-panel,
   .status-blur,
   .chrome-blur__layer,
@@ -895,7 +973,7 @@ input[type="range"]::-moz-range-thumb {
   background: var(--bg-translucent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-translucent);
   box-shadow: var(--overlay-shadow);
   border-radius: var(--radius-md);
   user-select: none;

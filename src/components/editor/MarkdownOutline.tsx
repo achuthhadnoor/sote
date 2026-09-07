@@ -197,7 +197,7 @@ export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) =>
 
       {/* expanded: titles panel */}
       <div
-        className={`ui-surface outline-panel absolute right-0 top-1/2 -translate-y-1/2 max-h-[60vh] overflow-hidden bg-background border border-border flex flex-col transition-all duration-200 ease-out ${
+        className={`outline-panel absolute right-0 top-1/2 -translate-y-1/2 max-h-[60vh] overflow-hidden border flex flex-col transition-all duration-200 ease-out rounded-[var(--radius-md)] ${
           expanded
             ? "w-[260px] opacity-100 pointer-events-auto translate-x-0"
             : "w-0 opacity-0 pointer-events-none translate-x-2"
@@ -205,7 +205,7 @@ export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) =>
         role="navigation"
         aria-label="Headings"
       >
-        <div className="px-3.5 pt-2.5 pb-2 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground border-b border-border shrink-0">
+        <div className="px-3 pt-2.5 pb-2 type-label font-semibold tracking-wider uppercase text-muted-foreground border-b border-border-translucent shrink-0">
           On this page
         </div>
         <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-0.5">
@@ -213,20 +213,20 @@ export const MarkdownOutline: React.FC<Props> = ({ editor, body, isRawMode }) =>
             const isActive = activeId === item.id;
             const indentClass =
               item.level === 1
-                ? "pl-2 font-medium"
+                ? "pl-2 font-medium type-chrome"
                 : item.level === 2
-                ? "pl-4 text-xs"
+                ? "pl-4 type-label"
                 : item.level === 3
-                ? "pl-6 text-[11.5px]"
-                : "pl-8 text-[11.5px] opacity-90";
+                ? "pl-6 type-label opacity-90"
+                : "pl-8 type-meta opacity-90";
 
             return (
               <button
                 key={item.id}
-                className={`flex items-center gap-2 w-full text-left py-1.5 pr-2 rounded-md border border-transparent text-xs leading-snug cursor-pointer transition-colors duration-100 ${indentClass} ${
+                className={`flex items-center gap-2 w-full text-left py-1.5 pr-2 rounded-md border border-transparent leading-snug cursor-pointer transition-colors duration-100 ${indentClass} ${
                   isActive
                     ? "bg-accent text-accent-foreground font-semibold"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground hover:border-border"
+                    : "text-muted-foreground hover:bg-muted-translucent hover:text-foreground hover:border-border-translucent"
                 }`}
                 onClick={() => handleClick(item)}
                 title={item.text}

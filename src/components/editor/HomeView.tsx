@@ -90,10 +90,10 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
   return (
     <section className="flex-1 overflow-y-auto flex justify-center py-12 px-8 sm:px-6 relative scroll-smooth">
       <div className="w-full max-w-[560px] flex flex-col gap-5 animate-in fade-in duration-200">
-        <div className="ui-surface flex items-center gap-2 bg-background border border-border px-3 h-10 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+        <div className="flex items-center gap-2 bg-transparent border border-border-translucent rounded-[var(--radius-md)] px-3 h-10 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
           <Search size={15} className="text-muted-foreground shrink-0" aria-hidden />
           <input
-            className="flex-1 min-w-0 border-0 outline-hidden bg-transparent text-sm text-foreground font-sans h-full"
+            className="flex-1 min-w-0 border-0 outline-hidden bg-transparent type-chrome text-foreground font-sans h-full"
             placeholder="Search notes…  (⌘P for palette)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -103,7 +103,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
           />
           {query && (
             <button
-              className="border-0 bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted p-1 rounded-sm cursor-pointer text-xs leading-none"
+              className="border-0 bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted-translucent p-1 rounded-sm cursor-pointer type-label leading-none"
               onClick={() => setQuery("")}
               aria-label="Clear search"
             >
@@ -114,7 +114,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
 
         {isSearching ? (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 type-meta font-semibold tracking-wider uppercase px-1">
+            <div className="flex items-center gap-1.5 type-label font-semibold tracking-wider uppercase px-1 text-muted-foreground">
               {results.length > 0
                 ? `${results.length} result${results.length === 1 ? "" : "s"}`
                 : "No matching notes"}
@@ -124,26 +124,26 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                 {results.map((n) => (
                   <li key={n.path}>
                     <button
-                      className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-background hover:border-border hover:shadow-xs"
+                      className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-muted-translucent hover:border-border-translucent"
                       onClick={() => openNote(n.path, n.name)}
                       title={n.path}
                     >
                       <FileText size={15} className="text-muted-foreground shrink-0" aria-hidden />
-                      <span className="flex items-baseline gap-2 min-w-0 flex-1">
-                        <span className="text-[13.5px] font-medium text-foreground truncate">{n.name}</span>
-                        <span className="text-[11px] font-mono text-muted-foreground truncate shrink-1 min-w-0">{n.relativePath}</span>
-                      </span>
+                        <span className="flex items-baseline gap-2 min-w-0 flex-1">
+                          <span className="type-chrome font-medium text-foreground truncate">{n.name}</span>
+                          <span className="type-meta truncate shrink-1 min-w-0">{n.relativePath}</span>
+                        </span>
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-[13px] text-muted-foreground leading-relaxed p-1 m-0">Try a different name or folder. Press Enter to open the top match.</p>
+              <p className="type-chrome text-muted-foreground leading-relaxed p-1 m-0">Try a different name or folder. Press Enter to open the top match.</p>
             )}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 type-meta font-semibold tracking-wider uppercase px-1">
+            <div className="flex items-center gap-1.5 type-label font-semibold tracking-wider uppercase px-1 text-muted-foreground">
               <Clock size={13} aria-hidden /> Recent notes
             </div>
             {vaultRecents.length > 0 ? (
@@ -155,14 +155,14 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                   return (
                     <li key={r.path}>
                       <button
-                        className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-background hover:border-border hover:shadow-xs"
+                        className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-muted-translucent hover:border-border-translucent"
                         onClick={() => openNote(r.path, title)}
                         title={r.path}
                       >
                         <FileText size={15} className="text-muted-foreground shrink-0" aria-hidden />
                         <span className="flex items-baseline gap-2 min-w-0 flex-1">
-                          <span className="text-[13.5px] font-medium text-foreground truncate">{title}</span>
-                          <span className="text-[11px] font-mono text-muted-foreground truncate shrink-1 min-w-0">{rel}</span>
+                          <span className="type-chrome font-medium text-foreground truncate">{title}</span>
+                          <span className="type-meta truncate shrink-1 min-w-0">{rel}</span>
                         </span>
                       </button>
                     </li>
@@ -171,7 +171,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
               </ul>
             ) : (
               <div className="flex flex-col gap-2.5">
-                <p className="text-[13px] text-muted-foreground leading-relaxed p-1 m-0">
+                <p className="type-chrome text-muted-foreground leading-relaxed p-1 m-0">
                   {allNotes.length > 0
                     ? "Notes you open will show up here."
                     : "No notes yet — create your first one to get started."}
@@ -181,15 +181,15 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                     {allNotes.slice(0, 8).map((n) => (
                       <li key={n.path}>
                         <button
-                          className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-background hover:border-border hover:shadow-xs"
+                          className="flex items-center gap-2.5 w-full text-left p-2 rounded-md border border-transparent bg-transparent cursor-pointer font-sans transition-colors duration-100 hover:bg-muted-translucent hover:border-border-translucent"
                           onClick={() => openNote(n.path, n.name)}
                           title={n.path}
                         >
                           <FileText size={15} className="text-muted-foreground shrink-0" aria-hidden />
-                          <span className="flex items-baseline gap-2 min-w-0 flex-1">
-                            <span className="text-[13.5px] font-medium text-foreground truncate">{n.name}</span>
-                            <span className="text-[11px] font-mono text-muted-foreground truncate shrink-1 min-w-0">{n.relativePath}</span>
-                          </span>
+                        <span className="flex items-baseline gap-2 min-w-0 flex-1">
+                          <span className="type-chrome font-medium text-foreground truncate">{n.name}</span>
+                          <span className="type-meta truncate shrink-1 min-w-0">{n.relativePath}</span>
+                        </span>
                         </button>
                       </li>
                     ))}
@@ -197,7 +197,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
                 )}
                 {onNewNote && (
                   <button
-                    className="inline-flex items-center gap-1.5 self-start h-[30px] px-3 rounded-md border border-border bg-background text-foreground text-[13px] font-medium cursor-pointer font-sans mt-1 hover:bg-accent hover:border-accent hover:text-accent-foreground transition-colors"
+                    className="inline-flex items-center gap-1.5 self-start h-[30px] px-3 rounded-md border border-border-translucent bg-transparent text-foreground type-chrome font-medium cursor-pointer font-sans mt-1 hover:bg-accent hover:border-accent hover:text-accent-foreground transition-colors"
                     onClick={onNewNote}
                   >
                     <Plus size={14} aria-hidden /> New note

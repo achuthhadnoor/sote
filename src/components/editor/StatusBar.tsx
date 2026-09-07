@@ -65,8 +65,8 @@ export const StatusBar: React.FC = () => {
           variant={isRawMode ? "secondary" : "ghost"}
           size="sm"
           className={cn(
-            "h-5 px-2 text-[10px] font-medium font-sans gap-1.5 rounded-sm border border-transparent",
-            isRawMode && "bg-background border-border shadow-xs text-foreground",
+            "h-5 px-2 type-label font-medium gap-1.5 rounded-sm border border-transparent",
+            isRawMode && "bg-transparent border-border-translucent text-foreground",
             (!notePath || isVirtual) && "opacity-40 pointer-events-none"
           )}
           onClick={toggleRawMode}

@@ -91,18 +91,18 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
 
   return (
     <NodeViewWrapper
-      className={`not-prose snipnote-table-wrapper my-4 block select-none ${
+      className={`not-prose snipnote-table-wrapper block select-none ${
         selected ? "ring-2 ring-primary/40 rounded-md" : ""
       }`}
     >
-      <Card className="relative overflow-hidden border shadow-sm group">
+      <Card className="code-block-card relative overflow-hidden border bg-transparent shadow-none group">
         {/* Floating action buttons */}
         <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
           {!isEditing && raw && (
             <Button
               variant="outline"
               size="sm"
-              className="h-6 px-2 text-[11px] gap-1 bg-background/80 backdrop-blur-sm shadow-xs"
+              className="h-6 px-2 type-meta gap-1 bg-background/80 backdrop-blur-sm shadow-none border-border-translucent"
               onClick={handleCopy}
               title="Copy table markdown"
             >
@@ -123,7 +123,7 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
             <Button
               variant="outline"
               size="sm"
-              className="h-6 px-2 text-xs flex items-center gap-1 bg-background/80 backdrop-blur-sm shadow-xs"
+              className="h-6 px-2 type-label flex items-center gap-1 bg-background/80 backdrop-blur-sm shadow-none border-border-translucent"
               onClick={() => {
                 setRawDraft(raw);
                 setIsEditing(true);
@@ -137,9 +137,9 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
 
         {/* Content */}
         {isEditing ? (
-          <div className="p-2 bg-background space-y-2">
+          <div className="p-3 bg-transparent space-y-2">
             <Textarea
-              className="w-full font-mono text-xs leading-5 resize-y focus-visible:ring-1 focus-visible:ring-primary min-h-[120px]"
+              className="w-full font-mono text-[13px] leading-[1.6] resize-y border-border-translucent bg-transparent focus-visible:ring-1 focus-visible:ring-primary min-h-[120px]"
               value={rawDraft}
               onChange={(e) => setRawDraft(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -148,14 +148,14 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
               autoFocus
             />
             <div className="flex items-center justify-between">
-              <div className="text-[10px] text-muted-foreground">
-                <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">⌘Enter</kbd> to save · <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">Esc</kbd> to cancel
+              <div className="type-meta">
+                <kbd className="rounded border border-border-translucent bg-transparent px-1 py-0.5 font-mono">⌘Enter</kbd> to save · <kbd className="rounded border border-border-translucent bg-transparent px-1 py-0.5 font-mono">Esc</kbd> to cancel
               </div>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs"
+                  className="h-6 px-2 type-label"
                   onClick={handleCancel}
                 >
                   Cancel
@@ -163,7 +163,7 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="h-6 px-2 text-xs flex items-center gap-1"
+                  className="h-6 px-2 type-label flex items-center gap-1 bg-transparent border border-border-translucent shadow-none"
                   onClick={handleSave}
                 >
                   <Check className="w-3 h-3 text-emerald-500" />
@@ -174,11 +174,11 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
           </div>
         ) : html ? (
           <div
-            className="overflow-x-auto p-3 bg-card/60 snipnote-table-container"
+            className="overflow-x-auto p-1 snipnote-table-container"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (
-          <div className="p-4 text-center text-[13px] italic text-muted-foreground">
+          <div className="p-4 text-center type-chrome italic text-muted-foreground">
             Empty table. Click &ldquo;Edit&rdquo; to add markdown table syntax.
           </div>
         )}

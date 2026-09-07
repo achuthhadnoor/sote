@@ -668,11 +668,11 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
     const label = getLanguageLabel(language);
 
     return (
-      <NodeViewWrapper as="div" className="not-prose my-[18px]">
+      <NodeViewWrapper as="div" className="not-prose snipnote-code-block my-[0.75em]">
         <Card className="code-block-card group relative overflow-hidden border bg-transparent shadow-none">
           {/* Floating actions */}
-          <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border bg-background/80 p-0.5 shadow-sm backdrop-blur transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-            <span className="px-1.5 text-[10px] font-mono text-muted-foreground select-none">
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border border-border-translucent bg-background/80 p-0.5 shadow-none backdrop-blur transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+            <span className="px-1.5 type-meta select-none">
               {label}
             </span>
             <Button
@@ -709,11 +709,11 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
   const safeSvgHtml = svgHtml ? sanitizeSvg(svgHtml) : null;
 
   return (
-    <NodeViewWrapper as="div" className="not-prose my-[18px]">
+    <NodeViewWrapper as="div" className="not-prose snipnote-code-block my-[0.75em]">
         <Card className="code-block-card group relative overflow-hidden border bg-transparent shadow-none">
           {/* Floating actions */}
           <div
-            className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border bg-background/80 p-0.5 shadow-sm backdrop-blur transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100"
+            className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border border-border-translucent bg-background/80 p-0.5 shadow-none backdrop-blur transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100"
             onPointerDown={(event) => event.stopPropagation()}
           >
             {!showCode && (
@@ -812,9 +812,9 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
 
         <div className="mermaid-code-container" style={{ display: showCode ? "block" : "none" }}>
           {error && (
-            <div role="alert" className="m-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs">
+            <div role="alert" className="m-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 type-label">
               <div className="font-semibold text-destructive">Diagram Syntax Error</div>
-              <div className="mt-1 font-mono text-[11px] whitespace-pre-wrap break-all text-destructive">{error}</div>
+              <div className="mt-1 type-meta whitespace-pre-wrap break-all text-destructive">{error}</div>
             </div>
           )}
           <pre className="mermaid-code-editor m-0 rounded-none border-0">
@@ -855,7 +855,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
               dangerouslySetInnerHTML={{ __html: safeSvgHtml }}
             />
           ) : !rawText ? (
-            <div className="p-3 text-[13px] italic text-muted-foreground">Empty Mermaid diagram. Click &ldquo;Edit Code&rdquo; to add syntax.</div>
+            <div className="p-3 type-chrome italic text-muted-foreground">Empty Mermaid diagram. Click &ldquo;Edit Code&rdquo; to add syntax.</div>
           ) : (
             <div className="w-full p-5" aria-label="Rendering diagram">
               <div className="h-28 animate-pulse rounded-md bg-muted/60" />

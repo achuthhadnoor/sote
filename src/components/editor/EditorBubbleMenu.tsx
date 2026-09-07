@@ -146,10 +146,10 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
 
   const itemClass = (active: boolean) =>
     cn(
-      "relative flex items-center justify-center h-7 min-w-7 px-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none",
+      "relative flex items-center justify-center h-7 min-w-7 px-1.5 rounded-md type-label font-medium transition-all duration-150 cursor-pointer select-none",
       active
         ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-        : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+        : "text-muted-foreground hover:text-foreground hover:bg-muted-translucent"
     );
 
   return (
@@ -157,7 +157,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
       editor={editor}
       updateDelay={80}
       shouldShow={shouldShow}
-      className="snipnote-bubble-menu ui-surface flex items-center gap-0.5 p-1 border z-50 animate-in fade-in zoom-in-95 duration-100"
+      className="snipnote-bubble-menu flex items-center gap-0.5 p-1 border z-50 animate-in fade-in zoom-in-95 duration-100"
     >
       {isLinkMode ? (
         <div className="flex items-center gap-1.5 px-1 py-0.5">
@@ -169,13 +169,13 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             onChange={(e) => setLinkUrl(e.target.value)}
             onKeyDown={handleLinkInputKeyDown}
             placeholder="URL or markdown path..."
-            className="h-6.5 w-52 bg-transparent px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden border border-border/70 rounded-md focus:border-primary/80"
+            className="h-6.5 w-52 bg-transparent px-2 type-label text-foreground placeholder:text-muted-foreground focus:outline-hidden border border-border-translucent rounded-md focus:border-primary/80"
           />
           <button
             type="button"
             onClick={handleApplyLink}
             title="Apply (Enter)"
-            className="h-6.5 px-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 flex items-center gap-1 cursor-pointer transition-opacity"
+            className="h-6.5 px-2 rounded-md bg-primary text-primary-foreground type-label font-medium hover:opacity-90 flex items-center gap-1 cursor-pointer transition-opacity"
           >
             <Check className="w-3 h-3" />
             <span>Apply</span>
@@ -185,7 +185,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
               type="button"
               onClick={handleRemoveLink}
               title="Remove link"
-              className="h-6.5 w-6.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive flex items-center justify-center cursor-pointer transition-colors"
+              className="h-6.5 w-6.5 rounded-md hover:bg-muted-translucent text-muted-foreground hover:text-destructive flex items-center justify-center cursor-pointer transition-colors"
             >
               <Unlink className="w-3.5 h-3.5" />
             </button>
@@ -194,7 +194,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onClick={() => setIsLinkMode(false)}
             title="Cancel (Esc)"
-            className="h-6.5 w-6.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
+            className="h-6.5 w-6.5 rounded-md hover:bg-muted-translucent text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
           >
             <X className="w-3.5 h-3.5" />
           </button>

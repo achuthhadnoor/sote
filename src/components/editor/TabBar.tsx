@@ -254,12 +254,12 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
                     )}
                     <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
                     {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
-                    {isActive && isDraft && !isDirty && <span className="text-[10px] text-muted-foreground italic font-normal shrink-0">draft</span>}
+                    {isActive && isDraft && !isDirty && <span className="type-meta italic font-normal shrink-0">draft</span>}
                     {showDirty && (
                       <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0 group-hover:opacity-0 transition-opacity" title="Unsaved changes" />
                     )}
                     {showSaving && (
-                      <span className="text-[10px] text-muted-foreground font-normal shrink-0">saving…</span>
+                      <span className="type-meta font-normal shrink-0">saving…</span>
                     )}
                     <span
                       className="tab-item__close absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"

@@ -181,20 +181,20 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
   if (!isOpen) return null;
 
   return (
-    <Card className="find-bar ui-surface absolute bottom-9 left-1/2 -translate-x-1/2 w-[560px] max-w-[90%] p-2.5 flex flex-col gap-2 backdrop-blur-[8px] animate-in fade-in zoom-in-95" role="search" aria-label="Find in editor">
+    <Card className="find-bar absolute bottom-9 left-1/2 -translate-x-1/2 w-[560px] max-w-[90%] border-0 bg-transparent p-2.5 flex flex-col gap-2 shadow-none animate-in fade-in zoom-in-95" role="search" aria-label="Find in editor">
       <div className="flex items-center gap-2">
-        <div className="flex flex-1 items-center gap-2 rounded-md border border-transparent bg-muted/70 px-2 py-1 focus-within:border-ring focus-within:bg-background transition-colors">
+        <div className="flex flex-1 items-center gap-2 rounded-md border border-border-translucent bg-muted-translucent px-2 py-1 focus-within:border-ring transition-colors">
           <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <Input
             ref={inputRef}
-            className="h-auto border-0 bg-transparent p-0 text-[13px] shadow-none focus-visible:ring-0"
+            className="h-auto border-0 bg-transparent p-0 type-chrome shadow-none focus-visible:ring-0"
             placeholder="Find"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             aria-label="Find"
           />
-          <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap" aria-live="polite">
+          <span className="type-meta whitespace-nowrap" aria-live="polite">
             {displayCount}
           </span>
         </div>
@@ -206,7 +206,7 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
             <ChevronDown className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleReplace} title="Toggle Replace" aria-label="Toggle replace">
-            <span className="text-[11px]">⇧</span>
+            <span className="type-meta">⇧</span>
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} title="Close (Esc)" aria-label="Close find bar">
             <X className="h-4 w-4" />
@@ -215,10 +215,10 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
       </div>
       {showReplace && (
         <div className="flex items-center gap-2">
-          <div className="flex flex-1 items-center gap-2 rounded-md border border-transparent bg-muted/70 px-2 py-1 focus-within:border-ring focus-within:bg-background">
+          <div className="flex flex-1 items-center gap-2 rounded-md border border-border-translucent bg-muted-translucent px-2 py-1 focus-within:border-ring">
             <Input
               ref={replaceInputRef}
-              className="h-auto border-0 bg-transparent p-0 text-[13px] shadow-none focus-visible:ring-0"
+              className="h-auto border-0 bg-transparent p-0 type-chrome shadow-none focus-visible:ring-0"
               placeholder="Replace"
               value={replaceQuery}
               onChange={(e) => setReplaceQuery(e.target.value)}
@@ -232,10 +232,10 @@ export const FindBar: React.FC<FindBarProps> = ({ editor, isOpen, showReplace, o
             />
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs" onClick={handleReplace} disabled={matchCount === 0 || !query}>
+            <Button variant="outline" size="sm" className="h-7 px-3 type-label bg-transparent" onClick={handleReplace} disabled={matchCount === 0 || !query}>
               Replace
             </Button>
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs" onClick={handleReplaceAll} disabled={matchCount === 0 || !query}>
+            <Button variant="outline" size="sm" className="h-7 px-3 type-label bg-transparent" onClick={handleReplaceAll} disabled={matchCount === 0 || !query}>
               Replace All
             </Button>
           </div>

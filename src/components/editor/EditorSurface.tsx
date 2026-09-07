@@ -690,10 +690,10 @@ export const EditorSurface: React.FC = () => {
   if (!vaultPath) {
     return (
       <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth">
-        <div className="w-full max-w-editor m-auto self-center text-[15px] leading-relaxed flex flex-col justify-center">
+        <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center">
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground min-h-[360px]">
-            <h1 className="text-[18px] font-semibold text-foreground">snipnote</h1>
-            <p className="text-sm text-muted-foreground">A fast local Markdown file editor.</p>
+            <h1 className="text-[18px] font-semibold text-foreground tracking-tight">snipnote</h1>
+            <p className="type-chrome text-muted-foreground">A fast local Markdown file editor.</p>
             <Button onClick={openVaultDialog} className="mt-2">Open Local Vault</Button>
           </div>
         </div>
