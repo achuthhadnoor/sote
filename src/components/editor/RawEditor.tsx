@@ -75,11 +75,11 @@ export const RawEditor: React.FC<RawEditorProps> = ({
   }, []);
 
   return (
-    <div className="w-full min-h-[480px] flex-1 flex bg-transparent border border-border-translucent overflow-hidden transition-all duration-150 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 rounded-[var(--radius-md)]">
+    <div className="w-full h-full min-h-0 flex-1 flex bg-transparent border-0 overflow-hidden">
       {/* Line numbers gutter */}
       <div
         ref={gutterRef}
-        className="select-none shrink-0 py-3.5 pl-2 pr-2.5 font-mono text-[13px] leading-[1.6] text-right border-r border-border-translucent bg-transparent overflow-hidden text-muted-foreground"
+        className="select-none shrink-0 h-full py-3.5 pl-2 pr-2.5 font-mono text-[13px] leading-[1.6] text-right border-r border-border-translucent bg-transparent overflow-hidden text-muted-foreground"
         style={{
           minWidth: `${Math.max(40, String(lineCount).length * 9 + 20)}px`,
         }}
@@ -108,7 +108,7 @@ export const RawEditor: React.FC<RawEditorProps> = ({
       {/* Raw textarea */}
       <textarea
         ref={textareaRef}
-        className="raw-editor flex-1 w-full min-h-[480px] font-mono text-[13px] leading-[1.6] text-foreground bg-transparent border-0 rounded-none p-3.5 resize-none outline-hidden whitespace-pre overflow-auto tab-2"
+        className="raw-editor flex-1 w-full h-full min-h-0 font-mono text-[13px] leading-[1.6] text-foreground bg-transparent border-0 rounded-none p-3.5 resize-none outline-hidden whitespace-pre overflow-auto tab-2"
         value={value}
         onChange={(e) => {
           onChange(e.target.value);

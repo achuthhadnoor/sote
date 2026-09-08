@@ -791,8 +791,21 @@ export const EditorSurface: React.FC = () => {
   }
 
   return (
-    <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth" data-editor-scroll>
-      <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center">
+    <section
+      className={
+        isRawMode
+          ? "flex-1 min-h-0 overflow-hidden flex flex-col relative pt-4 "
+          : "flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth"
+      }
+      data-editor-scroll
+    >
+      <div
+        className={
+          isRawMode
+            ? "w-full h-full min-h-0 type-editor flex flex-col"
+            : "w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center"
+        }
+      >
         {isLoading && (
           <div className="py-4 type-label text-muted-foreground">
             Loading note...
@@ -803,7 +816,9 @@ export const EditorSurface: React.FC = () => {
             Failed to read note: {error}
           </div>
         )}
-        <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
+        <div className={isRawMode ? "shrink-0 px-3 pt-2" : undefined}>
+          <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
+        </div>
         {isRawMode ? (
           <RawEditor
             value={body}
