@@ -1,46 +1,47 @@
 <!-- bmad:context:start -->
 # snipnote — Agent Context
 
-Local-first Markdown editor (Tauri 2 + React 19 + TipTap). Disk is source of truth. Ships **macOS + Windows**.
+Local-first Markdown notes (Tauri 2 + React 19 + TipTap). Disk is source of truth. Ships **macOS + Windows**.
+
+## Product modes
+
+| Mode | Default? | What |
+|---|---|---|
+| **v1 Floating** | Yes | Tray/menubar + floating panel + `EditorSurface` |
+| **v2 Full shell** | No (flag) | Existing `App` vault UI (Sidebar, tabs, WelcomeGate) |
+
+Flag: `snipnote-full-editor` (localStorage / Settings). Do **not** delete full-shell code.
 
 ## Commands
 
 ```bash
 yarn install
-yarn tauri dev          # run on the OS you are targeting
-yarn build              # tsc + vite
-yarn tauri build        # platform installers + updater artifacts when keys set
+yarn tauri dev
+yarn build
+yarn tauri build
 ```
 
-## Non-negotiables (do not regress)
+## Non-negotiables
 
-1. **Window chrome is platform-split** (`src-tauri/src/lib.rs`):
-   - macOS: Overlay + empty title + `Effect::Sidebar` + radius 12
-   - Windows: native decorations + title `snipnote` + `Effect::Mica` (soft-fail)
-   - Never reintroduce combined `EffectsBuilder([Sidebar, Mica])` or Overlay-on-Windows
-2. **Settings is a tab** (`SettingsView.tsx`), not a modal dialog
-3. **Shortcut labels** use `modShortcut` / `platform.ts` — never hard-code `⌘` for Windows UI
-4. **Paths** may be `/` or `\`; use `paths.ts` / `path.ts` helpers
-5. **Updater**: only outbound HTTPS; drafts must be **published** for `/releases/latest`; see `src/lib/updater.ts` + `RELEASE.md`
-6. **Draft notes** stay in-memory until `hasContent` — do not recreate disk-first `Untitled.md`
+1. **Default UX = float + tray** — do not show full vault window on every launch
+2. **Reuse** `EditorSurface`, `SettingsView`, stores, Rust IO/updater
+3. Window labels: `float` (v1), `main` (v2 shell)
+4. Full-shell chrome rules (Overlay mac / native+Mica win) apply to **`main` only**
+5. Shortcut labels via `modShortcut` / `platform.ts`
+6. Updater HTTPS only; publish GitHub drafts for `/releases/latest`
 
 ## Where things are
 
 | Concern | Location |
 |---|---|
-| Window / menu / effects | `src-tauri/src/lib.rs` |
-| Vault scan / IO | `src-tauri/src/storage.rs` |
-| Watcher | `src-tauri/src/watcher.rs` |
-| UX spines | `_bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/` |
-| PRD | `_bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md` |
-| Architecture | `_bmad-output/planning-artifacts/architecture/architecture-snipnote-2026-09-02/ARCHITECTURE-SPINE.md` |
-| Change proposal (2026-09-08) | `_bmad-output/planning-artifacts/sprint-change-proposal-2026-09-08.md` |
+| Proposal (floating v1) | `_bmad-output/planning-artifacts/sprint-change-proposal-2026-09-08-floating-v1.md` |
+| PRD / UX / Arch | `_bmad-output/planning-artifacts/` |
+| Full shell (v2) | `src/App.tsx` + sidebar/tab components |
+| Editor / Settings | `EditorSurface.tsx`, `SettingsView.tsx` |
 
-## Pitfalls
+## Next build focus
 
-- Updater check fails quietly in `yarn tauri dev` / before first public release — expected
-- WelcomeGate owns first-run; do not resurrect a separate empty-state dashboard
-- Right Panel exists but is intentionally not rendered
+Epic F: tray → float window → hotkey → embed editor → settings → full-editor flag.
 
-Updated: 2026-09-08 (Correct Course doc sync)
+Updated: 2026-09-08 (Correct Course floating-v1)
 <!-- bmad:context:end -->

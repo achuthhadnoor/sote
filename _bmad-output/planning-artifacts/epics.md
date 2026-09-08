@@ -92,25 +92,50 @@ This document provides the complete epic and story breakdown for snipnote, decom
 
 ## Epic List
 
-### Epic 1: Workspace Shell & Vault Access (Vibrant + Theme + Settings)
-Users can launch branded snipnote on **macOS or Windows** (platform-split Overlay/Sidebar vs native/Mica), see WelcomeGate when no vault, open a folder (dialog or drop), explore filtered Sidebar (collapsible), use Settings **tab** for theme/tint, and restore vault + tabs + geometry on relaunch.
-**FRs covered:** FR-1, FR-2, FR-3, FR-11, FR-12, FR-13
+### Epic F: Floating Notes & Menu Bar (v1 Ship) [NEW 2026-09-08]
+Users get notes from the **menu bar / tray**: global hotkey toggles a floating panel hosting shared `EditorSurface`; Settings and updater remain available; full vault shell stays behind a flag.
+**FRs covered:** FR-F1..FR-F6 (+ shared FR-6, FR-7, FR-8, FR-12, FR-14)
 
-### Epic 2: Live Markdown Editor & Document Fidelity (Multi-Tab + Draft)
-Users can open notes as tabs (`+` creates draft until content) with live WYSIWYG + Mermaid, trusting CommonMark/GFM round-trip and atomic saves.
-**FRs covered:** FR-6, FR-7, FR-9
+#### Story F.1: System tray / menu bar
+As a user, I want a tray/menubar icon with Show, New note, Settings, Quit,
+So that snipnote is always reachable without a full window.
 
-### Epic 3: External File Synchronization & Conflict Guard
-Users keep snipnote beside the terminal while Claude edits disk files — clean auto-reload, dirty banner, no self-echo.
+#### Story F.2: Floating panel window
+As a user, I want a compact floating panel,
+So that I can write without the full vault chrome.
+
+#### Story F.3: Global hotkey
+As a user, I want `CmdOrCtrl+Shift+Space` to show/hide the panel,
+So that capture is one gesture.
+
+#### Story F.4: EditorSurface in the panel
+As a user, I want the same TipTap editor and autosave in the float,
+So that files stay faithful Markdown on disk.
+
+#### Story F.5: Settings from tray/panel
+As a user, I want SettingsView from the tray or panel,
+So that theme/updater/autostart work without the full shell.
+
+#### Story F.6: Full editor (v2) feature flag
+As a user/builder, I want to enable the existing full vault window,
+So that v2 shell remains available without being default.
+
+### Epic 1: Workspace Shell & Vault Access (**v2**)
+Users can enable the branded full-size vault application (Sidebar, WelcomeGate, tabs, platform chrome) when the full-editor flag is on.
+**FRs covered:** FR-1, FR-2, FR-3, FR-11, FR-12, FR-13 (v2 path)
+
+### Epic 2: Live Markdown Editor & Document Fidelity (shared v1+v2)
+**FRs covered:** FR-6, FR-7, FR-9 (FR-9 multi-tab primarily v2)
+
+### Epic 3: External File Synchronization & Conflict Guard (shared)
 **FRs covered:** FR-8
 
-### Epic 4: Fast Keyboard Navigation & Document Insights
-Users navigate via `{mod}P`, tab history, and live Status Bar stats with platform-correct shortcut labels.
+### Epic 4: Fast Keyboard Navigation & Document Insights (**v2-primary**)
 **FRs covered:** FR-4, FR-5, FR-10
 
 ### Epic 5: Native Desktop Polish
-Native menus, Find/Replace, spellcheck, drag-drop/file association, accessibility, and **distribution** (auto-updater + Launch at Login).
-**FRs covered:** FR-14 + polish stories 5.1–5.8
+Updater/autostart remain **v1**; Overlay-heavy chrome stories apply to v2 shell / float as appropriate.
+**FRs covered:** FR-14 + polish stories
 
 ## Epic 1: Workspace Shell & Vault Access
 

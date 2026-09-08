@@ -1,84 +1,76 @@
 ---
-title: snipnote - Full-Size Markdown Editor for Claude Code
+title: snipnote - Menubar Floating Notes (v1) + Full Vault Editor (v2)
 created: 2026-09-02
 updated: 2026-09-08
 status: final
 changelog:
   - 2026-09-03: Vibrant window (Sidebar/Mica via EffectsBuilder, transparent, radius 12, 1280×720); multi-tab center pane with draft-until-content; dot-folders shown if contain md, empty folders hidden; folder/file SVG icons; light/dark/system theme + Cmd+, Settings; right panel (Terminal/Browser/Canvas) built then hidden for later
   - 2026-09-08: Correct Course — Windows first-class (native chrome + Mica); Overlay+Sidebar macOS-only; WelcomeGate; Settings as editor tab (tint, reduce transparency, autostart, auto-updater); OQ-5 resolved; updater HTTPS exception to local-only NFR
+  - 2026-09-08: Correct Course floating-v1 — MVP = tray/menubar floating notes; full vault shell = v2 behind flag; reuse EditorSurface + SettingsView
 sources:
+  - _bmad-output/planning-artifacts/sprint-change-proposal-2026-09-08-floating-v1.md
   - _bmad-output/planning-artifacts/sprint-change-proposal-2026-09-08.md
   - _bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/DESIGN.md
   - _bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/EXPERIENCE.md
 ---
 
-# PRD: snipnote - Full-Size Markdown Editor for Claude Code
-*Working title — confirm. Code name from repo: snipnote / tauri-app.*
+# PRD: snipnote — Floating Notes (v1) / Full Editor (v2)
+*Working title — confirm. Code name from repo: snipnote.*
 
 ## 0. Document Purpose
-This PRD is for Achuth (builder/PM), downstream architecture and build workflows, and early design review. It turns the hardened forge idea at `_bmad-output/forge/tauri-markdown-editor/forged-idea.md` into a shippable v1 scope for build-in-public to first dollar. It is structured Glossary-anchored (terms defined once in §3 and reused verbatim), features grouped with globally numbered FRs, assumptions tagged inline as `[ASSUMPTION: ...]` and indexed in §9, and journeys (UJ) referenced by ID in FRs. This PRD builds on the forge report at `_bmad-output/forge/tauri-markdown-editor/forge-report.html` — it does not duplicate its rejected-options rationale, only locks what ships in v1.
+This PRD is for Achuth (builder/PM), downstream architecture and build workflows, and early design review. **v1 ships menubar/tray floating notes.** The full-size vault editor already built in-repo is **v2**, enabled behind a feature flag. Shared core: TipTap `EditorSurface`, Settings, disk IO, updater.
 
 ## 1. Vision
-snipnote is the full-size, fast, local markdown companion for Claude Code terminal lovers. It is not a floating panel (Mote), not a heavy IDE (Cursor 3.0), and not a generic Obsidian replacement — it is the editor you leave open beside Ghostty/iTerm while Claude writes.
+snipnote v1 is the **always-available local Markdown note** — a floating panel from the **menu bar (macOS) / system tray (Windows)**, hotkey to show/hide, calm WYSIWYG editing of plain `.md` on disk. It is not a heavy IDE and not the default full vault browser.
 
-Humans edit in a rich WYSIWYG surface (Tiptap) with instant Mermaid/todos/code rendering; Claude reads and writes the same raw Markdown files on disk. The app's job is to never corrupt that shared file, to render what Claude wrote faithfully, and to let the user navigate a local vault in milliseconds — sidebar, Cmd+P, tabs — without context loss.
+**v2** (flagged) is the full-size vault companion beside the terminal (Sidebar, tabs, WelcomeGate, ⌘P) — already implemented; not the default install experience.
 
-Why now: Claude Code has moved agentic coding to the terminal. The output (plan.md, spec.md, tasks, Mermaid charts) is Markdown, but the terminal can't render it well and Obsidian is too heavy/generic for this side-by-side workflow. Mote proved solo-dev floating markdown at $19 can sell; snipnote bets that a full-size, cross-platform Tauri editor optimized for the human-agent file handoff is the side-by-side surface that earns the first $5 and grows to $19+ as Canvas/Terminal/Floating land incrementally.
+Humans edit in TipTap; files stay plain Markdown on disk. Why now: faster path to “notes always there” (Raycast Notes–like) while preserving the full editor for users who opt in.
 
 ## 2. Target User
 
 ### 2.1 Jobs To Be Done
-- **Functional — Keep the Claude file open without leaving the terminal workflow.** As a Claude Code user who lives in Ghostty/Terminal, I want my `plan.md` / `Tech Stack Decisions` open in a fast full-size pane that stays in sync with Claude's writes, so I don't context-switch to Obsidian/VS Code. [ASSUMPTION: User uses Claude Code at least weekly and already keeps a local folder of Markdown specs.]
-- **Functional — Navigate a vault at keyboard speed.** I want Cmd+P and file tree to jump between 50-200 Markdown files without lag, so I can follow Claude's multi-file output.
-- **Functional — Trust the file.** I want the raw Markdown on disk to stay pure and human-readable, so Claude can overwrite it and I can git-diff it without the editor injecting HTML or mangling frontmatter.
-- **Emotional — Feel in control, not replaced.** I want a local-first tool I own (no cloud account, files stay on disk) that makes Claude's work reviewable, not an AI that hides the file.
-- **Social/Contextual — Build in public with a tool I use myself.** As the builder, I want to ship a shippable Markdown surface in 2-4 weeks that I dogfood daily beside Claude, so I can credibly show progress and earn the first dollar.
+- **Functional — Capture or continue a note without switching apps.** Hotkey or tray → floating panel → type → hide. [ASSUMPTION: single active note in v1 panel.]
+- **Functional — Trust the file.** Raw Markdown on disk stays pure for git / agents.
+- **Functional (v2) — Navigate a vault at keyboard speed.** Sidebar + `{mod}P` + tabs when full editor enabled.
+- **Emotional — Feel in control, local-first.** No cloud account; files stay on disk.
+- **Social — Ship something demoable fast.** Menubar presence beats a full IDE for first dollar.
 
 ### 2.2 Non-Users (v1)
 - Teams needing real-time collaboration or cloud sync — v1 is local-only, single-user.
 - Mobile users — v1 is desktop only.
-- Users who never use terminal/AI agents and want a generic note system — better served by Obsidian/Bear/Typora in v1.
-- Users who only want a tiny floating capture window — better served by Mote.
+- Users who never use terminal/AI agents and want a generic note system — better served by Obsidian/Bear/Typora for vault-scale IA (v1 is floating-first).
+- Users who need a full multi-pane IDE — Cursor/VS Code; snipnote is notes-only.
 
 ### 2.3 Key User Journeys
 
-- **UJ-1. Alex reviews Claude's Tech Stack Decisions side-by-side.**
-  - **Persona + context:** Alex, solo indie builder, runs `claude` in Ghostty to scaffold a Website Redesign. Has a local vault `~/snipnote-vault` with `Daily Notes`, `Projects`, `Website Redesign/` folders.
-  - **Entry state:** Vault already opened in snipnote; file `Website Redesign/Tech Stack Decisions.md` exists from Claude. App was closed, now launched.
-  - **Path:** (1) snipnote restores last open file `Tech Stack Decisions` highlighted in File Tree. (2) Alex reads headings/bold/links/bullets correctly rendered. (3) Alex hits Cmd+P, types `access`, jumps to `Accessibility Audit.md`. (4) Meanwhile Claude overwrites `Tech Stack Decisions.md` on disk — snipnote detects external change and updates view without losing Alex's cursor if still on that file.
-  - **Climax:** Alex sees 174 words / 1,209 chars / 10 paragraphs in Status Bar and knows the doc is fully loaded and faithful to disk.
-  - **Resolution:** Alex clicks `+` to create a new note, types, and the file appears in File Tree under current folder, saved to disk as raw Markdown.
-  - **Edge case:** If Alex was mid-edit on `Tech Stack Decisions` when Claude wrote, v1 shows a non-blocking banner "File changed on disk — Reload / Keep mine" rather than silently overwriting. [ASSUMPTION: Banner pattern chosen; exact merge is v2.]
+- **UJ-F1. Jordan captures from the menu bar (v1 primary).** [NEW 2026-09-08]
+  - **Persona + context:** Jordan, desktop user, wants a note without opening a big window.
+  - **Entry state:** snipnote running in tray/menubar; last note or empty draft ready. [ASSUMPTION: last note path restored; else new note in last vault / default notes folder.]
+  - **Path:** (1) Clicks tray or presses `{mod}+Shift+Space`. (2) Floating panel focuses; TipTap editor ready. (3) Types; autosave writes `.md` on disk. (4) Hides panel (hotkey / close); app stays in tray. [ASSUMPTION: close hides to tray, Quit exits.]
+  - **Climax:** Note was always one gesture away; file remains plain Markdown.
+  - **Edge case:** No vault yet → panel prompts Choose Folder (lightweight), then continues.
 
-- **UJ-2. Priya capture-to-vault in 10 seconds.**
-  - **Persona + context:** Priya, Claude Code power user, just finished a planning session where Claude generated `Tech Stack Decisions.md`.
-  - **Entry state:** snipnote open on `Daily Notes/`.
-  - **Path:** (1) Priya hits `+`, new Untitled note opens. (2) Types `# Quick take` with bold/links. (3) Uses Cmd+P to jump back to `Tech Stack Decisions` to copy a link.
-  - **Climax:** Formatted content renders live, no preview toggle, file is plain `.md` on disk that she can `git diff`.
-  - **Resolution:** Closes app; on reopen the same tabs/vault are restored.
+- **UJ-1. Alex reviews Claude's Tech Stack Decisions side-by-side.** **(v2 — full editor flag on)**
+  - Full vault shell: File Tree, `{mod}P`, tabs, Status Bar, conflict banner. See prior PRD detail; not default v1.
 
-- **UJ-3. Jordan first-run on Windows.**
-  - **Persona + context:** Jordan, Windows 11 Claude Code user, installs snipnote from NSIS.
-  - **Entry state:** No vault persisted.
-  - **Path:** (1) WelcomeGate shows brand + drop zone + **Ctrl+O** hint. (2) Jordan drops `D:\notes` or clicks Choose Folder. (3) Sidebar lists `.md` files; TabBar/Home open; native title bar + Mica (Win11).
-  - **Climax:** Same calm editor as macOS — different chrome, same folder truth on a drive-letter path.
-  - **Edge case:** Missing vault later returns to WelcomeGate with factual error + Choose Folder.
+- **UJ-2. Priya capture-to-vault in 10 seconds.** **(v2 or via floating New note)**
+  - Floating v1 covers quick capture; multi-tab vault jump is v2.
+
+- **UJ-3. Jordan first-run on Windows.** **(v1 adapted)**
+  - Install → tray icon appears; first hotkey/tray open → floating panel + vault pick if needed (not full WelcomeGate shell by default).
 
 ## 3. Glossary
-- **Vault** — The root local folder the user picks on first launch. Contains folders and Notes as plain files. 1 vault open at a time in v1. [ASSUMPTION: Single vault v1.]
-- **Note** — A single `.md` file on disk, rendered in Editor. File name = Note title. Raw Markdown is source of truth. New notes are draft in-memory (`isNew`) until they have content.
-- **File Tree** — Hierarchical view in Sidebar showing folders (dot-folders like `.templates` shown only if they contain `.md` in subtree; empty folders hidden) and Notes (`.md`/`.markdown` only, hidden files like `.DS_Store` excluded). Sorted directories-first then alpha case-insensitive, reflects filtered file-system truth.
-- **Sidebar** — Left pane containing Search, File Tree, and Library footer. Collapsible via `{mod}B` / TabBar; hidden in WelcomeGate mode. Folder/file rows have SVG icons (closed/open folder, md file with lines, chevron rotate).
-- **Search** — The input at top of Sidebar triggered by Cmd+P / Ctrl+P. In v1, searches Note filenames. [ASSUMPTION: filename-only.]
-- **Library** — Footer entry in Sidebar with vault name, `Switch/Open…` and gear Settings (`⌘,` / `Ctrl+,`) entry. In v1, entry point to vault switcher/sort [ASSUMPTION: Vault switch + sort].
-- **Editor** — Center pane where Note content is displayed/edited with Tiptap. Parses raw Markdown on open, serializes back on save.
-- **Tab Bar** — Top bar in Main with back/forward, scrollable multi-tab row (`Untitled.md` draft italic + hollow dot, dirty •, saving…), per-tab close `×`, and `+`. Tabs persist in session `openTabs`. Minimal chrome in WelcomeGate mode.
-- **Status Bar** — Footer at bottom of Editor showing live document statistics: words, characters, paragraphs.
-- **Right Panel** — Right `420px` pane for Terminal / In-App Browser / Canvas (Excalidraw stub). Built but hidden in current build (`App.tsx` commented) to be re-enabled later [ASSUMPTION: deferred, see §6.2].
-- **WelcomeGate** — Brand-first first-run surface when no vault is set (or vault missing): product name, one supporting line, dashed drop zone, Choose Folder, platform shortcut chip (`modShortcut("O")`).
-- **Settings** — Editor **tab** (`SettingsView`, not a modal overlay) opened via `⌘,` / `Ctrl+,` (or Sidebar/TabBar gear). Sections: Appearance (Light/Dark/System, Hue, Intensity, Reduce Transparency), Writing (Spellcheck), System (Launch at Login, Automatic Updates, Check for Updates), Diagnostics (logs). Close via `{mod},` again or close tab.
-- **Theme** — `light` (monochrome white `#FFFFFF`/`#F8F8F9`) / `dark` (`#141416`/`#1A1A1E`) / `system` (follows `prefers-color-scheme`). Optional tint hue/intensity wash; translucent fills over Sidebar/Mica unless Reduce Transparency is on.
-- **Markdown Source** — The raw `.md` file on disk. Must round-trip through Tiptap without corruption or injected HTML.
+- **Floating Panel** — Compact always-available editor window (`float`) shown from tray/hotkey; hosts `EditorSurface`. Default v1 UI.
+- **Tray / Menu Bar** — System tray (Windows) or menu bar extra (macOS) with Show / New note / Settings / Quit (and Open full editor when flag allowed).
+- **Full Editor / v2 Shell** — Existing full-size window (`main`): WelcomeGate, Sidebar, TabBar, multi-tab vault IA. Off by default; enabled via feature flag `snipnote-full-editor`.
+- **Vault** — The root local folder for notes. 1 vault at a time. [ASSUMPTION]
+- **Note** — A single `.md` file on disk, rendered in Editor. Raw Markdown is source of truth.
+- **File Tree / Sidebar / Tab Bar / WelcomeGate / Status Bar / Right Panel** — Full-shell (v2) concepts; see prior definitions. Not default v1 chrome.
+- **Editor** — TipTap surface (`EditorSurface`) used in floating panel and full shell.
+- **Settings** — `SettingsView` (theme, tint, updater, autostart, etc.), opened from tray/panel in v1; as tab in v2 shell.
+- **Theme** — `light` / `dark` / `system` + tint + Reduce Transparency.
+- **Markdown Source** — The raw `.md` file on disk. Must round-trip without injected HTML.
 
 ## 4. Features
 
@@ -219,40 +211,55 @@ System checks GitHub Releases updater endpoint when Automatic Updates is enabled
 - Failures in dev / before first public release are silent on startup; Settings Check surfaces status.
 - Outbound HTTPS only for updater check/download — no telemetry.
 
+### 4.10 Floating Notes & Tray (v1 primary) [NEW 2026-09-08]
+
+**Description:** Default product is a tray/menubar app with a floating editor panel. Full vault window is v2.
+
+#### FR-F1: Tray / menu bar presence
+App installs a menu bar (macOS) / tray (Windows) icon with at least Show/Hide panel, New note, Settings, Quit. Realizes UJ-F1.
+
+#### FR-F2: Floating panel window
+User can show/hide a compact floating panel that hosts shared `EditorSurface`. [ASSUMPTION: ~420×520 default; always-on-top off by default; close hides to tray.]
+
+#### FR-F3: Global hotkey
+User can toggle the floating panel with a global shortcut. [ASSUMPTION: `CmdOrCtrl+Shift+Space`.]
+
+#### FR-F4: Edit & autosave in panel
+Panel uses the same TipTap engine, envelope, debounce autosave, and disk authority as the full editor (FR-6, FR-7). [ASSUMPTION: single active note path in v1.]
+
+#### FR-F5: Settings from tray/panel
+User can open `SettingsView` from tray or panel chrome (theme, tint, updater, autostart).
+
+#### FR-F6: Full editor (v2) feature flag
+User (or build flag) can enable the existing full vault shell (`main` window). Default **off** in v1 release. Does not delete shell code.
+
 ## 5. Non-Goals (Explicit)
-- Not a floating capture panel in v1 (Mote owns this; deferred to v5).
-- Not a Canvas/whiteboard — Excalidraw stub built for Right Panel but hidden in current build (`App.tsx` commented) and deferred to v3 for full integration (keep JSON design ready) [UPDATED 2026-09-03: canvas scaffold exists].
-- Not an embedded terminal/PTY running Claude — Terminal pane built for Right Panel but hidden; v4 will wire `tauri-plugin-shell` PTY (v1 Claude stays in Ghostty) [UPDATED: stub exists].
-- Not an In-App Browser full replacement — Browser pane (`iframe` + URL bar) built but hidden behind Right Panel.
-- Not cloud sync, collaboration, or accounts — v1 is local-only. Ready for future sync (file abstraction) but no sync logic in v1.
-- Not mobile, not web — desktop Tauri only.
-- Not a full IDE — no LSP, debugger, or git UI in v1.
-- Not a generic "second Obsidian" — must win on Claude side-by-side sync, not on plugin ecosystem breadth.
+- Not shipping the **full vault shell as default** in v1 (Sidebar/tabs/WelcomeGate primary) — that is **v2**.
+- Not a Canvas/whiteboard full product — stubs may remain hidden.
+- Not an embedded terminal/PTY running Claude.
+- Not cloud sync, collaboration, or accounts.
+- Not mobile / web.
+- Not a full IDE (no LSP, debugger, git UI).
+- Not matching Raycast Notes feature-for-feature (AI, sync) — local Markdown only.
 
 ## 6. MVP Scope
 
-### 6.1 In Scope
-- Local Vault pick/restore + WelcomeGate drag-drop (FR-1), File Tree filtered + icons (`isNew` draft, dot-folders, hide empty) (FR-2), Active highlight + Library footer + gear Settings (FR-3)
-- Cmd+P / Ctrl+P filename search (FR-4), File Tree / multi-tab navigation + close/cycle (FR-5)
-- Tiptap live rendering headings/bold/links/bullets (+ Mermaid/tasks/code as rendered) (FR-6), raw Markdown round-trip (FR-7), file-watcher with banner (FR-8)
-- Tab Bar multi-tab with `+` draft-until-content (FR-9)
-- Status Bar word/char/paragraph (FR-10)
-- Platform-split vibrant window (macOS Overlay+Sidebar / Windows native+Mica, `1280×720`) + persistence of `openTabs` (FR-11)
-- Appearance theme Light/Dark/System + tint + Reduce Transparency (FR-12)
-- Settings editor tab `{mod},` (FR-13)
+### 6.1 In Scope (v1)
+- Tray / menu bar + Show / New / Settings / Quit (FR-F1)
+- Floating panel + global hotkey (FR-F2, FR-F3)
+- Shared EditorSurface + autosave + Markdown fidelity (FR-6, FR-7, FR-F4)
+- File watcher when a note file is open (FR-8) [ASSUMPTION: applies to active float note]
+- Theme + tint + Settings from panel/tray (FR-12, FR-F5)
 - Auto-update + Launch at Login (FR-14)
-- Plain `.md` files, frontmatter preserved, vault folder = file system; Right Panel scaffolds (Terminal/Browser/Canvas) hidden behind flag for later
-- Release targets: **macOS + Windows** (CI matrix); Linux opaque fallback non-QA
+- Feature flag entry to full editor (FR-F6) — UI can be minimal
+- macOS + Windows release targets
 
-### 6.2 Out of Scope for MVP
-- Canvas/Excalidraw **full** integration (replace stub `<canvas>` with `@excalidraw/excalidraw` + JSON persistence) — deferred to v3. Reason: major scope; stub in `src/components/rightPanel/CanvasPane.tsx` keeps design ready while `App.tsx` hides RightPanel. [NOTE FOR PM: Keep separate JSON files design ready.]
-- Embedded Terminal PTY **wiring** (`xterm.js` + `tauri-plugin-shell`) — stub `TerminalPane.tsx` (mock `help/ls/pwd/echo`, dark `#0F0F0F`) exists but hidden; deferred to v4. Reason: PTY backend complexity. [NOTE FOR PM: Users already have Ghostty.]
-- In-App Browser full hardening (CSP `frame-src`, opener fallback) — `BrowserPane.tsx` (`iframe` + URL bar) built but hidden.
-- Floating window/panel — deferred to v5. Reason: competes head-on with Mote, needs multi-window sync.
-- Cloud sync / collaboration / accounts — deferred. Reason: local-first wedge. Architecture must keep file abstraction ready.
-- Full-text search, tags, graph view, plugins — deferred.
-- Obsidian full compat (wikilinks, canvas, plugins) — v2 only preserves frontmatter; deeper compat is v2.
-- Mobile / web / Linux packaged+QA builds — Windows is in MVP release scope; Linux remains opaque/non-QA. [UPDATED 2026-09-08]
+### 6.2 Out of Scope for v1 / deferred to v2+
+- Full vault shell as default: WelcomeGate-first, Sidebar, multi-tab, `{mod}P` vault jump, Status Bar-as-primary (FR-1–5, FR-9–11 shell) — **v2 when flag on** (code already exists)
+- Canvas / Terminal / Browser Right Panel
+- Floating always-on-top as mandatory default
+- Multi-note tabs inside the floating panel [ASSUMPTION: single note]
+- Mobile / web / Linux QA
 
 ## 7. Success Metrics
 
@@ -287,21 +294,22 @@ System checks GitHub Releases updater endpoint when Automatic Updates is enabled
 ## Adapt-In Menu
 
 ### Platform
-- **Target:** Desktop Tauri v2, React 19, Vite. Window `1280×720` `min 1100×600` `transparent:true`. **macOS:** Overlay title bar + `Effect::Sidebar` + `macos-private-api`. **Windows:** native decorations + `Effect::Mica`. **Linux:** native + opaque. Ships macOS + Windows; Linux non-QA. Auto-update via `tauri-plugin-updater` + GitHub `latest.json` (signed artifacts). No mobile/web in v1.
+- **Target:** Desktop Tauri v2. **v1 default:** tray/menubar + floating panel (`float` window) on macOS + Windows. **v2:** full vault `main` window behind flag (existing Overlay/Sidebar vs native/Mica chrome). Auto-update via updater plugin. No mobile/web.
+
+### Information Architecture
+- **v1 surfaces:** Tray menu → Floating panel (`EditorSurface`) → Settings. Optional “Open full editor”.
+- **v2 surfaces:** Existing WelcomeGate + Sidebar + TabBar + Editor + StatusBar (hidden unless flag on).
+
+### Aesthetic and Tone
+- Calm, local, fast. Floating panel is brand-present but compact — not a dashboard. Platform-aware shortcuts.
 
 ### Monetization
 - **Model:** Paid one-time, price ladder: v1 $5, then increase as features land (e.g. +Canvas $9, +Terminal $19) — lifetime updates included for early tier [ASSUMPTION]. No subscription in v1. Payment via Lemon Squeezy/Gumroad/Stripe. Free trial? [ASSUMPTION: 7-day trial or free with 7-note limit — confirm before launch.] No accounts in app; license key file.
 
-### Information Architecture
-- **Surfaces:** Single vibrant window `1280×720`. WelcomeGate when no vault. Left: Sidebar (Search `{mod}P`, File Tree with SVG icons + dot-folders, Library footer with gear Settings `{mod},`) — collapsible. Center: Main (`Tab Bar` scrollable multi-tabs + `×` + `+` over `Editor` 760px / HomeView / Settings tab + `StatusBar` + inline `ConflictBanner` + `CommandPalette` overlay). Right: `RightPanel` (`Terminal`/`Browser`/`Canvas`) — built but hidden. No floating panel in v1.
-
-### Aesthetic and Tone
-- **References:** Obsidian/Typora cleanliness, not Notion heaviness. Anti-reference: IDE chrome. Tone: calm, local, fast. Visual: platform-native chrome (mac traffic lights / Win caption), neutral typography, optional tint dial, live rendering without preview toggle. Shortcut chips platform-aware (`⌘` vs `Ctrl+`).
-
 ### Cross-Cutting NFRs
-- **Performance:** Cold launch to Editor < 1.5s on M1, file open < 200ms for < 100KB md, search filter < 100ms for 500 files [ASSUMPTION].
-- **Reliability:** Never silently overwrite MarkdownSource. Crash must not corrupt file (atomic write via temp+rename).
-- **Privacy/Security:** No telemetry without opt-in, no cloud. Files never leave disk. **Outbound network:** updater check/download to configured GitHub Releases endpoints only. Tauri CSP hardened (`default-src 'self'; …`).
-- **Accessibility:** Keyboard-navigable Sidebar/File Tree, `{mod}P`, Tab traversal. [ASSUMPTION: WCAG AA target for chrome; keyboard path required.]
-- **Observability:** Local file-watcher errors surfaced as banner, not silent. Updater/startup failures logged quietly.
+- **Performance:** Float show < 200ms warm; cold launch to tray ready quickly [ASSUMPTION].
+- **Reliability:** Never silently overwrite MarkdownSource. Atomic write via temp+rename.
+- **Privacy/Security:** No telemetry; updater HTTPS only; CSP hardened.
+- **Accessibility:** Floating panel keyboard operable; tray menu accessible.
+- **Observability:** Updater/startup failures logged quietly.
 

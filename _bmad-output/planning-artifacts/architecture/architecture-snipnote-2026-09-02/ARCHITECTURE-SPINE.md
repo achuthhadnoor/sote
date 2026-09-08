@@ -140,6 +140,19 @@ graph TD
 - **Prevents:** Stuck installs; unsigned update payloads; noisy checks every launch.
 - **Rule:** Updater pubkey + endpoints MUST live in `tauri.conf.json`. Frontend MUST use `src/lib/updater.ts`: startup check ~4s after reveal when Automatic Updates enabled (default on), throttled ≤12h; Settings Check always immediate; install only after user confirm → `downloadAndInstall` → `relaunch`. Release CI MUST produce `.sig` with `TAURI_SIGNING_PRIVATE_KEY`; drafts MUST be published before `/releases/latest` works.
 
+### AD-13 — Dual Presentation: Float (v1) + Full Shell (v2 flag) [ADOPTED 2026-09-08]
+
+- **Binds:** FR-F1..FR-F6, window layer
+- **Prevents:** Deleting the full editor; forcing vault IDE on every launch; duplicating TipTap stacks.
+- **Rule:**
+  - Window labels: `float` (default UX), `main` (full vault shell).
+  - Boot MUST register system tray / menu bar; default UX shows `float` on demand (hotkey/tray), not `main`.
+  - Global shortcut toggles `float` visibility. [ASSUMPTION: `CmdOrCtrl+Shift+Space`]
+  - Feature flag `snipnote-full-editor` (localStorage and/or env) gates showing/creating `main` with the existing React `App` shell.
+  - Both presentations MUST share `EditorSurface`, `SettingsView`, Zustand stores, Rust storage/watcher/updater.
+  - Closing `float` MUST hide to tray by default; Quit exits the process. [ASSUMPTION]
+  - Do not apply full-shell Overlay TabBar traffic-light insets to the compact float blindly — float chrome is specified in UX.
+
 ## Consistency Conventions
 
 | Concern | Convention |
