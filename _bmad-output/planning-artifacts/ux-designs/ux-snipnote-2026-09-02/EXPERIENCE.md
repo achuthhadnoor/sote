@@ -1,160 +1,175 @@
 ---
 title: snipnote EXPERIENCE
-status: draft
+status: final
 created: 2026-09-02
-updated: 2026-09-03
+updated: 2026-09-08
 sources:
   - _bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md
   - _bmad-output/forge/tauri-markdown-editor/forged-idea.md
   - https://localeditor.app
+  - shipped: WelcomeGate, SettingsView tab, platform.ts, lib.rs chrome/effects, release CI
 ---
 
 # snipnote — Experience Spine
 
-> Desktop Tauri v2, full-size single window, local-first. Paired with `DESIGN.md` (LocalEditor.app minimal monochrome theme). Theme request theme like https://localeditor.app — light, content-first, "not every file needs an IDE."
+> Desktop Tauri v2, full-size single window, local-first. Paired with `DESIGN.md`. Ships on **macOS and Windows**; Linux remains opaque fallback / non-QA. Theme: LocalEditor calm monochrome + optional user tint.
 
 ## Foundation
 
-**Form-factor:** Single-surface desktop (Tauri v2 + React 19 + Vite), full-size **vibrant** window — macOS `Sidebar` vibrancy + Windows 11 `Mica` via `EffectsBuilder` only — `1280×720` `min 1100×600` `Overlay` (was `800×600`), macOS primary (Win/Linux builds ready but not QA'd per PRD Open Question 5). No mobile/web in v1. `DESIGN.md` is the visual identity reference — monochrome LocalEditor palette light `#FFFFFF`/`#F8F8F9` → dark `#141416`/`#1A1A1E` via `[data-theme="dark"]`, translucent `rgba` over material (`{colors.background}` `#FFFFFF`→`0.78` white / `0.72` dark; `DESIGN.md` §Colors / §Elevation & Depth define variants). **Right Panel** (`Terminal`/`Browser`/`Canvas`) built but hidden (`App.tsx` commented) for later. `Theme` `light|dark|system` via `useThemeStore` + `localStorage snipnote-theme` + `prefers-color-scheme`. This spine is how it works; DESIGN.md is how it looks. Single Vault open at a time in v1 [ASSUMPTION]. No accounts, no cloud, no sync — files never leave disk. Auto-update deferred.
+**Form-factor:** Single-surface desktop (Tauri v2 + React 19 + Vite). Default window `1280×720`, min `1100×600`, `transparent:true`.
 
-**Window-material premise:** The window is `transparent:true` + `macOSPrivateApi:true` (see `src-tauri/tauri.conf.json:12` `1280×720`) and Rust `src-tauri/src/lib.rs:14` `.setup` applies `tauri::window::EffectsBuilder::new().effects([Effect::Sidebar, Effect::Mica]).state(EffectState::Active).radius(12.0).build()` via `window.set_effects(...)` — macOS consumes `Sidebar`, Windows consumes `Mica`, other platforms ignore both and fall back to opaque fills (`light`/`dark` `#141416`). HTML `html, body, #root` are `transparent` so the native blur shows through `rgba`-translucent surfaces. No `window-vibrancy` crate — EffectsBuilder is the only path.
+**Platform chrome & material** (see `DESIGN.md` Brand & Style):
+
+| Platform | Title bar | Material | Shortcut labels |
+|---|---|---|---|
+| macOS | Overlay + empty title; traffic lights over TabBar | `Effect::Sidebar` + radius 12 | `⌘…` via `modShortcut` |
+| Windows 11 | Native decorations + title `snipnote` | `Effect::Mica` (soft-fail older Windows) | `Ctrl+…` |
+| Linux | Native decorations | Opaque CSS fallback | `Ctrl+…` |
+
+**Theme:** `light | dark | system` + tint hue/intensity + Reduce Transparency (`useThemeStore`). Settings is an **editor tab**, not a modal. Auto-update is user-initiated (“Check for Updates”); Launch at Login via autostart plugin. Deep link scheme `snipnote://` + single-instance. No accounts, no cloud, no sync — files never leave disk. Single vault open at a time [ASSUMPTION]. Right Panel built but hidden.
+
+`DESIGN.md` owns visual identity; this spine owns behavior.
 
 ## Information Architecture
 
 | Surface | Reached from | Purpose |
 |---|---|---|
-| Welcome / Vault Picker | Cold launch, no vault set | Pick/confirm Vault folder, restore last vault |
-| Main Window | Vault open | Vibrant `1280×720` window, now multi-tab + hidden right panel |
-| ├─ Sidebar | Persistent left `260px` | Search → File Tree (SVG icons, dot-folders if contain md, empty hidden) → Library footer (folder SVG + Switch + gear Settings `⌘,`) |
-| ├─ Tab Bar | Top of Main `40px` | Back/forward `←→`, scrollable multi-tabs (`Untitled.md` draft italic/hollow, dirty •, `×` close) + `+` (`⌘N` draft-until-content) |
-| ├─ Editor | Center, `760px` centered content | Live WYSIWYG markdown, raw Markdown Source on disk (draft `isNew` stays in-memory until `hasContent`) |
-| ├─ Status Bar | Bottom `24px` | Live `words | chars | paragraphs` |
-| ├─ Right Panel | (hidden in current build, `App.tsx` commented) | `Terminal`/`Browser` (`iframe`)/`Canvas` (`canvas` stub) — built `src/components/rightPanel/*` for later |
-| ├─ Command Palette (⌘P) | `⌘P` anywhere / click Search | Floating palette to jump to any Note by filename (opens as tab) |
-| ├─ File Changed Banner | Inline under Tab Bar when external change detected | `Reload / Keep mine` decision without loss |
-| └─ Settings (⌘,) | `⌘,`/`Ctrl+,` or Sidebar gear or `×`/`Esc`/`Done` | Overlay `560px` `blur 8px` with Appearance (Light/Dark/System radios) + About; persists `localStorage snipnote-theme` + `data-theme` |
+| WelcomeGate | Cold launch, no vault / vault missing | Brand-first drop zone + Choose Folder; drag-drop open |
+| Main Window | Vault open | Vibrant/Mica (or opaque) shell with TabBar + editor column |
+| ├─ Sidebar | Persistent left when expanded | Search → File Tree → Library footer (Switch vault + settings entry) |
+| ├─ Tab Bar | Top of Main | Back/forward, tabs, `+`, settings; minimal in welcome mode; sidebar reveal when collapsed |
+| ├─ Editor | Note tab | TipTap WYSIWYG + Find/Replace + spellcheck |
+| ├─ HomeView | Vault open, no note focused | Vault note list / search; `{mod}P` hint |
+| ├─ Settings (tab) | `{mod},` / gear / TabBar | Appearance, Writing, System, Logs — close via `{mod},` again or close tab |
+| ├─ Status Bar | Bottom when vault open | Live `words · chars · paragraphs` |
+| ├─ Command Palette | `{mod}P` / Search click | Filename jump; opens note as tab |
+| ├─ File Changed Banner | Inline under Tab Bar | Reload / Keep mine on dirty external change |
+| └─ Right Panel | (hidden) | Terminal / Browser / Canvas stubs for later |
 
-→ Composition reference: PRD screenshot breakdown (`prds/prd-snipnote-2026-09-02/prd.md:1 §2.3`), LocalEditor.app `Pokedex.md` + `package.json` property panels for content-width and palette reference. Spine wins on conflict.
-
-Sidebar always visible in v1 full-size window; no Sheet/collapse until later increments. Vault is filtered file-system truth: `Vault → File Tree` is `filtered 1:1` (dot-folders shown only if subtree has `md`, empty hidden, hidden files excluded, dirs-first then alpha, SVG icons; see `src-tauri/src/storage.rs:79` `scan_directory`).
+Vault tree is filtered FS truth: dot-folders only if they contain `.md`, empty folders hidden, hidden files excluded (`storage.rs` scan).
 
 ## Voice and Tone
 
-Microcopy. Brand voice (quiet, local, calm, "stays out of the way") lives in `DESIGN.md` Brand & Style.
+Microcopy. Brand voice lives in `DESIGN.md` Brand & Style.
 
 | Do | Don't |
 |---|---|
-| "Search notes…" | "Search your vault 🔍" |
-| "No vault open. Pick a folder to start." | "Welcome to snipnote! Let's get started 🚀" |
-| "File changed on disk — Reload / Keep mine" | "Conflict detected! Choose an action to resolve." |
-| "174 words · 1,209 chars · 10 paragraphs" | "Word Count: 174 (Great job!)" |
-| "Untitled.md" | "New Note (1)" |
+| “Your notes live in a folder on disk.” | “Welcome to snipnote! Let’s get started 🚀” |
+| “Drop a folder here” / “Choose Folder” | “Select a vault directory to initialize” |
+| “File changed on disk — Reload / Keep mine” | “Conflict detected! Choose an action…” |
+| “Up to date” / “Checking…” | Celebratory update confetti copy |
+| Platform-correct shortcut chips (`⌘O` / `Ctrl+O`) | Hard-coded Mac glyphs on Windows |
 
-Tone is LocalEditor-like: plain, local, never celebratory. No streaks, no "nice work!" toasts. Errors are factual: "Folder not found. Pick another."
+Tone stays plain and local. Errors are factual: missing folder path + Choose Folder. [NOTE] Shipped Launch at Login description still says “this Mac” — intended copy is platform-neutral (“this computer”).
 
 ## Component Patterns
 
-Behavioral. Visual specs live in `DESIGN.md` Components (or `{colors.*}` / `{rounded.*}` tokens when inherited).
+Behavioral. Visual specs live in `DESIGN.md`.
 
 | Component | Use | Behavioral rules |
 |---|---|---|
-| File Tree | Sidebar | Filtered FS: `filtered 1:1` dot-folders shown only if subtree has `.md` (`.templates/template.md` visible, `.emptyDot` hidden), empty folders hidden, hidden files (`.DS_Store`, `.hidden.md`) excluded, dirs-first then alpha, SVG icons (`FolderIcon` closed/open `0.14 fill`, `FileIcon` doc with md lines, `ChevronIcon` `rotate 90` when open, `tree-file-indent` spacer). Click folder toggles expand; click Note opens as tab + highlights `is-active` (`accent-translucent` + `shadow`). External rename/move reflected within 2s (markdown in dot-folders still emits). Empty folder shows nothing, no placeholder. See `src-tauri/src/storage.rs:79`. |
-| Search / Command Palette | Sidebar top + `⌘P` | `⌘P` focuses and floats palette (`{components.command-palette}` `520×400` `12px` `shadow`, stays opaque `bg` above vibrant). Typing filters Note filenames substring, case-insensitive. `↑/↓` moves highlight, `Enter` jumps (opens as tab), `Esc` closes and returns focus to Editor. Palette also reachable by clicking Search input. [ASSUMPTION: filename-only in v1.] |
-| Tab Bar | Main top `40px` | Scrollable multi-tab row: `tabs: Tab[] {path,title,isNew}` → `tab-item` (`28px` `max 180px` `ellipsis`, `is-active` `bg`+`border`+`shadow`, `is-draft` italic + hollow `6px` border / `draft` label, dirty `• 6px` `primary`, `saving…` 10px). `×` closes (`⌘W` also), `+` (`⌘N`) creates draft `Untitled.md` `{isNew:true}` virtual (no disk until `hasContent`), `←→` back/forward history, `Ctrl/⌘+Tab` cycles (Shift reverses). Persist `session.json {openTabs, activeFilePath}` (drafts excluded). Close of window persists tabs/vault for restore via `src/stores/useTabStore.ts:3` + `src/App.tsx:32`. |
-| Editor | Main center | Tiptap live render: headings/bold/links/bullets. Draft `isNew` tabs init empty (`body ""`, `frontmatter null`, `isDirty false`, `editor.setContent("")`) without `read_file`; first `hasContent` (`body/frontmatter trimmed>0`) triggers 500ms `saveNow` → `write_file` → `markTabSaved(false)` + `loadVault` to show file in tree. Load parses Markdown Source → Tiptap; save serializes back CommonMark/GFM, frontmatter preserved verbatim, no injected HTML. `⌘S` implicit auto-save 500ms + flush on blur/prevPath/window blur (skips `wasNew && !hasContent`). Slash `/` not in v1 [ASSUMPTION: deferred]. See `src/components/editor/EditorSurface.tsx:12` + `src/stores/useEditorStore.ts:84`. |
-| Right Panel (hidden) | Right `420px` | Built `src/components/rightPanel/RightPanel.tsx:1` (`TerminalPane` dark `#0F0F0F` mock `help/ls/pwd/echo`, `BrowserPane` `iframe` + URL bar + reload, `CanvasPane` `canvas` dotted grid + pen/rect/arrow + Clear, collapsed `40px` rail) but not rendered (`App.tsx` commented) — will be re-enabled later; no behavior in current build. |
-| Library footer | Sidebar bottom | Shows vault folder SVG + `Switch/Open…` + gear Settings (`⌘,` overlay). Entry point to sort/options. In v1, `Library` exposes Sort (alpha) and `Open Vault…` (re-pick folder). No vault switcher beyond re-pick [ASSUMPTION per PRD Open Question 6]. |
-| File Changed Banner | Inline under Tab Bar | Appears only when dirty Note overwritten on disk. Non-blocking, no auto-dismiss. `Reload` discards buffer and loads disk; `Keep mine` keeps buffer and suppresses banner until next external write. If clean, auto-reloads silently and preserves cursor/scroll. Draft `isNew` with no file on disk never shows banner. |
-| Settings | Overlay `560px` | `SettingsDialog` `z 10000` `blur 8px` `12px` radius, header `Settings` + `×`, body `Appearance` radios Light/Dark/System (`useThemeStore` `localStorage snipnote-theme` + `html[data-theme]` + `colorScheme`, System follows `prefers-color-scheme` live) + About, footer `Done`; opened via `⌘,`/`Ctrl+,` or gear, closed via `Esc`/`×`/`Done`/`⌘,` toggle. See `src/components/settings/SettingsDialog.tsx:1` + `src/stores/useThemeStore.ts:1` + `src/App.css:1646`. |
-| Status Bar | Main bottom | Right-aligned, quiet. Updates on every keystroke and file load. Paragraph = blank-line block [ASSUMPTION]. No click actions in v1. |
-| Welcome / Vault Picker | Cold launch | If no Vault persisted, show centered `display` headline "No vault open" + `sans-sm` body + primary `Button` "Open Vault…" (Tauri dialog). If Vault persisted but missing, show error + same action. |
+| WelcomeGate | First launch / no vault | Brand headline + drop zone. Click zone or **Choose Folder** opens system folder dialog. Tauri drag-drop of a folder opens vault. Errors surface under the zone (`role="alert"`). Shortcut hint uses `modShortcut("O")`. |
+| File Tree | Sidebar | Filtered 1:1 FS rules. Click folder toggles; click note opens tab + `is-active`. External rename/move reflected via watcher (~2s). |
+| Search / Command Palette | Sidebar + `{mod}P` | Filename substring filter; ↑/↓ Enter Esc. Opens as tab. [ASSUMPTION: filename-only.] |
+| Tab Bar | Main top | Multi-tab with draft/dirty affordances; `{mod}N` new draft; `{mod}W` close; `{mod}Tab` cycle; `{mod}B` toggle sidebar; `{mod},` settings tab. Persist `openTabs` (drafts excluded). Welcome mode: drag region + settings only. |
+| Editor | Note tab | Autosave 500ms + flush on blur/nav/quit; draft `isNew` stays memory-only until `hasContent`. FindBar: `{mod}F` / Shift+`{mod}F` replace. Spellcheck follows Settings switch. |
+| HomeView | No note tab | Lists notes from vault tree; search filters; new-note CTA. Paths handle `/` and `\`. |
+| SettingsView | Special tab | Appearance (theme, hue, intensity, reduce transparency), Writing (spellcheck), System (autostart, updater check+install+relaunch), Logs (path, copy, stream). Not a modal overlay. |
+| Library footer | Sidebar bottom | Vault name + open/switch folder + settings entry. |
+| File Changed Banner | Under Tab Bar | Dirty+external only. Reload discards buffer; Keep mine suppresses until next external write. Clean notes silent-reload. |
+| Status Bar | Main bottom | Live counts; no click actions in v1. |
 
 ## State Patterns
 
 | State | Surface | Treatment |
 |---|---|---|
-| No vault (first launch) | Welcome | `display`: "No vault open." Body: "Pick a folder — your files stay where they are." Primary button "Open Vault…" No sample files created. |
-| Vault empty (no `.md`) | File Tree + Editor | File Tree shows folders (if any) but no Notes. Editor shows empty canvas with placeholder "No file open — select a Note or press + to create." |
-| Note loading | Editor | No skeleton in v1 [ASSUMPTION: files <100KB open <200ms per PRD NFR]. If load >200ms, show subtle `muted` pulse on content area, not full skeleton. |
-| Dirty + external change | Banner | Banner as above. Editor buffer never overwritten. |
-| Clean + external change | Editor | Silent reload; cursor/scroll preserved where possible; Status Bar counts update. |
-| Save failure (disk full, perms) | Editor/Banner | Inline banner `destructive` tone: "Couldn't save — check permissions or disk space. Your edits are still here." No toast. |
-| No search matches | Palette | "No matches. Try another name." No suggested creation from palette in v1 [ASSUMPTION]. |
-| Offline | Global | No treatment — app is fully offline by design. No offline banner needed. Local writes continue. |
+| No vault (first launch) | WelcomeGate | Brand + drop zone + Choose Folder. No sample files. |
+| Vault missing on restore | WelcomeGate | Error string + same open actions. |
+| Vault empty | File Tree + Home/Editor | Folders maybe; placeholder to select or create note. |
+| Note loading | Editor | No skeleton; pulse only if slow [ASSUMPTION]. |
+| Dirty + external change | Banner | Buffer never overwritten. |
+| Clean + external change | Editor | Silent reload; preserve cursor/scroll when possible. |
+| Save failure | Banner | Destructive factual copy; edits retained. |
+| Update available | Settings | Confirm → download/install → relaunch. |
+| No search matches | Palette | “No matches…” — no create-from-palette in v1. |
+| Offline | Global | No banner — app is offline by design. |
 
 ## Interaction Primitives
 
-**Keyboard-first, like LocalEditor's `⌘K`/`⌘⌥S` discipline, but scoped to v1.** Mouse is fallback, not primary.
+Keyboard-first. Labels are platform-aware (`⌘` vs `Ctrl+`); accelerators are `CmdOrCtrl` in menus.
 
-- `⌘P` / `Ctrl+P` — Focus Search / open Command Palette (filename search). `Esc` closes palette and returns focus to Editor. This is the `⌘K` equivalent for snipnote v1.
-- `↑/↓` / `Enter` / `Esc` — Palette navigation
-- Click — File Tree row opens Note as tab; Tab `×` closes tab; Tab click switches; Library gear opens Settings
-- `⌘N` / `Ctrl+N` — New draft tab `Untitled.md` `{isNew:true}` (no disk until content)
-- `⌘,` / `Ctrl+,` — Toggle Settings overlay (also `Esc`/`×`/`Done` to close)
-- `⌘W` / `Ctrl+W` — Close active tab (flush handled; empty draft with no content just closes)
-- `Ctrl/⌘+Tab` / `Shift+Tab` — Cycle tabs forward/back
-- `⌘S` — Save (implicit auto-save also on 500ms debounce [ASSUMPTION]); draft `hasContent` guard (`body/frontmatter trimmed>0`) prevents empty file creation; save is atomic temp+rename, now with `isDirty`/`saving…` + dirty `•` / draft hollow dot in tab
-- `Back/Forward` `⌘[` / `⌘]` in Tab Bar — Session history navigation [ASSUMPTION: history + tabs]
+- `{mod}O` — Open folder (menu + welcome hint)
+- `{mod}P` — Command palette
+- `{mod}N` — New draft tab
+- `{mod},` — Toggle Settings tab
+- `{mod}W` — Close active tab
+- `{mod}B` — Toggle sidebar
+- `{mod}[` / `{mod}]` — Back / forward
+- `{mod}Tab` / Shift+`{mod}Tab` — Cycle tabs
+- `{mod}F` / Shift+`{mod}F` — Find / Find+Replace
+- `{mod}S` — Explicit save (autosave also runs)
+- `F11` — Fullscreen on non-macOS (menu)
+- `Esc` — Close palette / find / return focus to editor
 
-**Mouse:** click to act; no drag-to-reorder in v1, no drag-to-move file in File Tree in v1. Hover reveals file row highlight (`{colors.accent}` overlay). Editor scrolling is native. Right Panel collapsed rail (when re-enabled) shows vertical icon buttons.
+**Mouse:** click to act; drag-drop folder on WelcomeGate (and window-level Tauri drag). No drag-reorder tabs/files in v1.
 
-**Banned everywhere:** drag-to-reorder, multi-window in v1, full-text search in v1, slash `/` palette in v1 (LocalEditor has it, snipnote defers), floating Scratchpad in v1 (`⌘⌥S` is LocalEditor, snipnote defers to v5 Floating), collaborative cursors.
+**Banned in v1:** multi-window, full-text search, slash `/` command palette, floating scratchpad, collaborative cursors.
 
 ## Accessibility Floor
 
-Behavioral. Visual contrast lives in `DESIGN.md` (light-first monochrome, `foreground` `#0F0F0F` on `background` `#FFFFFF` meets AA; `primary` black on white fixed; `muted-foreground` `#6B7280` on `muted` `#F6F6F7` verified). 
-
-- WCAG 2.2 AA across desktop window. All chrome text meets AA against its token.
-- `Tab` order: Sidebar Search → File Tree (roving `tabindex` per row) → Library → Tab Bar (`+`) → Editor → Status Bar (skip). `Esc` always returns focus to Editor or closes palette/banner.
-- Screen reader announces surface on vault open: "Vault {folder name}, {N} notes." File Tree rows announce "Note {name}" / "Folder {name}, collapsed/expanded, {N} items."
-- Command palette fully keyboard-operable; results announce via `aria-live` as filter changes.
-- Focus rings use `{colors.ring}` (`#0F0F0F`) at 2px offset, visible at AA against `background` and `sidebar`.
-- Editor content is a single `contenteditable` with heading hierarchy preserved for AT (h1/h2), links announced as links, code blocks as code.
-- No keyboard traps. Window controls are native Tauri and OS-accessible.
+- WCAG 2.2 AA for chrome text against token backgrounds (Reduce Transparency helps when material tint risks contrast).
+- Focus order: Sidebar Search → Tree → Library → Tab Bar → Editor/Settings → Status. `Esc` returns focus or closes overlays/palette/find.
+- WelcomeGate drop zone is keyboard-reachable via Choose Folder button; errors use `role="alert"`.
+- Palette results announce via live region as filter changes.
+- Focus rings use `{colors.ring}` at 2px offset.
+- Editor preserves heading hierarchy for AT; spellcheck underlines are system-native.
+- Window controls are OS-native (Overlay traffic lights on macOS; system caption on Windows).
 
 ## Inspiration & Anti-patterns
 
-- **Lifted from LocalEditor.app:** the entire posture — "A lightweight, local editor for the files your agents write" / "Not every file needs an IDE." Plain-folder Vault (no library/project import), light minimal palette (white editor, faint sidebar), centered `760px` reading width, file-type-specific readable views (v1 starts with Markdown only), no sync by principle ("No, and it never will"), `⌘K`-style palette (`Jump to anything…` → snipnote's `⌘P`), and the "Projects/notes/Architecture.lcv" file-tree density. LocalEditor's `Pokedex.md` property panel (status/tags/updated as editable fields) informs future YAML/frontmatter treatment but v1 preserves frontmatter as text rather than a property table [ASSUMPTION].
-- **Lifted from Obsidian:** plain `.md` on disk, file-system truth, vault as folder, active file highlight.
-- **Rejected — Mote:** floating `⌘.` panel over every app. snipnote is full-size by PRD §1 choice; floating is deferred to v5. Do not float in v1.
-- **Rejected — Cursor 3.0 heavy IDE:** LSP, debugger, git UI, multi-panel IDE chrome, AI chat sidebar. snipnote is one editor beside the terminal, not a replacement.
-- **Rejected — Notion complexity:** slash-command explosion, database views, collaborative cursors, colored sidebars. LocalEditor anti-reference is "Fed up of notion's growing interface complexity" — same anti-reference for snipnote.
+- **Lifted from LocalEditor.app:** calm local posture, centered reading width, palette jump, plain-folder vault, no sync.
+- **Lifted from Obsidian:** vault-as-folder, FS truth, active file highlight.
+- **Rejected — Mote:** floating panel over every app.
+- **Rejected — Cursor/IDE heaviness:** LSP, git UI, AI chat sidebar.
+- **Rejected — Notion complexity:** slash explosion, databases, colored sidebars as brand.
 
 ## Key Flows
 
-### Flow 1 — Alex reviews Claude's Tech Stack Decisions side-by-side (Realizes UJ-1, PRD FR-1..FR-10)
+### Flow 1 — Alex reviews Claude’s notes side-by-side (UJ-1)
 
-1. Alex quits snipnote last night with Vault `~/snipnote-vault` and `Website Redesign/Tech Stack Decisions.md` open.
-2. Morning: Alex launches snipnote (cold launch <1.5s [ASSUMPTION NFR]). App restores Vault path, File Tree shows `Daily Notes`, `Projects`, `Website Redesign/` with `Tech Stack Decisions` highlighted via `{colors.accent}`. Tab Bar shows active Note name. Editor shows file centered at `760px`, headings/bold/links/bullets rendered live, Status Bar reads `174 words · 1,209 chars · 10 paragraphs`.
-3. Alex hits `⌘P`, palette floats (elevated `{components.command-palette}`). Types `access`. Result list filters to `Accessibility Audit.md`. Hits `Enter` — palette closes, File Tree highlight moves, Editor swaps file without window flash, Status Bar updates.
-4. In Ghostty beside snipnote, `claude` overwrites `Tech Stack Decisions.md` on disk. File watcher detects within 2s. Since Alex is now on `Accessibility Audit.md` (clean), no banner; File Tree timestamp not shown, but next time Alex hits `⌘P` and jumps back to `Tech Stack Decisions`, Editor shows fresh content at same scroll, cursor at top.
- 5. Alex clicks `+` in Tab Bar. `Untitled.md` appears as draft italic tab with hollow dot (no file on disk yet). Types `# Quick take` → 500ms debounce `saveNow` sees `hasContent` → `write_file` → `markTabSaved(false)` + vault reload → File Tree now shows `Untitled.md` highlighted.
- 6. **Climax:** Without switching to Obsidian, without preview toggle, Alex has reviewed Claude's multi-file output and captured a note — all in one quiet vibrant window beside the terminal, files still plain `.md` on disk that `git diff` shows faithfully, empty drafts never pollute disk. The handoff (Claude wrote, human read) succeeded with no corruption.
+1. Alex relaunches snipnote; session restores vault + tabs. Sidebar highlights last note; Editor shows live Markdown; Status Bar updates counts.
+2. `{mod}P` → types to jump to another note as a second tab.
+3. Claude overwrites a clean note on disk; watcher silent-reloads when Alex returns to it.
+4. Alex hits `+` / `{mod}N` → draft tab → types heading → autosave creates file → tree updates.
+5. **Climax:** Multi-file review beside the terminal without leaving plain `.md` on disk.
 
-Failure: External change while Alex was mid-edit on active Note with unsaved buffer → inline banner under Tab Bar: "File changed on disk — Reload / Keep mine." `Reload` loads disk and discards buffer; `Keep mine` keeps buffer and suppresses banner. No toast, no auto-merge.
+Failure: dirty buffer + external change → banner Reload / Keep mine.
 
-### Flow 2 — Priya capture-to-vault in 10 seconds (Realizes UJ-2)
+### Flow 2 — Priya capture in ~10 seconds (UJ-2)
 
-1. Priya has snipnote open on `Daily Notes/` during a Claude planning session.
- 2. Hits `+` → draft `Untitled.md` italic tab (no file on disk) focused in Editor, File Tree not yet showing it. Types `# Quick take` with `**bold**` and `[link](https://example.com)` — rendered live, no mode switch; 500ms later file appears in tree.
- 3. Hits `⌘P`, types `tech`, jumps back to `Tech Stack Decisions.md` (now second tab). Palette opens as tab; `×`/`⌘W` can close either. Gear `⌘,` opens Settings to switch Light/Dark/System without leaving flow. Palette behavior same as Flow 1 but multi-tab.
- 4. **Climax:** Content is live-rendered and still plain `.md` on disk — she can `cat` it in terminal or commit. Empty `Untitled.md` closed without content would have left no file. No IDE launch, no cloud.
+1. Vault already open. `{mod}N` → draft → types → file appears after debounce.
+2. `{mod}P` jumps back to another tab; `{mod},` opens Settings tab to flip theme/tint without a modal.
+3. **Climax:** Note is live-rendered and still `cat`-able / `git diff`-able on disk.
 
-Failure: Vault folder missing (moved/deleted) on launch → Welcome surface with error "Folder not found at ~/snipnote-vault" + primary "Open Vault…" button. No data loss messaging beyond path.
+### Flow 3 — First-run Jordan on Windows (platform)
+
+1. Fresh install from NSIS. Window shows native title bar + (on Win11) Mica.
+2. WelcomeGate: brand, drop zone, **Ctrl+O** chip. Jordan drops `D:\notes` or clicks Choose Folder.
+3. TabBar fills with Home; sidebar lists `.md` files; paths with `\` resolve correctly.
+4. **Climax:** Same calm editor as macOS — different chrome, same folder truth.
+
+Failure: folder missing later → WelcomeGate error + Choose Folder.
 
 ## Responsive & Platform
 
-Desktop only, single full-size **vibrant** window. No responsive breakpoints beyond window resize. `1280×720` `min 1100×600` per `src-tauri/tauri.conf.json:15` (was `800×600`), content reflows via centered `760px` max-width — gutters grow/shrink as window widens/narrows, File Tree and Sidebar remain fixed `260px`, Tab Bar scrolls horizontally, Right Panel `420px` hidden for now but built. Not a responsive web product like Drift example; this section exists to lock "desktop-only, not responsive web" as the platform posture. `Theme` `light|dark|system` via `data-theme` + `localStorage`; `Settings` overlay does not affect layout.
+Desktop only. No web breakpoints. Content reflows via centered max-widths; sidebar fixed `260px` when expanded; Tab Bar scrolls horizontally.
 
-**Vibrant / Mica platform behavior (EffectsBuilder only):**
+**Vibrant / Mica behavior:**
 
-| Platform | Effect via `EffectsBuilder` | Window config | Visual | Fallback |
-|---|---|---|---|---|
-| **macOS 10.14+** | `Effect::Sidebar` + `EffectState::Active` + `radius(12.0)` (`src-tauri/src/lib.rs:12` `.setup` + `window.set_effects`) | `transparent:true`, `macOSPrivateApi:true`, `tauri` feature `macos-private-api` | Translucent `rgba(248,248,249,0.68)` sidebar + `rgba(255,255,255,0.78)` editor over `NSVisualEffectView` Sidebar material — wallpaper tint + blur shows through, rounded corners 12px, traffic lights float over vibrancy | If material unavailable (old macOS / permission), renders as opaque `#F8F8F9` / `#FFFFFF` — no functional loss |
-| **Windows 11 22H1+** | `Effect::Mica` (system `light`/`dark` adaptive) | `transparent:true` | Same translucent fills over Desktop Window Manager `Mica` — subtle desktop tint + noise behind content; border still `rgba(234,234,234,0.85)` | On Windows 10 or older 11 builds, `Mica` is ignored and falls back to opaque fills; no `Blur`/`Acrylic` fallback is applied per "EffectsBuilder just" constraint |
-| **Linux / unsupported** | (ignored) | `transparent:true` ignored by compositor | Solid fills `#FFFFFF` / `#F8F8F9` exactly as pre-vibrant spec | — |
+| Platform | Effect | Chrome | Fallback |
+|---|---|---|---|
+| macOS | `Sidebar` + radius 12 | Overlay traffic lights over TabBar | Opaque fills if material unavailable |
+| Windows 11 | `Mica` only | Native caption + title | Opaque on Win10 / soft-fail |
+| Linux | none | Native decorations | Opaque fills |
 
-Constraints: vibrancy is window-level, not per-component — CSS `backdrop-filter` is not used; the native material is the blur. Surfaces directly over the material use the `rgba` variants from `DESIGN.md` §Colors; sheets that must read as elevated (Command Palette, dialogs) stay **opaque white** so they pop above the material. Text tokens never go translucent, so AA contrast holds even over wallpaper. `html, body, #root` are `transparent` on all platforms; the opaque fallback is applied at `.app-shell`/`.sidebar`/`.main-container` level, not at the document root, so the material region is contiguous. Resizing/dragging stays GPU-composited by the OS; no JS blur is involved.
-
-**Why Sidebar + Mica:** `Sidebar` is Apple's Finder-sidebar material — slightly translucent, wallpaper-aware, works light-first — matching snipnote's sidebar-heavy layout better than `HudWindow` (too dark) or `WindowBackground` (too opaque). `Mica` is the Windows 11 system material that tints with the desktop wallpaper and respects light/dark — matching snipnote's light-first posture without requiring explicit `MicaLight`/`MicaDark` variants. `Tabbed`/`Acrylic`/`Blur` are intentionally not used per the "EffectsBuilder just, vibrant + Mica only" request.
-
+Constraints: material is window-level; elevated sheets (palette) stay opaque; text tokens never translucent; deep links preserve Windows drive letters (`snipnote://open/C:/…`). Release CI builds macOS (arm64+x64) and `windows-latest`.
