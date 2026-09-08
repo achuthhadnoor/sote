@@ -5,6 +5,7 @@ import { useTabStore } from "../../stores/useTabStore";
 import { useRecentNotesStore } from "../../stores/useRecentNotesStore";
 import { flushActiveNote } from "../../lib/flushActiveNote";
 import { VaultNode } from "../../types/vault";
+import { modShortcut } from "../../utils/platform";
 
 interface FlatNote {
   name: string;
@@ -13,7 +14,7 @@ interface FlatNote {
 }
 
 function flattenVaultTree(nodes: VaultNode[], vaultPath: string): FlatNote[] {
-  const normalizedVault = vaultPath.replace(/\/+$/, "");
+  const normalizedVault = vaultPath.replace(/[/\\]+$/, "");
   const out: FlatNote[] = [];
   const walk = (list: VaultNode[]) => {
     for (const node of list) {
@@ -21,7 +22,7 @@ function flattenVaultTree(nodes: VaultNode[], vaultPath: string): FlatNote[] {
         if (node.children) walk(node.children);
       } else {
         let rel = node.path;
-        if (rel.startsWith(normalizedVault + "/")) {
+        if (rel.startsWith(normalizedVault + "/") || rel.startsWith(normalizedVault + "\\")) {
           rel = rel.slice(normalizedVault.length + 1);
         } else {
           rel = node.name;
@@ -35,9 +36,11 @@ function flattenVaultTree(nodes: VaultNode[], vaultPath: string): FlatNote[] {
 }
 
 function relativeLabel(vaultPath: string, absPath: string): string {
-  const base = vaultPath.replace(/\/+$/, "");
-  if (absPath.startsWith(base + "/")) return absPath.slice(base.length + 1);
-  return absPath.split("/").pop() || absPath;
+  const base = vaultPath.replace(/[/\\]+$/, "");
+  if (absPath.startsWith(base + "/") || absPath.startsWith(base + "\\")) {
+    return absPath.slice(base.length + 1);
+  }
+  return absPath.split(/[/\\]/).pop() || absPath;
 }
 
 export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) => {
@@ -94,7 +97,7 @@ export const HomeView: React.FC<{ onNewNote?: () => void }> = ({ onNewNote }) =>
           <Search size={15} className="text-muted-foreground shrink-0" aria-hidden />
           <input
             className="flex-1 min-w-0 border-0 outline-hidden bg-transparent type-chrome text-foreground font-sans h-full"
-            placeholder="Search notes…  (⌘P for palette)"
+            placeholder={`Search notes…  (${modShortcut("P")} for palette)`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}

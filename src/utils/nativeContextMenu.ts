@@ -8,6 +8,7 @@ import { useSidebarActionsStore } from "../stores/useSidebarActionsStore";
 import { useFileTreeExpandStore } from "../stores/useFileTreeExpandStore";
 import type { VaultNode } from "../types/vault";
 import { createLogger } from "../lib/logger";
+import { isMac } from "./platform";
 
 const log = createLogger("context-menu");
 
@@ -110,7 +111,6 @@ export async function showNativeContextMenu(
   _event?: React.MouseEvent
 ) {
   const vaultPath = useVaultStore.getState().vaultPath;
-  const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
 
   if (!node) {
     if (!vaultPath) return;

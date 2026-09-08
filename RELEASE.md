@@ -6,8 +6,9 @@ Version **0.1.0** is configured in `package.json`, `src-tauri/tauri.conf.json`, 
 
 1. **GitHub remote** — create `achuth/snipnote` (or update `plugins.updater.endpoints` and `Cargo.toml` `repository` if the name differs).
 2. **Updater private key** — already generated at `.tauri/snipnote.key` (gitignored). Back it up offline. Public key is embedded in `tauri.conf.json`.
-3. **Apple Developer ID** — install a **Developer ID Application** certificate (not Apple Development). Required for Gatekeeper + notarization.
-4. **Notarization credentials** — App Store Connect API key or `notarytool` Apple ID app-specific password.
+3. **Apple Developer ID** (macOS) — install a **Developer ID Application** certificate (not Apple Development). Required for Gatekeeper + notarization.
+4. **Notarization credentials** (macOS) — App Store Connect API key or `notarytool` Apple ID app-specific password.
+5. **Windows code signing** (optional) — unsigned NSIS/MSI installs work for testing; for public SmartScreen-friendly releases, add an Authenticode certificate and wire signing later. Updater payload signatures still use `TAURI_SIGNING_PRIVATE_KEY` on all platforms.
 
 ## Environment for a signed macOS release
 
@@ -35,6 +36,8 @@ export APPLE_API_KEY_PATH="/path/to/AuthKey_XXX.p8"
 
 ## Build
 
+### macOS
+
 ```bash
 yarn install
 yarn tauri build
@@ -46,18 +49,39 @@ Confirm:
 - `src-tauri/target/release/bundle/dmg/*.dmg`
 - Updater: `*.app.tar.gz` + matching `*.sig`
 
+### Windows
+
+On a Windows machine (or CI `windows-latest`):
+
+```bash
+yarn install
+yarn tauri build
+```
+
+Confirm:
+
+- `src-tauri/target/release/bundle/nsis/*.exe` (and/or `msi/*.msi`)
+- Updater zip + `.sig` next to the installer when signing keys are set
+
+WebView2 is required at runtime (bundled with recent Windows 11; evergreen bootstrapper otherwise).
+
 ## Publish
 
 1. Tag: `git tag v0.1.0 && git push origin v0.1.0`
-2. Create a GitHub Release for that tag.
-3. Upload DMG + updater `.tar.gz` + `.sig`, and a `latest.json` (tauri-action generates this in CI).
+2. Create a GitHub Release for that tag (or let CI draft it).
+3. Upload platform installers + updater archives + `.sig`, and a `latest.json` (tauri-action generates this in CI).
 4. Endpoint expected by the app:
 
    `https://github.com/achuth/snipnote/releases/latest/download/latest.json`
 
 ## CI
 
-`.github/workflows/release.yml` builds on `v*` tags. Add repository secrets:
+`.github/workflows/release.yml` builds on `v*` tags for:
+
+- `macos-latest` — `aarch64-apple-darwin` and `x86_64-apple-darwin`
+- `windows-latest` — default host target (NSIS/MSI + updater)
+
+Add repository secrets:
 
 | Secret | Purpose |
 |--------|---------|
@@ -68,8 +92,20 @@ Confirm:
 | `APPLE_SIGNING_IDENTITY` | Full identity string |
 | `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | Notarization (or API key equivalents) |
 
+Windows Authenticode secrets are intentionally not required yet; add them when you implement codesigning.
+
 ## Smoke test
+
+### macOS
 
 - Fresh install from DMG on a second Mac (or clean user) — Gatekeeper should accept a notarized build.
 - Open a folder, create/edit/save a note, ⌘P, theme + hue, Check for Updates (expects up to date on latest).
 - Quit and relaunch — folder/tabs/theme restore.
+
+### Windows
+
+- Install from NSIS (or MSI) on Windows 11; confirm WebView2 present.
+- Launch — native title bar + Mica (Win11); opaque-enough chrome if Mica unavailable.
+- Open a folder on a drive letter path, create/edit/save a `.md` note, Ctrl+P palette, theme + hue.
+- Deep link / file association: open a `.md` via Explorer “Open with” snipnote if registered.
+- Check for Updates; quit and relaunch — session restore.

@@ -6,24 +6,16 @@ import { flushActiveNote } from "../../lib/flushActiveNote";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, PanelLeft, Plus, Settings } from "lucide-react";
 import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
+import { PLATFORM, modShortcut } from "../../utils/platform";
 
 interface TabBarProps {
   onNewNote?: () => void;
   onOpenSettings?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  /** Minimal chrome while waiting for a folder (no sidebar/tabs/new-note). */
+  welcomeMode?: boolean;
 }
-
-// Frameless overlay chrome per OS: macOS traffic lights sit top-left,
-// Windows caption buttons sit top-right. Reserve that space as edge padding
-// so no button ever slides underneath.
-const PLATFORM: "mac" | "windows" | "other" = (() => {
-  if (typeof navigator === "undefined") return "other";
-  const ua = navigator.userAgent || "";
-  if (/windows/i.test(ua)) return "windows";
-  if (/macintosh|mac os x/i.test(ua)) return "mac";
-  return "other";
-})();
 
 const FileTabIcon: React.FC<{ active?: boolean }> = ({ active }) => (
   <svg
@@ -49,7 +41,13 @@ const FileTabIcon: React.FC<{ active?: boolean }> = ({ active }) => (
   </svg>
 );
 
-export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sidebarCollapsed, onToggleSidebar }) => {
+export const TabBar: React.FC<TabBarProps> = ({
+  onNewNote,
+  onOpenSettings,
+  sidebarCollapsed,
+  onToggleSidebar,
+  welcomeMode = false,
+}) => {
   const tabs = useTabStore((state) => state.tabs);
   const activePath = useTabStore((state) => state.activePath);
   const selectNote = useTabStore((state) => state.selectNote);
@@ -145,49 +143,64 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
       </div>
       <div className="relative z-10 flex w-full h-full items-center gap-3 px-3">
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
-          titlebar row. macOS reserves the traffic-lights zone on the left
-          (only needed when the sidebar is collapsed and the bar reaches the
-          window edge); Windows needs no left reservation. */}
-      <div className={`flex gap-1 shrink-0 ${sidebarCollapsed ? (PLATFORM === "mac" ? "pl-16 justify-end " : "w-[86px]") : "w-[56px]"}`} data-tauri-drag-region>
-        {sidebarCollapsed && (
+          titlebar row. macOS Overlay reserves traffic-lights space on the left
+          when the bar reaches the window edge; Windows uses a native title bar
+          so no left inset is needed. */}
+      <div
+        className={`flex gap-1 shrink-0 ${
+          welcomeMode || sidebarCollapsed
+            ? PLATFORM === "mac"
+              ? "pl-16 justify-end "
+              : "w-[86px]"
+            : "w-[56px]"
+        }`}
+        data-tauri-drag-region
+      >
+        {!welcomeMode && sidebarCollapsed && (
           <Button
             variant="ghost"
             size="icon"
             className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
             onClick={onToggleSidebar}
-            title="Show Sidebar (⌘B)"
+            title={`Show Sidebar (${modShortcut("B")})`}
             aria-label="Show Sidebar"
           >
             <PanelLeft className="h-4 w-4" />
           </Button>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
-          disabled={!canGoBack}
-          onClick={() => void handleGoBack()}
-          title="Go back (⌘[)"
-          aria-label="Go back"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
-          disabled={!canGoForward}
-          onClick={() => void handleGoForward()}
-          title="Go forward (⌘])"
-          aria-label="Go forward"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+        {!welcomeMode && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
+              disabled={!canGoBack}
+              onClick={() => void handleGoBack()}
+              title={`Go back (${modShortcut("[")})`}
+              aria-label="Go back"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground disabled:opacity-30"
+              disabled={!canGoForward}
+              onClick={() => void handleGoForward()}
+              title={`Go forward (${modShortcut("]")})`}
+              aria-label="Go forward"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Tabs: horizontal scroll when they overflow the titlebar. */}
       <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full justify-start" data-tauri-drag-region>
-        {tabs.length === 0 ? (
+        {welcomeMode ? (
+          <div className="flex-1 h-full" data-tauri-drag-region />
+        ) : tabs.length === 0 ? (
           <div className="text-xs text-muted-foreground text-center" data-tauri-drag-region>
             No open notes
           </div>
@@ -287,25 +300,27 @@ export const TabBar: React.FC<TabBarProps> = ({ onNewNote, onOpenSettings, sideb
         )}
       </div>
 
-      {/* Right cluster: Windows reserves the caption-buttons zone on the
-          right edge; other platforms need no reservation. */}
-      <div className={`flex items-center justify-end shrink-0 gap-1.5 ${PLATFORM === "windows" ? "w-[220px] pr-[140px]" : "w-[72px]"}`} data-tauri-drag-region>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
-          onClick={onNewNote}
-          title="New note (⌘N)"
-          aria-label="New note"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+      {/* Right cluster: with native Windows decorations, caption buttons live
+          in the system title bar — no client-area reservation needed. */}
+      <div className="flex items-center justify-end shrink-0 gap-1.5 w-[72px]" data-tauri-drag-region>
+        {!welcomeMode && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+            onClick={onNewNote}
+            title={`New note (${modShortcut("N")})`}
+            aria-label="New note"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
           className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
           onClick={() => onOpenSettings?.()}
-          title="Settings (⌘,)"
+          title={`Settings (${modShortcut(",")})`}
           aria-label="Open settings"
         >
           <Settings className="h-[14px] w-[14px]" />

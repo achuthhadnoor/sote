@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isMac, modShortcut } from "../../utils/platform";
 
 interface EditorBubbleMenuProps {
   editor: Editor | null;
@@ -50,7 +51,6 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
     if (!editor) return;
     const dom = editor.view.dom;
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const mod = isMac ? e.metaKey : e.ctrlKey;
       if (mod && e.key.toLowerCase() === "k") {
         const { selection } = editor.state;
@@ -248,7 +248,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleBold().run()}
             className={itemClass(editor.isActive("bold"))}
-            title="Bold (⌘B)"
+            title={`Bold (${modShortcut("B")})`}
           >
             <Bold className="w-3.5 h-3.5" />
           </button>
@@ -257,7 +257,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleItalic().run()}
             className={itemClass(editor.isActive("italic"))}
-            title="Italic (⌘I)"
+            title={`Italic (${modShortcut("I")})`}
           >
             <Italic className="w-3.5 h-3.5" />
           </button>
@@ -293,7 +293,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
               setIsLinkMode(true);
             }}
             className={itemClass(isLinkActive)}
-            title="Link (⌘K)"
+            title={`Link (${modShortcut("K")})`}
           >
             <LinkIcon className="w-3.5 h-3.5" />
           </button>

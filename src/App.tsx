@@ -5,6 +5,7 @@ import { Sidebar } from "./components/sidebar/Sidebar";
 import { TabBar } from "./components/editor/TabBar";
 import { ConflictBanner } from "./components/editor/ConflictBanner";
 import { StatusBar } from "./components/editor/StatusBar";
+import { WelcomeGate } from "./components/welcome/WelcomeGate";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useTabStore } from "./stores/useTabStore";
 import { useEditorStore } from "./stores/useEditorStore";
@@ -47,9 +48,12 @@ function App() {
   const isInitialized = useRef(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isFolderDragActive, setIsFolderDragActive] = useState(false);
   // ensure theme is initialized (store side-effect loads from localStorage)
   useThemeStore((s) => s.effectiveTheme);
   const setTheme = useThemeStore((s) => s.setTheme);
+  const welcomeMode = !vaultPath && !isSettingsTab(activePath);
+  const hideSidebar = !vaultPath || sidebarCollapsed;
 
   const triggerHaptic = () => {
     try {
@@ -366,7 +370,10 @@ function App() {
           useTabStore.getState().closeTab(active);
         })();
       });
-      await addListener("menu:toggle_sidebar", () => setSidebarCollapsed((v) => !v));
+      await addListener("menu:toggle_sidebar", () => {
+        if (!useVaultStore.getState().vaultPath) return;
+        setSidebarCollapsed((v) => !v);
+      });
       await addListener("menu:theme_light", () => setTheme("light"));
       await addListener("menu:theme_dark", () => setTheme("dark"));
       await addListener("menu:theme_system", () => setTheme("system"));
@@ -393,39 +400,71 @@ function App() {
   useEffect(() => {
     if (!vaultPath) return;
     invoke("add_recent_vault", { vaultPath }).catch(() => {});
+    // Show the library sidebar once a folder is open.
+    setSidebarCollapsed(false);
   }, [vaultPath]);
 
-  // Drag & Drop: Finder → vault (Tauri onDragDropEvent is primary; HTML5 fallback on app-shell)
+  // Drag & Drop: Finder folder → open as library (welcome); files → copy into vault
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     const setupDrag = async () => {
       try {
         const { getCurrentWebview } = await import("@tauri-apps/api/webview");
         unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
-          if (event.payload.type === "drop") {
-            const paths = (event.payload as { type: "drop"; paths: string[]; position: { x: number; y: number } }).paths;
-            const vp = useVaultStore.getState().vaultPath;
-            if (!vp || paths.length === 0) return;
-            // Detect folder drop target via element at position
-            let destDir = vp;
-            try {
-              const pos = (event.payload as any).position as { x: number; y: number };
-              const el = document.elementFromPoint(pos.x, pos.y);
-              const folderEl = el?.closest("[data-folder-path]") as HTMLElement | null;
-              if (folderEl?.dataset.folderPath) {
-                destDir = folderEl.dataset.folderPath;
-              }
-            } catch {}
-            // Await all copies before refreshing to avoid race
-            const results = await Promise.allSettled(
-              paths.map((p) => invoke("copy_external_file", { vaultPath: vp, srcPath: p, destDir }).catch((e) => { log.error("copy_external_file failed", e); throw e; }))
-            );
-            void results;
-            // Refresh tree within 500ms per AC — await vault reload
-            try {
-              await useVaultStore.getState().loadVault(vp);
-            } catch {}
+          const kind = event.payload.type;
+          if (kind === "enter" || kind === "over") {
+            if (!useVaultStore.getState().vaultPath) setIsFolderDragActive(true);
+            return;
           }
+          if (kind === "leave") {
+            setIsFolderDragActive(false);
+            return;
+          }
+          if (kind !== "drop") return;
+
+          setIsFolderDragActive(false);
+          const paths = (event.payload as { type: "drop"; paths: string[]; position: { x: number; y: number } }).paths;
+          if (paths.length === 0) return;
+
+          const vp = useVaultStore.getState().vaultPath;
+          if (!vp) {
+            // Welcome: first dropped directory becomes the library folder.
+            for (const p of paths) {
+              try {
+                const isDir = await invoke<boolean>("path_is_directory", { path: p });
+                if (isDir) {
+                  await useVaultStore.getState().loadVault(p);
+                  return;
+                }
+              } catch (e) {
+                log.error("open dropped folder failed", e);
+              }
+            }
+            return;
+          }
+
+          // Detect folder drop target via element at position
+          let destDir = vp;
+          try {
+            const pos = (event.payload as any).position as { x: number; y: number };
+            const el = document.elementFromPoint(pos.x, pos.y);
+            const folderEl = el?.closest("[data-folder-path]") as HTMLElement | null;
+            if (folderEl?.dataset.folderPath) {
+              destDir = folderEl.dataset.folderPath;
+            }
+          } catch {}
+          const results = await Promise.allSettled(
+            paths.map((p) =>
+              invoke("copy_external_file", { vaultPath: vp, srcPath: p, destDir }).catch((e) => {
+                log.error("copy_external_file failed", e);
+                throw e;
+              })
+            )
+          );
+          void results;
+          try {
+            await useVaultStore.getState().loadVault(vp);
+          } catch {}
         });
       } catch (e) {
         // Webview API not available (e.g. in browser dev mode)
@@ -445,12 +484,29 @@ function App() {
   const handleAppDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const vp = useVaultStore.getState().vaultPath;
-    if (!vp) return;
-    // HTML5 fallback: only works if browser exposes path (Tauri may not); primary is onDragDropEvent above
-    // If Tauri's onDragDropEvent already handled this drop, dataTransfer.files will be empty or lack path — avoid double copy
+    setIsFolderDragActive(false);
     const files = Array.from(e.dataTransfer.files) as Array<File & { path?: string }>;
     if (files.length === 0) return;
+
+    const vp = useVaultStore.getState().vaultPath;
+    if (!vp) {
+      for (const f of files) {
+        const srcPath = (f as any).path as string | undefined;
+        if (!srcPath || typeof srcPath !== "string") continue;
+        try {
+          const isDir = await invoke<boolean>("path_is_directory", { path: srcPath });
+          if (isDir) {
+            await useVaultStore.getState().loadVault(srcPath);
+            return;
+          }
+        } catch (err) {
+          log.error("open dropped folder (html5) failed", err);
+        }
+      }
+      return;
+    }
+
+    // HTML5 fallback: only works if browser exposes path (Tauri may not); primary is onDragDropEvent above
     const validPaths: Array<{ srcPath: string; destDir: string }> = [];
     for (const f of files) {
       const srcPath = (f as any).path as string | undefined;
@@ -490,11 +546,13 @@ function App() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
+        if (!useVaultStore.getState().vaultPath) return;
         setSidebarCollapsed((v) => !v);
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
+        if (!useVaultStore.getState().vaultPath) return;
         handleNewNote();
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
@@ -533,15 +591,16 @@ function App() {
       onDrop={handleAppDrop}
     >
       {/* Sidebar stays mounted so open/close can animate;
-          inert + delayed visibility keep hidden controls out of the tab order */}
+          inert + delayed visibility keep hidden controls out of the tab order.
+          Fully hidden until a folder is open (welcome gate). */}
       <div
         className={`h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] ${
-          sidebarCollapsed
+          hideSidebar
             ? "w-0 min-w-0 invisible"
             : "w-sidebar min-w-sidebar visible"
         }`}
-        inert={sidebarCollapsed}
-        aria-hidden={sidebarCollapsed}
+        inert={hideSidebar}
+        aria-hidden={hideSidebar}
       >
         <Sidebar
           onToggleSidebar={() => setSidebarCollapsed(true)}
@@ -552,14 +611,22 @@ function App() {
         <TabBar
           onNewNote={handleNewNote}
           onOpenSettings={() => { void openSettingsTab(); }}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
+          sidebarCollapsed={hideSidebar}
+          onToggleSidebar={() => {
+            if (!vaultPath) return;
+            setSidebarCollapsed((v) => !v);
+          }}
+          welcomeMode={welcomeMode}
         />
-        <ConflictBanner />
+        {!welcomeMode && <ConflictBanner />}
         <Suspense fallback={<div className="flex-1" />}>
-          <EditorSurface />
+          {welcomeMode ? (
+            <WelcomeGate isExternalDragActive={isFolderDragActive} />
+          ) : (
+            <EditorSurface />
+          )}
         </Suspense>
-        <StatusBar />
+        {!welcomeMode && vaultPath && <StatusBar />}
       </main>
       {/* RightPanel hidden for now — terminal/browser/canvas to be handled later */}
       <Suspense fallback={null}>

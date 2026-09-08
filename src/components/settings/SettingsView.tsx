@@ -5,6 +5,7 @@ import { formatLogsAsText, getRecentLogs, getBackendLogPath, createLogger, isStr
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { modShortcut } from "../../utils/platform";
 
 const THEME_OPTIONS: { value: Theme; label: string }[] = [
   { value: "light", label: "Light" },
@@ -201,7 +202,7 @@ export const SettingsView: React.FC = () => {
         <header className="flex flex-col gap-1">
           <h1 className="text-[18px] font-semibold tracking-tight text-foreground">Settings</h1>
           <p className="text-[13px] text-muted-foreground">
-            Appearance and behavior. Press ⌘, again to close.
+            Appearance and behavior. Press {modShortcut(",")} again to close.
           </p>
         </header>
 

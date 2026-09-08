@@ -87,7 +87,7 @@ const CSS_PASSTHROUGH = new Set([
   "context-stroke",
 ]);
 
-const MERMAID_CACHE_VERSION = "mermaid-render-v5";
+const MERMAID_CACHE_VERSION = "mermaid-render-v8";
 const MERMAID_SANITIZE_CONFIG = {
   USE_PROFILES: { svg: true, svgFilters: true },
   FORBID_TAGS: ["script", "foreignObject", "iframe", "object", "embed"],
@@ -97,8 +97,83 @@ const MERMAID_SANITIZE_CONFIG = {
 type RGB = { r: number; g: number; b: number; alpha?: string };
 const namedColorRgbCache = new Map<string, string | null>();
 
+/** Undo TipTap/HTML entity encoding that can sneak into code-block text. */
+function decodeBasicHtmlEntities(source: string): string {
+  return source
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&amp;/gi, "&");
+}
+
+/**
+ * Mermaid 11 treats `(`, `)`, `&`, etc. as lexer tokens inside unquoted
+ * flowchart edge labels (`got 'PS'` = parenthesis). Always double-quote labels.
+ */
+function quoteFlowchartEdgeLabels(source: string): string {
+  return source.replace(/\|([^|\n]+)\|/g, (match, label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) return match;
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) return match;
+    return `|"${trimmed.replace(/"/g, "#quot;")}"|`;
+  });
+}
+
+/**
+ * Rectangle nodes: `Id[text (parens)]` must be `Id["text (parens)"]` when
+ * htmlLabels is off — otherwise `<br/>(…)` is lexed as `PS`.
+ * Skips special shapes that already start with `/`, `\`, `(`, `[`, `>`, or `"`.
+ */
+function quoteRiskyRectangleNodeLabels(source: string): string {
+  return source.replace(
+    /(^|[^[\w/\\])([A-Za-z][\w]*)\[(?!["/\\[(>)])([^\]\n]*)\]/gm,
+    (match, pre: string, id: string, label: string) => {
+      if (!/[(){}]/.test(label)) return match;
+      if (label.startsWith('"') && label.endsWith('"')) return match;
+      return `${pre}${id}["${label.replace(/"/g, "#quot;")}"]`;
+    }
+  );
+}
+
+/** `A[/label]` → `A[/label/]` (parallelogram requires a closing slash). */
+function closeParallelogramNodes(source: string): string {
+  return source.replace(/\[\/([^\]/\n][^\]\n]*)\]/g, "[/$1/]");
+}
+
+/** `subgraph Onboarding Wizard` → `subgraph "Onboarding Wizard"`. */
+function quoteFlowchartSubgraphs(source: string): string {
+  return source.replace(/^(\s*subgraph\s+)(?!["\[])(\S[\s\S]*?)\s*$/gm, (match, prefix: string, rest: string) => {
+    const title = rest.trim();
+    if (!title || /^[\w.-]+$/.test(title)) return match;
+    if (title.startsWith('"') || title.startsWith("[")) return match;
+    return `${prefix}"${title.replace(/"/g, "#quot;")}"`;
+  });
+}
+
+/**
+ * If a contenteditable round-trip turned literal `<br/>` inside `[...]` into a
+ * real newline, restore the Mermaid line-break so the node stays one statement.
+ */
+function restoreBrInNodeLabels(source: string): string {
+  return source.replace(/\[([^\]\n]*?)\n+([^\]\n]*?)\]/g, (_m, a: string, b: string) => `[${a}<br/>${b}]`);
+}
+
+/**
+ * Mermaid 11 is stricter than docs/GitHub-flavored diagrams. Normalize common
+ * author-friendly flowchart syntax so TipTap can render without editing notes.
+ */
 function normalizeMermaidSource(text: string): string {
-  return text.replace(/\r\n?/g, "\n").trim();
+  let source = decodeBasicHtmlEntities(text.replace(/\r\n?/g, "\n")).trim();
+  if (!source) return source;
+  if (/^\s*(?:flowchart|graph)\b/im.test(source)) {
+    source = restoreBrInNodeLabels(source);
+    source = closeParallelogramNodes(source);
+    source = quoteFlowchartEdgeLabels(source);
+    source = quoteRiskyRectangleNodeLabels(source);
+    source = quoteFlowchartSubgraphs(source);
+  }
+  return source;
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -495,7 +570,9 @@ async function renderDiagram(
   palette: Palette
 ): Promise<string> {
   ensureMermaidInitialized(mermaid, themeKey, themeVars);
-  const { svg } = await mermaid.render(renderId, text);
+  // Normalize again at the render boundary so HMR/cache callers can't skip it.
+  const diagram = normalizeMermaidSource(text);
+  const { svg } = await mermaid.render(renderId, diagram);
   const darkMode = themeKey === "dark";
   return sanitizeSvg(toMonochrome(sanitizeSvg(svg), palette, darkMode));
 }
@@ -823,9 +900,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
             </Button>
           </div>
           <pre>
-            <code>
-              <NodeViewContent as="div" />
-            </code>
+            <NodeViewContent as={"code" as "div"} />
           </pre>
         </Card>
       </NodeViewWrapper>
@@ -950,9 +1025,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
             </div>
           )}
           <pre className="mermaid-code-editor m-0 rounded-none border-0">
-            <code>
-              <NodeViewContent as="div" />
-            </code>
+            <NodeViewContent as={"code" as "div"} />
           </pre>
         </div>
 

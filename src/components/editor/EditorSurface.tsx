@@ -18,7 +18,6 @@ import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { openUrl, openPath } from "@tauri-apps/plugin-opener";
-import { Button } from "@/components/ui/button";
 import { RawEditor } from "./RawEditor";
 import { EditorBubbleMenu } from "./EditorBubbleMenu";
 import { HomeView } from "./HomeView";
@@ -26,6 +25,14 @@ import { SettingsView } from "../settings/SettingsView";
 import { createLogger } from "../../lib/logger";
 import { flushActiveNote } from "../../lib/flushActiveNote";
 import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
+import { isMac } from "../../utils/platform";
+import {
+  isAbsoluteFsPath,
+  isHostAbsolutePath,
+  normalizeFsPath,
+  pathDirname,
+  pathJoin,
+} from "../../utils/paths";
 
 const log = createLogger("editor-surface");
 const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -112,10 +119,9 @@ async function openInExternalBrowser(href: string, activePath: string | null, va
   if (!filePath) return;
   if (isMarkdownNoteHref(filePath)) return;
 
-  if (vaultPath && !filePath.startsWith("/") && !/^[a-zA-Z0-9+.-]+:\/\//.test(filePath)) {
-    const dir = activePath ? activePath.substring(0, activePath.lastIndexOf("/")) : vaultPath;
-    const normalizedDir = (dir || vaultPath).replace(/\/+$/, "");
-    filePath = `${normalizedDir}/${filePath}`;
+  if (vaultPath && !isAbsoluteFsPath(filePath) && !/^[a-zA-Z0-9+.-]+:\/\//.test(filePath)) {
+    const dir = activePath ? pathDirname(activePath) : vaultPath;
+    filePath = pathJoin(dir || vaultPath, filePath);
   }
 
   // 4. Open local files via openPath (which opens the file in default OS application / browser)
@@ -167,45 +173,30 @@ function resolveMarkdownLink(href: string, activePath: string | null, vaultPath:
 
   // 7. Target path calculation
   let target: string;
-  const normalizedVault = vaultPath.replace(/\/+$/, "");
+  const normalizedVault = vaultPath.replace(/[/\\]+$/, "");
 
-  if (clean.startsWith(normalizedVault)) {
+  if (
+    clean === normalizedVault ||
+    clean.startsWith(normalizedVault + "/") ||
+    clean.startsWith(normalizedVault + "\\")
+  ) {
     // Already an absolute path inside the vault
     target = clean;
-  } else if (clean.startsWith("/")) {
-    // Check if it is an absolute path on filesystem
-    if (
-      clean.startsWith("/Users/") ||
-      clean.startsWith("/home/") ||
-      clean.startsWith("/Volumes/") ||
-      clean.startsWith("/var/") ||
-      clean.startsWith("/tmp/")
-    ) {
-      target = clean;
-    } else {
-      // Relative to vault root (e.g. /docs/intro.md)
-      target = normalizedVault + clean;
-    }
+  } else if (isAbsoluteFsPath(clean) && isHostAbsolutePath(clean)) {
+    target = clean;
+  } else if (clean.startsWith("/") && !isHostAbsolutePath(clean)) {
+    // Vault-root relative (e.g. /docs/intro.md)
+    target = pathJoin(normalizedVault, clean.replace(/^[/\\]+/, ""));
+  } else if (isAbsoluteFsPath(clean)) {
+    target = clean;
   } else {
     // Relative to active note's directory
-    const dir = activePath ? activePath.substring(0, activePath.lastIndexOf("/")) : normalizedVault;
-    target = (dir.replace(/\/+$/, "") || normalizedVault) + "/" + clean;
+    const dir = activePath ? pathDirname(activePath) : normalizedVault;
+    target = pathJoin(dir.replace(/[/\\]+$/, "") || normalizedVault, clean);
   }
 
   // 8. Normalize path (resolve . and ..)
-  const parts: string[] = [];
-  for (const p of target.split("/")) {
-    if (p === "" || p === ".") {
-      if (parts.length === 0) parts.push("");
-      continue;
-    }
-    if (p === "..") {
-      if (parts.length > 1) parts.pop();
-      continue;
-    }
-    parts.push(p);
-  }
-  return parts.join("/") || "/";
+  return normalizeFsPath(target);
 }
 
 /** Ignore duplicate click/auxclick deliveries within a short window. */
@@ -295,7 +286,6 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
 
 export const EditorSurface: React.FC = () => {
   const vaultPath = useVaultStore((state) => state.vaultPath);
-  const openVaultDialog = useVaultStore((state) => state.openVaultDialog);
   const activePath = useTabStore((state) => state.activePath);
   const tabs = useTabStore((state) => state.tabs);
   const loadNote = useEditorStore((state) => state.loadNote);
@@ -550,7 +540,6 @@ export const EditorSurface: React.FC = () => {
   // Find bar shortcuts: Cmd+F open, Shift+Cmd+F toggle replace
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const mod = isMac ? e.metaKey : e.ctrlKey;
       if (!mod) return;
       if (!activePath) return;
@@ -765,14 +754,8 @@ export const EditorSurface: React.FC = () => {
 
   if (!vaultPath) {
     return (
-      <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth" data-editor-scroll>
-        <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center">
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground min-h-[360px]">
-            <h1 className="text-[18px] font-semibold text-foreground tracking-tight">snipnote</h1>
-            <p className="type-chrome text-muted-foreground">A fast local Markdown file editor.</p>
-            <Button onClick={openVaultDialog} className="mt-2">Open Folder</Button>
-          </div>
-        </div>
+      <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8" data-editor-scroll>
+        <div className="text-[13px] text-muted-foreground">Open a folder to start writing.</div>
       </section>
     );
   }

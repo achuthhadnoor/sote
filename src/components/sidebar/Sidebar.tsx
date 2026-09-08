@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PanelLeft } from "lucide-react";
+import { modShortcut } from "../../utils/platform";
 
 interface SidebarProps {
   onToggleSidebar?: () => void;
@@ -16,7 +17,9 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette }) => {
   const { vaultPath, tree, isLoading, error, openVaultDialog } = useVaultStore();
 
-  const folderName = vaultPath ? vaultPath.split("/").pop() || vaultPath : null;
+  const folderName = vaultPath
+    ? vaultPath.replace(/[/\\]+$/, "").split(/[/\\]/).pop() || vaultPath
+    : null;
 
   const handleEmptyContextMenu = async (e: React.MouseEvent) => {
     // only if clicking on the container itself (empty area below tree) — native menu
@@ -49,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette
           variant="ghost"
           size="icon"
           onClick={onToggleSidebar}
-          title="Toggle Sidebar (⌘B)"
+          title={`Toggle Sidebar (${modShortcut("B")})`}
           aria-label="Toggle Sidebar"
           className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-hover-translucent hover:text-foreground"
         >
@@ -60,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette
       <div className="px-3 py-2 border-b border-border-translucent shrink-0">
         <Input
           className="h-[26px] bg-muted-translucent border-transparent  text-[13px] cursor-pointer"
-          placeholder="Search notes... (⌘P)"
+          placeholder={`Search notes... (${modShortcut("P")})`}
           readOnly
           onClick={onOpenPalette}
         />

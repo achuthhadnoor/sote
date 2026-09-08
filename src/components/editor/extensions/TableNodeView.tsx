@@ -6,6 +6,7 @@ import { Edit3, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { modShortcut } from "../../../utils/platform";
 
 /* =========================================================================
  * PREVIOUS IMPLEMENTATION (Custom Manual Table & Markdown Parser)
@@ -149,7 +150,7 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
             />
             <div className="flex items-center justify-between">
               <div className="type-meta">
-                <kbd className="rounded border border-border-translucent bg-transparent px-1 py-0.5 font-mono">⌘Enter</kbd> to save · <kbd className="rounded border border-border-translucent bg-transparent px-1 py-0.5 font-mono">Esc</kbd> to cancel
+                <kbd className="rounded border border-border-translucent bg-transparent px-1 py-0.5 font-mono">{modShortcut("Enter")}</kbd> to save · <kbd className="rounded border border-border-translucent bg-transparent px-1 py-0.5 font-mono">Esc</kbd> to cancel
               </div>
               <div className="flex items-center gap-1">
                 <Button

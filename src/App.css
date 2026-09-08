@@ -69,8 +69,13 @@ html.theming *::after {
   * {
     border-color: var(--border);
   }
-  /* keep html transparent for Tauri vibrant */
+  /* keep html transparent for Tauri vibrancy (Sidebar / Mica).
+     When OS effects are unavailable the themed --bg wash on chrome
+     layers still provides an opaque-enough surface. */
   html {
+    background: transparent;
+  }
+  body {
     background: transparent;
   }
 }
@@ -1123,4 +1128,46 @@ input[type="range"]::-moz-range-thumb {
 
 [data-theme="dark"] .snipnote-bubble-menu {
   box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.45), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+}
+
+/* Welcome gate — first-run folder picker */
+.welcome-gate__atmosphere {
+  pointer-events: none;
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 70%;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 30%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 65%);
+  opacity: 0.9;
+  animation: welcome-gate-breathe 8s ease-in-out infinite;
+}
+
+@keyframes welcome-gate-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateY(6px) scale(1.03);
+    opacity: 1;
+  }
+}
+
+.welcome-gate__drop {
+  cursor: pointer;
+}
+
+.welcome-gate__drop:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-gate__atmosphere {
+    animation: none;
+  }
+  .welcome-gate__drop {
+    transition: none !important;
+  }
 }

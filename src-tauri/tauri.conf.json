@@ -22,7 +22,7 @@
     "createUpdaterArtifacts": true,
     "category": "Productivity",
     "shortDescription": "Local-first Markdown notes",
-    "longDescription": "snipnote is a fast local Markdown editor for macOS. Open any folder, edit .md files in a WYSIWYG editor, and keep disk as the source of truth.",
+    "longDescription": "snipnote is a fast local Markdown editor for macOS and Windows. Open any folder, edit .md files in a WYSIWYG editor, and keep disk as the source of truth.",
     "copyright": "Copyright © 2026 Achuth. All rights reserved.",
     "icon": [
       "icons/32x32.png",
@@ -43,18 +43,18 @@
       "minimumSystemVersion": "12.0",
       "hardenedRuntime": true,
       "dmg": {
-        "background": "icons/background.png",
+        "background": "icons/dmg-background.png",
         "appPosition": {
-          "x": 105,
-          "y": 108
+          "x": 180,
+          "y": 170
         },
         "applicationFolderPosition": {
-          "x": 278,
-          "y": 108
+          "x": 480,
+          "y": 170
         },
         "windowSize": {
-          "width": 384,
-          "height": 256
+          "width": 660,
+          "height": 400
         }
       }
     }

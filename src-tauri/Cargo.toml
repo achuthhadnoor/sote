@@ -1,7 +1,7 @@
 [package]
 name = "snipnote"
 version = "0.1.0"
-description = "Local-first Markdown notes for macOS"
+description = "Local-first Markdown notes for macOS and Windows"
 authors = ["Achuth"]
 edition = "2021"
 license = "Proprietary"

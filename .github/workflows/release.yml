@@ -18,6 +18,8 @@ jobs:
             args: --target aarch64-apple-darwin
           - platform: macos-latest
             args: --target x86_64-apple-darwin
+          - platform: windows-latest
+            args: ""
 
     runs-on: ${{ matrix.platform }}
 
@@ -33,13 +35,14 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          # Extra targets only needed when cross-building macOS from macos-latest.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install frontend dependencies
         run: yarn install --frozen-lockfile
 
       - name: Import Apple certificate
-        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        if: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_CERTIFICATE != '' }}
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -64,6 +67,10 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Optional Windows Authenticode signing (leave unset for unsigned NSIS/MSI):
+          # TAURI_SIGNING_PRIVATE_KEY above still signs updater artifacts.
+          # WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD can be wired later
+          # if you add a codesign step; tauri-action does not invent these for you.
         with:
           tagName: ${{ github.ref_name }}
           releaseName: snipnote ${{ github.ref_name }}

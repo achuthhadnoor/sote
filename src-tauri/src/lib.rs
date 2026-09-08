@@ -115,6 +115,12 @@ fn build_and_set_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
         &[&toggle_sidebar, &PredefinedMenuItem::separator(app)?, &appearance_submenu],
     )?;
 
+    // macOS uses Ctrl+Cmd+F; Windows/Linux use F11.
+    #[cfg(target_os = "macos")]
+    let fullscreen_accel = Some("Ctrl+Cmd+F");
+    #[cfg(not(target_os = "macos"))]
+    let fullscreen_accel = Some("F11");
+
     let window_menu = Submenu::with_items(
         app,
         "Window",
@@ -123,7 +129,7 @@ fn build_and_set_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
             &PredefinedMenuItem::minimize(app, None)?,
             &PredefinedMenuItem::maximize(app, None)?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "toggle_fullscreen", "Toggle Full Screen", true, Some("Ctrl+Cmd+F"))?,
+            &MenuItem::with_id(app, "toggle_fullscreen", "Toggle Full Screen", true, fullscreen_accel)?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::close_window(app, None)?,
         ],
@@ -165,6 +171,11 @@ fn set_window_theme(app: AppHandle, theme: String) -> Result<(), String> {
         .map_err(|e| format!("failed to set window theme: {e}"))?;
     crate::logger::debug("app", &format!("window theme set to {theme}"));
     Ok(())
+}
+
+#[tauri::command]
+fn path_is_directory(path: String) -> bool {
+    std::path::Path::new(&path).is_dir()
 }
 
 #[tauri::command]
@@ -236,6 +247,7 @@ pub fn run() {
             logger::frontend_log,
             logger::get_log_path,
             add_recent_vault,
+            path_is_directory,
             reveal_window,
             set_window_theme,
         ])
@@ -288,21 +300,39 @@ pub fn run() {
             let setup_started = std::time::Instant::now();
             let log_path = logger::init(app.handle());
             logger::info("app", &format!("starting, log={}", log_path.to_string_lossy()));
-            let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-                // Empty window title: with Overlay style macOS would draw the
-                // title text centered over our custom TabBar. App/menu identity
-                // still comes from productName in tauri.conf.json.
-                .title("")
-                .inner_size(1280.0, 720.0)
-                .min_inner_size(1100.0, 600.0)
-                .transparent(true)
-                .title_bar_style(tauri::TitleBarStyle::Overlay)
-                // Start hidden; the frontend calls `reveal_window` once session
-                // restore completes, so the window only appears with content.
-                // (Promise-driven IPC resolves while hidden; only rAF/timers
-                // are throttled, and those don't gate the reveal path.)
-                .visible(false)
-                .build()?;
+            // Window chrome:
+            // - macOS: Overlay title bar + empty title so traffic lights sit over
+            //   our custom TabBar (no system title text drawn centered).
+            // - Windows/Linux: keep native decorations + a real title. TabBar is
+            //   content chrome only — caption buttons live in the system title
+            //   bar (no Overlay API on Windows). Transparent stays on for Win11
+            //   Mica; set_effects fails soft on older Windows.
+            let mut window_builder = tauri::WebviewWindowBuilder::new(
+                app,
+                "main",
+                tauri::WebviewUrl::default(),
+            )
+            .inner_size(1280.0, 720.0)
+            .min_inner_size(1100.0, 600.0)
+            .transparent(true)
+            // Start hidden; the frontend calls `reveal_window` once session
+            // restore completes, so the window only appears with content.
+            // (Promise-driven IPC resolves while hidden; only rAF/timers
+            // are throttled, and those don't gate the reveal path.)
+            .visible(false);
+
+            #[cfg(target_os = "macos")]
+            {
+                window_builder = window_builder
+                    .title("")
+                    .title_bar_style(tauri::TitleBarStyle::Overlay);
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                window_builder = window_builder.title("snipnote");
+            }
+
+            let window = window_builder.build()?;
 
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
@@ -326,7 +356,17 @@ pub fn run() {
                             {
                                 let _ = handle.emit("deep-link:open-vault", vault);
                             } else if parsed.host_str() == Some("open") {
-                                let p = format!("/{}", parsed.path().trim_start_matches('/'));
+                                // snipnote://open/<path> — URL path is slash-separated.
+                                // Restore Windows drive letters (C:/…) instead of
+                                // forcing a Unix leading slash.
+                                let raw = parsed.path().trim_start_matches('/');
+                                let p = if raw.len() >= 2 && raw.as_bytes().get(1) == Some(&b':') {
+                                    raw.to_string()
+                                } else if !raw.is_empty() {
+                                    format!("/{}", raw)
+                                } else {
+                                    String::new()
+                                };
                                 if !p.is_empty() && p != "/" {
                                     let _ = handle.emit("deep-link:open", p);
                                 }
@@ -336,13 +376,24 @@ pub fn run() {
                 });
             }
 
-            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            #[cfg(target_os = "macos")]
             {
                 use tauri::window::{Effect, EffectState, EffectsBuilder};
                 let effects = EffectsBuilder::new()
-                    .effects([Effect::Sidebar, Effect::Mica])
+                    .effects([Effect::Sidebar])
                     .state(EffectState::Active)
                     .radius(12.0)
+                    .build();
+                let _ = window.set_effects(Some(effects));
+            }
+            #[cfg(target_os = "windows")]
+            {
+                use tauri::window::{Effect, EffectState, EffectsBuilder};
+                // Win11 Mica only — Sidebar is a macOS material. Ignore errors
+                // on Windows 10 / unsupported where Mica is unavailable.
+                let effects = EffectsBuilder::new()
+                    .effects([Effect::Mica])
+                    .state(EffectState::Active)
                     .build();
                 let _ = window.set_effects(Some(effects));
             }
