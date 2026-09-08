@@ -17,6 +17,7 @@ import { canonicalPath, isPathWithin, normalizePath } from "./lib/path";
 import { flushActiveNote } from "./lib/flushActiveNote";
 import { SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE, isSettingsTab, isVirtualTab } from "./lib/specialTabs";
 import { runStartupUpdateCheck } from "./lib/updater";
+import { isWindows } from "./utils/platform";
 import "./App.css";
 
 // Heavy UI split out of the initial bundle so first paint only pays for the
@@ -533,7 +534,18 @@ function App() {
 
   // Global keyboard shortcuts (Cmd+N, Cmd+P, Cmd+, Cmd+W, nav)
   useEffect(() => {
+    // Alt alone (no chord) toggles the Windows menubar — classic auto-hide behavior.
+    let altChord = false;
+
     const handleKeyDown = async (e: KeyboardEvent) => {
+      if (isWindows) {
+        if (e.key === "Alt") {
+          altChord = false;
+        } else if (e.altKey) {
+          altChord = true;
+        }
+      }
+
       // Cmd+, / Ctrl+, -> Settings tab (macOS standard) — check both key and code for layout safety
       if ((e.metaKey || e.ctrlKey) && (e.key === "," || (e as any).code === "Comma")) {
         e.preventDefault();
@@ -585,8 +597,19 @@ function App() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!isWindows) return;
+      if (e.key !== "Alt" || altChord || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      e.preventDefault();
+      invoke("toggle_app_menu").catch(() => {});
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   }, [selectNote, toggleSettingsTab]);
 
   return (

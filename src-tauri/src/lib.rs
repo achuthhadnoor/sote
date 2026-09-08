@@ -139,8 +139,48 @@ fn build_and_set_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
     let help_menu = Submenu::with_items(app, "Help", true, &[&about])?;
 
     let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &window_menu, &help_menu])?;
+
+    // Preserve visibility across rebuilds (e.g. Open Recent updates). On Windows the
+    // menubar starts hidden and is toggled with Alt from the frontend.
+    let was_visible = app
+        .get_webview_window("main")
+        .and_then(|w| w.is_menu_visible().ok())
+        .unwrap_or(cfg!(not(target_os = "windows")));
+
     app.set_menu(menu)?;
+
+    if let Some(w) = app.get_webview_window("main") {
+        if was_visible {
+            let _ = w.show_menu();
+        } else {
+            let _ = w.hide_menu();
+        }
+    }
     Ok(())
+}
+
+/// Toggle the native window menu bar (Windows/Linux). macOS keeps the system menu.
+#[tauri::command]
+fn toggle_app_menu(app: AppHandle) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app;
+        Ok(true)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let window = app
+            .get_webview_window("main")
+            .ok_or_else(|| "main window missing".to_string())?;
+        let visible = window.is_menu_visible().unwrap_or(false);
+        if visible {
+            window.hide_menu().map_err(|e| e.to_string())?;
+            Ok(false)
+        } else {
+            window.show_menu().map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+    }
 }
 
 #[tauri::command]
@@ -250,6 +290,7 @@ pub fn run() {
             path_is_directory,
             reveal_window,
             set_window_theme,
+            toggle_app_menu,
         ])
         .on_menu_event(|app, event| {
             use tauri::{Emitter, Manager};
@@ -405,6 +446,11 @@ pub fn run() {
             }
 
             build_and_set_menu(app.handle())?;
+            // Windows: hide the menubar until Alt toggles it (keeps frameless chrome clean).
+            #[cfg(target_os = "windows")]
+            {
+                let _ = window.hide_menu();
+            }
 
             // Preload session + vault tree + open note contents in parallel
             // with window creation, so the frontend's first data calls resolve
