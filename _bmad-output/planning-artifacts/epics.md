@@ -21,28 +21,29 @@ This document provides the complete epic and story breakdown for snipnote, decom
 
 ### Functional Requirements
 
-- **FR-1**: User can pick a local folder as Vault via system dialog. App persists the choice and restores it on relaunch without re-prompting.
-- **FR-2**: System displays File Tree in Sidebar with filtered FS: dot-folders (e.g. `.templates`) shown only if subtree has `.md`, empty folders hidden, hidden files (`.DS_Store`, `.hidden.md`) excluded, sorted dirs-first then alpha, with SVG folder/file icons + chevron rotate. [UPDATED 2026-09-03: was strict 1:1; now filtered + icons, see `storage.rs:79`]
-- **FR-3**: System highlights the currently open Note in File Tree and exposes Library entry in Sidebar footer with folder SVG + `Switch/Open…` + gear Settings (`⌘,` overlay). [UPDATED: icons + gear]
-- **FR-4**: User can press Cmd+P (Ctrl+P on Win/Linux) to focus Search, type a substring, see filtered list of Note filenames, and jump to selected note (opens as tab).
-- **FR-5**: User can click a Note in File Tree or its Tab to make it active, with highlight and Tab Bar update; tabs are scrollable multi-tabs with `×` close, `⌘W` close, `Ctrl/⌘+Tab` cycle, draft italic/hollow, dirty •/saving…. Back/forward arrows navigate session tab history.
-- **FR-6**: Editor renders headings, bold, links, and bullets live as user types without a split preview pane. Fenced Mermaid blocks, task lists, and inline code are rendered. Draft `isNew` tabs init empty without `read_file` until `hasContent`.
-- **FR-7**: System preserves Markdown Source on save exactly as standard CommonMark/GFM with no injected HTML/class attributes. Frontmatter is preserved verbatim. Save is atomic temp+rename; draft guard `hasContent` prevents empty file creation.
-- **FR-8**: System watches Markdown Source on disk; when external agents (Claude) write to a Note: auto-reloads if clean (dirty=false); displays non-blocking banner "File changed on disk — Reload / Keep mine" if dirty (dirty=true). Dot-folder markdown still emits.
-- **FR-9**: User can open notes as tabs (`+`/`⌘N` creates draft `Untitled.md` `{isNew:true}` virtual, no disk until content → 500ms debounce `write_file` → `markTabSaved` + `loadVault`; `×`/`⌘W` close, `openTabs` persisted in `session.json`). [UPDATED: was immediate disk create; now draft-until-content]
-- **FR-10**: System shows live word count, character count, and paragraph count in Status Bar, updating on every keystroke and on file load.
-- **FR-11**: System shows standard macOS traffic lights over vibrant window (`Sidebar` on macOS / `Mica` on Win11 via `EffectsBuilder`, `transparent:true`, `radius 12`, `1280×720` `min 1100×600` `Overlay`) and persists window size/position + `openTabs` across relaunch.
-- **FR-12**: User can pick Light/Dark/System theme in Settings (`⌘,`) — `System` follows `prefers-color-scheme` live; `data-theme` drives `App.css [data-theme="dark"]` overrides, persisted in `localStorage snipnote-theme`. [NEW 2026-09-03]
-- **FR-13**: User can open Settings overlay via `⌘,`/`Ctrl+,` or Sidebar gear, close via `Esc`/`×`/`Done`/`⌘,` toggle, and switch theme. [NEW 2026-09-03]
+- **FR-1**: User can pick a local folder as Vault via system dialog, WelcomeGate Choose Folder, or drag-drop. App persists and restores without re-prompting. [UPDATED 2026-09-08]
+- **FR-2**: System displays File Tree in Sidebar with filtered FS: dot-folders shown only if subtree has `.md`, empty folders hidden, hidden files excluded, dirs-first then alpha, SVG icons + chevron. 
+- **FR-3**: System highlights the currently open Note in File Tree and exposes Library footer with folder SVG + `Switch/Open…` + gear Settings (`{mod},` opens Settings **tab**). [UPDATED 2026-09-08]
+- **FR-4**: User can press Cmd+P (Ctrl+P on Win/Linux) to focus Search, type a substring, see filtered Note filenames, and jump (opens as tab). Labels via `modShortcut`.
+- **FR-5**: User can click a Note in File Tree or its Tab to make it active; tabs scrollable with `×`/`⌘W`/`Ctrl+Tab`, draft/dirty affordances; sidebar collapsible `{mod}B`.
+- **FR-6**: Editor renders headings, bold, links, bullets live; Mermaid/tasks/code rendered; draft `isNew` empty until `hasContent`.
+- **FR-7**: System preserves Markdown Source on save as CommonMark/GFM with no injected HTML; frontmatter verbatim; atomic write + `hasContent` guard.
+- **FR-8**: File watcher: clean auto-reload; dirty banner Reload / Keep mine.
+- **FR-9**: Multi-tab lifecycle with draft-until-content `+`/`⌘N`; `openTabs` persisted.
+- **FR-10**: Live word/char/paragraph Status Bar.
+- **FR-11**: Platform-split window: macOS Overlay + Sidebar vibrancy; Windows native decorations + Mica; Linux opaque; persist geometry + `openTabs`. [UPDATED 2026-09-08]
+- **FR-12**: Theme Light/Dark/System + tint hue/intensity + Reduce Transparency in Settings. [UPDATED 2026-09-08]
+- **FR-13**: Settings as editor **tab** via `{mod},`/gear; close via toggle or close tab. [UPDATED 2026-09-08]
+- **FR-14**: Auto-update (startup ≤12h + Settings Check) and Launch at Login. [NEW 2026-09-08]
 
 ### NonFunctional Requirements
 
 - **NFR-1 (Performance)**: Cold launch to Editor < 1.5s on M1; file open < 200ms for < 100KB md; search filter < 100ms for 500 files.
 - **NFR-2 (Reliability)**: Never silently overwrite Markdown Source. Crash must not corrupt file (atomic write via temp file + rename).
-- **NFR-3 (Privacy & Security)**: Strictly local-only in v1; no outbound network calls; no telemetry without opt-in; no cloud sync; hardened Tauri Content Security Policy (`script-src 'self'`).
-- **NFR-4 (Accessibility)**: Full keyboard navigability for Sidebar/File Tree, Cmd+P command palette, and Tab traversal.
+- **NFR-3 (Privacy & Security)**: Local-first; no telemetry/cloud; vault files never leave disk; **outbound HTTPS allowed only for updater** endpoints; hardened Tauri CSP.
+- **NFR-4 (Accessibility)**: Full keyboard navigability for Sidebar/File Tree, command palette, and Tab traversal; platform-correct shortcut labels.
 - **NFR-5 (Observability)**: Local file-watcher errors surfaced as non-blocking UI banner, not silent failures.
-- **NFR-6 (Testing & Quality)**: Round-trip serialization verified by automated test suite of at least 50 fixtures (headings, lists, links, code, frontmatter, Mermaid) passing byte-level equality.
+- **NFR-6 (Testing & Quality)**: Round-trip serialization verified by automated test suite of at least 50 fixtures.
 
 ### Additional Requirements
 
@@ -61,48 +62,55 @@ This document provides the complete epic and story breakdown for snipnote, decom
 
 - **UX-DR1 (Design Tokens)**: Monochrome palette light (`#FFFFFF` editor, `#F8F8F9` sidebar, `#EAEAEA` hairlines, `#0F0F0F` primary, `#2563EB` link) + dark (`#141416` bg, `#1A1A1E` sidebar, `#2A2A2E` border, `#EDEEF0` fg, `#60A5FA` link) + translucent `rgba` over vibrant Sidebar/Mica (`bg 0.78` white / `0.72` dark, etc.) via `src/App.css:1` + `html[data-theme]`.
 - **UX-DR2 (Typography)**: Inter / SF Pro Text typography ramp: body sans 14px/1.6, sidebar/status sans-sm 13px/1.5, mono 13px/1.6, heading-1 24px/700, heading-2 18px/600, display 18px/600.
-- **UX-DR3 (Layout & Spacing)**: Fixed 260px Sidebar (Search header 40px, scrollable File Tree, Library footer 40px with gear), Main area with 40px TabBar (scrollable tabs `28px` `max 180px`), centered 760px max-width EditorSurface with 24px gutters, and 24px StatusBar; Right Panel `420px` Terminal/Browser/Canvas built but hidden (`App.tsx` commented); window `1280×720` `min 1100×600` vibrant `radius 12` `Overlay`.
-- **UX-DR4 (Sidebar & File Tree)**: Hierarchical tree view with SVG folder (closed/open `0.14 fill`) + `16px` file (doc with md lines) + `14px` chevron rotate, `.md` note rows, active row highlight (`accent-translucent` `8px` radius), hover `hover-translucent`, dot-folders shown only if contain md, empty hidden.
-- **UX-DR5 (Command Palette)**: Elevated floating modal (`white`/`dark #141416`, `12px` radius, shadow `0 8px 32px`, `520×400`) triggered by `⌘P`, fuzzy filtering note filenames with keyboard navigation (Up/Down/Enter/Esc), opens as tab.
-- **UX-DR6 (Tab Bar)**: `40px` height, bottom `border-translucent`, `bg-translucent`, `26px` back/forward `←→`, scrollable `tabs-scroll` (`gap 6px`, hidden scrollbar) with `tab-item` (`28px`, `is-active` `bg`+`border`+shadow, `is-draft` italic + hollow `6px` / `draft` label, dirty `•`, `saving…`, `×` close), right `+` `26px` draft-until-content.
-- **UX-DR7 (Status Bar)**: Quiet `11px` mono/sans-sm muted text right-aligned showing `X words | Y characters | Z paragraphs`, translucent `status-translucent` over vibrant.
-- **UX-DR8 (Conflict Banner)**: Non-blocking inline banner docked directly under Tab Bar (`muted-translucent`, `border-translucent`, `6px` radius, `13px` text) with "Reload" and "Keep mine" buttons.
-- **UX-DR9 (Settings)**: Overlay `560px` `blur 8px` `z 10000` `12px` radius `shadow 0 20px 50px`, header `Settings` + `×`, body `Appearance` radios Light/Dark/System + About, footer `Done`; opened via `⌘,`/gear, closed via `Esc`/`×`.
-- **UX-DR10 (Theme)**: `light|dark|system` via `useThemeStore` + `localStorage snipnote-theme` + `document[data-theme]` + `colorScheme`; System follows `prefers-color-scheme` live.
+- **UX-DR3 (Layout & Spacing)**: Sidebar 260px (collapsible), TabBar 40px, Editor 760px / Settings 640px / WelcomeGate 420px, StatusBar 24px; window `1280×720` platform-split chrome; Right Panel hidden.
+- **UX-DR4 (Sidebar & File Tree)**: Hierarchical tree with SVG folder/file icons, active accent highlight, filtered FS rules.
+- **UX-DR5 (Command Palette)**: Elevated opaque palette via `{mod}P`, filename filter, keyboard nav.
+- **UX-DR6 (Tab Bar)**: Multi-tabs with draft/dirty affordances; welcomeMode minimal chrome; platform caption spacing.
+- **UX-DR7 (Status Bar)**: Quiet words/chars/paragraphs.
+- **UX-DR8 (Conflict Banner)**: Inline Reload / Keep mine under Tab Bar.
+- **UX-DR9 (Settings)**: Settings **tab** (`SettingsView`) — Appearance (theme, hue, intensity, reduce transparency), Writing, System (autostart, automatic updates, check), Diagnostics.
+- **UX-DR10 (Theme)**: `light|dark|system` + tint + Reduce Transparency via `useThemeStore`.
+- **UX-DR11 (WelcomeGate)**: Brand-first first-run drop zone + Choose Folder + `modShortcut("O")`.
+- **UX-DR12 (Shortcuts)**: All chrome chips use `modShortcut` (`⌘` mac / `Ctrl+` Win).
 
 ### FR Coverage Map
 
-- **FR-1**: Epic 1 — Open local Vault via native dialog and restore across restarts
-- **FR-2**: Epic 1 — Render filtered File Tree (dot-folders + hide empty) with SVG icons + alphabetical sorting
-- **FR-3**: Epic 1 — Active File Highlight + Library footer with gear Settings
-- **FR-4**: Epic 4 — ⌘P Command Palette fuzzy search across note filenames (opens as tab)
-- **FR-5**: Epic 4 — Navigate via File Tree clicks and Tab Bar multi-tab + `×`/`⌘W`/`Ctrl+Tab` history
-- **FR-6**: Epic 2 — Live WYSIWYG Markdown & Mermaid diagram rendering, draft-empty init
-- **FR-7**: Epic 2 — Raw Markdown round-trip fidelity & Envelope frontmatter preservation + `hasContent` guard
-- **FR-8**: Epic 3 — Real-time file watcher, echo suppression, and conflict resolution banner (dot-folder md still watched)
-- **FR-9**: Epic 2 — Multi-tab lifecycle, draft-until-content `+`/`⌘N`, `openTabs` persistence in `session.json`
-- **FR-10**: Epic 4 — Live document statistics (words, characters, paragraphs) in Status Bar
-- **FR-11**: Epic 1 — Vibrant window (`Sidebar`/`Mica`, `1280×720`, `transparent`, `radius 12`) + native traffic lights + geometry + `openTabs` persistence
-- **FR-12**: Epic 1 — Theme Light/Dark/System via `data-theme` + `localStorage` + `useThemeStore`
-- **FR-13**: Epic 1 — Settings overlay via `⌘,`/gear
+- **FR-1**: Epic 1 — Open vault + WelcomeGate
+- **FR-2**: Epic 1 — Filtered File Tree
+- **FR-3**: Epic 1 — Active highlight + Library + Settings gear
+- **FR-4**: Epic 4 — `{mod}P` Command Palette
+- **FR-5**: Epic 4 — File Tree / multi-tab / sidebar toggle
+- **FR-6**: Epic 2 — Live WYSIWYG + Mermaid
+- **FR-7**: Epic 2 — Round-trip fidelity
+- **FR-8**: Epic 3 — Watcher + conflict banner
+- **FR-9**: Epic 2 — Multi-tab draft-until-content
+- **FR-10**: Epic 4 — Status Bar stats
+- **FR-11**: Epic 1 — Platform chrome + material
+- **FR-12**: Epic 1 — Theme + tint
+- **FR-13**: Epic 1 — Settings tab
+- **FR-14**: Epic 5 — Auto-update + Launch at Login (Story 5.9)
 
 ## Epic List
 
 ### Epic 1: Workspace Shell & Vault Access (Vibrant + Theme + Settings)
-Users can launch the branded vibrant `snipnote` desktop application (`1280×720` `Sidebar`/`Mica` via `EffectsBuilder`, `transparent` + `radius 12`, traffic lights `Overlay`, `macos-private-api`, light/dark/system theme, `⌘,` Settings), pick any local folder as vault via system dialog, explore filtered hierarchy in Sidebar (dot-folders shown only if contain md, empty hidden, SVG icons), with active highlight, and have vault + `openTabs` + theme + window geometry restored automatically on relaunch.
-**FRs covered:** FR-1, FR-2, FR-3, FR-11, FR-12, FR-13 (incorporates ARCH-1 + window material)
+Users can launch branded snipnote on **macOS or Windows** (platform-split Overlay/Sidebar vs native/Mica), see WelcomeGate when no vault, open a folder (dialog or drop), explore filtered Sidebar (collapsible), use Settings **tab** for theme/tint, and restore vault + tabs + geometry on relaunch.
+**FRs covered:** FR-1, FR-2, FR-3, FR-11, FR-12, FR-13
 
 ### Epic 2: Live Markdown Editor & Document Fidelity (Multi-Tab + Draft)
-Users can open notes as tabs (`+` creates draft `{isNew:true}` `Untitled.md` not on disk until has content) in a centered, clean editing canvas with scrollable multi-tabs (`×`/`⌘W`/`Ctrl+Tab`), instant live WYSIWYG rendering for headings, bold, links, lists, code, and Mermaid diagrams. Users can trust saving maintains pure CommonMark/GFM and preserves YAML frontmatter byte-for-byte, with atomic write + `hasContent` guard and 500ms debounce.
+Users can open notes as tabs (`+` creates draft until content) with live WYSIWYG + Mermaid, trusting CommonMark/GFM round-trip and atomic saves.
 **FRs covered:** FR-6, FR-7, FR-9
 
 ### Epic 3: External File Synchronization & Conflict Guard
-Users can keep `snipnote` open side-by-side with their terminal while Claude Code generates or edits spec files on disk. Clean files auto-reload seamlessly with preserved cursor/scroll position, while unsaved buffers display an inline non-blocking banner (`File changed on disk — [Reload] [Keep mine]`) without data loss. Snipnote never triggers false reloads on its own saves.
+Users keep snipnote beside the terminal while Claude edits disk files — clean auto-reload, dirty banner, no self-echo.
 **FRs covered:** FR-8
 
 ### Epic 4: Fast Keyboard Navigation & Document Insights
-Users can navigate their vault at keyboard speed using a ⌘P Command Palette to instantly fuzzy-search and jump between notes by filename, traverse their session tab history with back/forward arrows, and monitor live word, character, and paragraph statistics in the quiet Status Bar as they write.
+Users navigate via `{mod}P`, tab history, and live Status Bar stats with platform-correct shortcut labels.
 **FRs covered:** FR-4, FR-5, FR-10
+
+### Epic 5: Native Desktop Polish
+Native menus, Find/Replace, spellcheck, drag-drop/file association, accessibility, and **distribution** (auto-updater + Launch at Login).
+**FRs covered:** FR-14 + polish stories 5.1–5.8
 
 ## Epic 1: Workspace Shell & Vault Access
 
@@ -118,13 +126,13 @@ So that the desktop shell is cleanly identified and hardened against security re
 
 **Given** `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`,
 **When** inspected,
-**Then** the package name, crate name, and `productName` are all `snipnote`, the bundle identifier is `com.achuth.snipnote`, and the window title is `snipnote`.
+**Then** the package name, crate name, and `productName` are all `snipnote`, the bundle identifier is `com.achuth.snipnote`, and the product window title is `snipnote` on non-macOS (macOS Overlay uses empty title).
 **And** `index.html` has title `snipnote`.
 
-**Given** `src-tauri/tauri.conf.json`,
-**When** window settings are evaluated,
-**Then** the window enforces `width: 1280`, `height: 720`, `minWidth: 1100`, `minHeight: 600`, `transparent:true`, `macOSPrivateApi:true`, `titleBarStyle Overlay`, `macos-private-api` feature in `Cargo.toml`, and `EffectsBuilder([Sidebar,Mica],Active,radius12)` in `lib.rs:14` with `html/body` transparent + translucent `rgba` fills.
-**And** macOS native traffic light window controls float over vibrant with `border-radius 12`.
+**Given** `src-tauri/src/lib.rs` window setup,
+**When** built for each OS,
+**Then** macOS uses Overlay + empty title + `Effect::Sidebar` + radius 12; Windows uses native decorations + titled window + `Effect::Mica` (soft-fail ok); Linux uses native + opaque fills; window size `1280×720` min `1100×600` `transparent:true`.
+**And** CSS `html/body` remain transparent with translucent shell fills (or opaque when Reduce Transparency / unsupported).
 
 **Given** the application security configuration in `src-tauri/tauri.conf.json`,
 **When** CSP is evaluated,
@@ -199,22 +207,26 @@ So that snipnote feels at home beside Finder/Explorer and respects light/dark.
 
 **Acceptance Criteria:**
 
-**Given** `src-tauri/tauri.conf.json:12` `transparent:true` + `macOSPrivateApi:true` + `tauri` feature `macos-private-api` + `src-tauri/src/lib.rs:14` `.setup` `EffectsBuilder([Sidebar,Mica],Active,radius12)`,
-**When** launched on macOS 10.14+ / Win11 22H1+,
-**Then** sidebar `rgba(248,248,249,0.68)` / dark `rgba(26,26,30,0.68)` and editor `rgba(255,255,255,0.78)` / dark `rgba(20,20,22,0.72)` show wallpaper/Mica tint with `blur` and `border-radius 12`; `html,body,#root` remain `transparent`; Linux falls back to opaque hexes.
+**Given** `src-tauri/src/lib.rs` platform-split effects + chrome,
+**When** launched on macOS 10.14+,
+**Then** Overlay title bar + empty title + `Effect::Sidebar` + radius 12 apply; translucent fills show material.
+**When** launched on Windows 11,
+**Then** native decorations + titled window + `Effect::Mica` apply (soft-fail ok on older Windows).
+**And** `html,body,#root` remain transparent; Linux falls back to opaque hexes; no combined `[Sidebar, Mica]` list.
 
-### Story 1.7: Light/Dark/System Theme + Settings (⌘,)
+### Story 1.7: Light/Dark/System Theme + Settings Tab (`{mod},`)
 
 As a user,
-I want to choose Light/Dark/System theme in a Settings overlay opened via `⌘,`/gear,
+I want to choose theme, tint, and transparency in a Settings tab opened via `{mod},`/gear,
 So that I can match my OS and keep vibrant readability.
 
 **Acceptance Criteria:**
 
-**Given** `src/stores/useThemeStore.ts:1` + `src/components/settings/SettingsDialog.tsx:1` + `src/App.css:43` `[data-theme="dark"]` + `Sidebar.tsx:5` gear,
-**When** the user presses `⌘,`/`Ctrl+,` or clicks gear in Sidebar footer,
-**Then** a modal overlay `560px` `blur 8px` appears with Appearance radios Light/Dark/System + About, footer `Done`; selecting a theme writes `localStorage snipnote-theme`, sets `html[data-theme]` + `colorScheme`, and System follows `prefers-color-scheme` live via `matchMedia` listener.
-**And** tab bar, sidebar, editor, status, and settings reflect dark tokens (`#141416` etc.) with AA contrast over vibrant.
+**Given** `useThemeStore` + `SettingsView.tsx` + `App.css` `[data-theme="dark"]`,
+**When** the user presses `{mod},` or clicks gear,
+**Then** Settings opens as an editor **tab** (not a modal) with Appearance (theme, hue, intensity, reduce transparency), Writing, System, and Diagnostics.
+**And** theme/tint persist via localStorage; System follows `prefers-color-scheme` live.
+**And** closing via `{mod},` again or close tab returns to prior note/home.
 
 ## Epic 2: Live Markdown Editor & Document Fidelity
 
@@ -480,15 +492,17 @@ So that snipnote is usable without a mouse.
 ### Story 5.9: Distribution: Auto-update, Launch at Login, Haptics
 
 As a user,
-I want `Sparkle` auto-update, `Launch at Login`, and subtle haptics,
+I want signed auto-updates, Launch at Login, and subtle haptics,
 So that snipnote stays fresh and feels tactile.
 
 **Acceptance Criteria:**
 
-**Given** `tauri-plugin-updater` (`Sparkle` on macOS) configured + `Settings` `Launch at Login` toggle (`tauri-plugin-autostart`),
-**When** an update is available or toggle switched,
-**Then** `Check for Updates` shows progress, `Launch at Login` persists via `autostart` plugin and survives reboot.
-**And** `Haptics` (`NSHapticFeedbackManager` `alignment`) fires on `Toggle Sidebar`/`Settings` open and `NSSound.beep` on save error (via `tauri-plugin` or `navigator.vibrate` fallback).
+**Given** `tauri-plugin-updater` + pubkey/endpoints in `tauri.conf.json` + `src/lib/updater.ts`,
+**When** Automatic Updates is enabled (default on) and a published newer release exists,
+**Then** startup check (~4s after reveal, ≤12h) prompts to download/install/relaunch; Settings Check always checks immediately.
+**And** Launch at Login persists via `tauri-plugin-autostart`.
+**And** draft GitHub Releases must be published before `/releases/latest/download/latest.json` works.
+**And** haptics (`navigator.vibrate` / optional native) fire on sidebar/settings toggles.
 
 
 

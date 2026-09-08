@@ -7,7 +7,7 @@ paradigm: 'Hexagonal with Tauri IPC Bridge (Ports & Adapters)'
 scope: 'snipnote desktop markdown editor (v1 scope)'
 status: final
 created: '2026-09-02'
-updated: '2026-09-03'
+updated: '2026-09-08'
 binds:
   - FR-1
   - FR-2
@@ -22,10 +22,12 @@ binds:
   - FR-11
   - FR-12
   - FR-13
+  - FR-14
 sources:
   - _bmad-output/planning-artifacts/prds/prd-snipnote-2026-09-02/prd.md
   - _bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/DESIGN.md
   - _bmad-output/planning-artifacts/ux-designs/ux-snipnote-2026-09-02/EXPERIENCE.md
+  - _bmad-output/planning-artifacts/sprint-change-proposal-2026-09-08.md
 companions: []
 ---
 
@@ -110,35 +112,45 @@ graph TD
 - **Prevents:** Vault pollution with empty `Untitled.md` files when user presses `+`/`⌘N` without typing; desynchronization between draft tabs and disk.
 - **Rule:** Clicking `+`/`⌘N` in the Tab Bar MUST create a virtual draft tab `{path: baseVault/Untitled.md, title, isNew:true}` via `useTabStore.selectNote(...,{isNew:true})` with `editor.setContent("")` and `isDirty:false`, without invoking Rust `create_note` nor touching disk. The draft MUST remain in-memory (italic title + hollow dot) until `hasContent = body.trim()||frontmatter.trim() >0`. First autosave (500ms debounce) or flush (blur/tab switch/close) with `hasContent` MUST invoke `write_file` → atomic write → `markTabSaved(false)` → `loadVault` to show file in tree. Empty draft closed or window blurred with no content MUST do nothing on disk. `openTabs` persisted in `session.json` MUST exclude `isNew` drafts; `sanitize_session` filters to existing files.
 
-### AD-9 — Vibrant Window Material via EffectsBuilder Only [ADOPTED 2026-09-03]
+### AD-9 — Vibrant Window Material via EffectsBuilder Only [ADOPTED 2026-09-03; UPDATED 2026-09-08]
 
 - **Binds:** FR-11, window layer, design tokens
-- **Prevents:** Non-native window chrome, heavy custom blur JS, platform-inconsistent translucency.
-- **Rule:** Window MUST be `transparent:true` + `macOSPrivateApi:true` + `tauri` feature `macos-private-api` + `html/body/#root transparent` + `src-tauri/src/lib.rs:14` `.setup` `EffectsBuilder::new().effects([Effect::Sidebar, Effect::Mica]).state(Active).radius(12.0).build()` → `window.set_effects`. CSS translucent `rgba` variants (`bg 0.78`/`0.72 dark`, `sidebar 0.68`, etc.) sit over native `NSVisualEffectView`/`Mica`; Linux falls back to opaque hexes. No `window-vibrancy` crate. Window `1280×720` `min 1100×600` `Overlay`.
+- **Prevents:** Non-native window chrome, heavy custom blur JS, applying macOS Overlay/Sidebar APIs on Windows.
+- **Rule:** Window MUST be `transparent:true` with `html/body/#root` transparent. Material MUST be applied via EffectsBuilder only (no `window-vibrancy` crate), **platform-split**:
+  - **macOS:** `macOSPrivateApi:true` + `macos-private-api` feature; `TitleBarStyle::Overlay` + empty title; `EffectsBuilder::new().effects([Effect::Sidebar]).state(Active).radius(12.0)` → `set_effects`.
+  - **Windows:** native decorations + title `"snipnote"`; `EffectsBuilder::new().effects([Effect::Mica]).state(Active)` → `set_effects` (errors ignored on older Windows).
+  - **Linux / unsupported:** native decorations; opaque CSS fills.
+  Do **not** pass `[Sidebar, Mica]` as a single combined list. Window `1280×720` `min 1100×600`. CSS translucent fills sit over material; Reduce Transparency forces opaque.
 
-### AD-10 — Light/Dark/System Theme + Settings [ADOPTED 2026-09-03]
+### AD-10 — Light/Dark/System Theme + Settings Tab [ADOPTED 2026-09-03; UPDATED 2026-09-08]
 
 - **Binds:** FR-12, FR-13, design tokens
-- **Prevents:** Theme flicker, inconsistent vibrant readability, hidden settings discoverability.
-- **Rule:** Theme state MUST live in `src/stores/useThemeStore.ts:1` (`theme: light|dark|system` + `effectiveTheme`, `localStorage snipnote-theme`, `html[data-theme]` + `style.colorScheme`, `matchMedia(prefers-color-scheme)` live listener when `system`). `src/App.css:43` `[data-theme="dark"]` overrides MUST define dark `bg #141416` etc. + dark translucent. Settings MUST be `src/components/settings/SettingsDialog.tsx:1` overlay `560px` `blur 8px` `z 10000`, opened via global `keydown` `⌘,`/`Ctrl+,` (`key ","`/`code Comma`) or Sidebar gear `Sidebar.tsx:5`, closed via `Esc`/`×`/`Done`/`⌘,` toggle.
+- **Prevents:** Theme flicker, modal Settings fighting the editor metaphor, hard-coded Mac shortcut glyphs on Windows.
+- **Rule:** Theme state MUST live in `src/stores/useThemeStore.ts` (`theme: light|dark|system` + `effectiveTheme` + tint hue/amount + `bgOpacity`, `localStorage`, `html[data-theme]` + `matchMedia` when `system`). Settings MUST be `src/components/settings/SettingsView.tsx` rendered as an editor **tab** (virtual path), opened via global `keydown` `⌘,`/`Ctrl+,` or gear controls, closed via `{mod},` toggle or close tab. Shortcut labels MUST use `src/utils/platform.ts` `modShortcut` / `modKeyLabel`. Appearance includes Hue, Intensity, Reduce Transparency; System includes autostart + updater controls.
 
-### AD-11 — Strict Local-Only Network & Tauri Security Isolation [ADOPTED]
+### AD-11 — Local-First Network Policy & Tauri Security Isolation [ADOPTED; UPDATED 2026-09-08]
 
-- **Binds:** FR-11, security, NFR
-- **Prevents:** Remote code execution or data leakage of local vault files.
-- **Rule:** The application MUST operate strictly local-only with no outbound network requests. Tauri Content Security Policy (`csp`) MUST be strictly configured to disallow external scripts (`script-src 'self'`). No remote telemetry or cloud sync calls are permitted in v1.
+- **Binds:** FR-11, FR-14, security, NFR
+- **Prevents:** Remote code execution or data leakage of local vault files; silent telemetry.
+- **Rule:** The application MUST remain local-first: no telemetry, no cloud sync, vault files never leave disk. **Exception (FR-14):** `tauri-plugin-updater` MAY perform outbound HTTPS to configured updater endpoints (GitHub Releases `latest.json` + artifact URLs) for version check and signed download/install. Tauri CSP MUST disallow external scripts (`script-src`/`default-src 'self'` as configured). No other outbound network in v1.
+
+### AD-12 — Auto-Update Client [ADOPTED 2026-09-08]
+
+- **Binds:** FR-14, distribution
+- **Prevents:** Stuck installs; unsigned update payloads; noisy checks every launch.
+- **Rule:** Updater pubkey + endpoints MUST live in `tauri.conf.json`. Frontend MUST use `src/lib/updater.ts`: startup check ~4s after reveal when Automatic Updates enabled (default on), throttled ≤12h; Settings Check always immediate; install only after user confirm → `downloadAndInstall` → `relaunch`. Release CI MUST produce `.sig` with `TAURI_SIGNING_PRIVATE_KEY`; drafts MUST be published before `/releases/latest` works.
 
 ## Consistency Conventions
 
 | Concern | Convention |
 | --- | --- |
-| Note Identity | Canonical absolute POSIX path is the sole unique identifier for note entities across IPC, tabs, and editor stores. |
+| Note Identity | Canonical absolute OS path is the sole unique identifier for note entities across IPC, tabs, and editor stores (POSIX on macOS/Linux; drive-letter / UNC on Windows). |
 | Note File Naming | Note filenames match the title on disk (e.g. `Tech Stack Decisions.md`); new notes default to `Untitled.md`, `Untitled 1.md`. |
 | IPC Tree Contract | Directory hierarchy across IPC MUST conform to `interface VaultNode { path: string; name: string; isDirectory: boolean; children?: VaultNode[]; }`. |
 | Frontend Code Style | PascalCase for React components (`FileTree.tsx`), camelCase for hooks and stores (`useVaultStore.ts`), kebab-case for CSS (`app.css`). |
 | Rust Code Style | snake_case for modules (`storage.rs`, `watcher.rs`) and commands (`open_vault`, `write_file`). |
 | IPC Event Naming | Colon-delimited kebab-case (`vault:file-changed`, `vault:tree-changed`). |
-| Path Normalization | All file paths exchanged across the IPC bridge MUST be canonicalized absolute POSIX paths. |
+| Path Normalization | Paths exchanged across IPC MUST be absolute and OS-native; frontend helpers in `src/utils/paths.ts` / `src/lib/path.ts` handle `/` and `\`. |
 | Metadata Preservation | `rawFrontmatter` is the exact substring between leading `---\n` and closing `\n---`; null if absent. |
 | Error Representation | Errors across IPC MUST conform to `{ code: string, message: string }`. |
 | State Mutation | Any keystroke or note edit sets `dirty: true` until atomic save completes for that snapshot. |
@@ -165,76 +177,76 @@ graph TD
 snipnote/
   src-tauri/
     src/
-      lib.rs                # Tauri command registration & app builder + EffectsBuilder vibrant setup
-      main.rs               # Entry point
-      storage.rs            # Atomic save, tempfile handling, file reading, directory scan (dot-folders + hide empty)
-      watcher.rs            # notify watcher thread & RecentlyWritten echo suppression cache
-      session.rs            # session.json load/save & window geometry + openTabs
-    Cargo.toml              # tauri feature macos-private-api
-    tauri.conf.json         # Window 1280×720 transparent + macOSPrivateApi + Overlay + CSP
+      lib.rs                # Commands, menu, window chrome cfg(macos|windows), EffectsBuilder split, plugins
+      main.rs               # Entry point (windows_subsystem)
+      storage.rs            # Atomic save, scan (dot-folders + hide empty)
+      watcher.rs            # notify + RecentlyWritten
+      session.rs            # session.json + openTabs
+      boot.rs               # Warm-boot cache
+    Cargo.toml              # tauri macos-private-api; updater/autostart plugins
+    tauri.conf.json         # transparent, updater pubkey/endpoints, CSP, createUpdaterArtifacts
   src/
     components/
+      welcome/
+        WelcomeGate.tsx     # Brand-first drop zone + Choose Folder
       sidebar/
-        Sidebar.tsx         # Left pane shell (260px) + gear Settings + vault switch
-        FileTree.tsx        # Recursive directory tree with SVG Folder/File icons + chevron
-        LibraryFooter.tsx   # Vault switcher & info (legacy)
+        Sidebar.tsx         # Left pane + gear Settings + vault switch
+        FileTree.tsx        # SVG icons + filtered tree
       editor/
-        EditorSurface.tsx   # Tiptap wrapper & centered 760px canvas + draft-until-content + auto-save 500ms
-        TabBar.tsx          # Scrollable multi-tabs (isNew draft hollow, dirty •, ×, +) + history arrows
-        StatusBar.tsx       # Live word, character, and paragraph counters
-        ConflictBanner.tsx  # Non-blocking external change banner
+        EditorSurface.tsx   # Tiptap + FindBar + SettingsView host
+        TabBar.tsx          # Multi-tabs + welcomeMode + platform chrome
+        HomeView.tsx        # Vault overview when no note
+        StatusBar.tsx
+        ConflictBanner.tsx
       palette/
-        CommandPalette.tsx  # ⌘P filename quick-switcher (opens as tab)
-      rightPanel/           # Built but hidden (App.tsx commented) for later
-        RightPanel.tsx      # 420px container + collapsed rail + Tabs Terminal/Browser/Canvas
-        TerminalPane.tsx    # Mock dark #0F0F0F prompt
-        BrowserPane.tsx     # URL bar + iframe
-        CanvasPane.tsx      # Dotted grid canvas + pen/rect/arrow
+        CommandPalette.tsx
       settings/
-        SettingsDialog.tsx  # 560px blur overlay + Appearance radios
-    hooks/
-      useTauriEvents.ts     # Listeners for vault:file-changed & vault:tree-changed
-    stores/
-      useVaultStore.ts      # Active vault path, tree hierarchy (filtered), file index
-      useTabStore.ts        # Tabs Tab[] {path,title,isNew}, active, history, select/close/setTabs/markSaved
-      useEditorStore.ts     # Document envelope, dirty/isSaving/isLoading, saveNow with hasContent guard
-      useThemeStore.ts      # Theme light|dark|system, effectiveTheme, localStorage, data-theme
+        SettingsView.tsx    # Tab: Appearance / Writing / System / Diagnostics
+      rightPanel/           # Built but hidden
+    lib/
+      updater.ts            # Startup + manual update check/install
+      specialTabs.ts        # Settings virtual tab
     utils/
-      envelope.ts           # Frontmatter extraction & reattachment
-      stats.ts              # Word, character, and paragraph counters
-    App.tsx                 # Vibrant app-shell (Sidebar | Main | [RightPanel hidden]) + global shortcuts (⌘N/P/,/W/Tab) + session + theme
-    main.tsx                # React root mount
-    index.html
+      platform.ts           # PLATFORM, modShortcut
+      paths.ts              # Absolute path helpers (/ and \)
+    stores/
+      useVaultStore.ts
+      useTabStore.ts
+      useEditorStore.ts
+      useThemeStore.ts      # Theme + tint + bgOpacity
+    App.tsx                 # Shell + WelcomeGate + startup updater
 ```
 
 ## Capability → Architecture Map
 
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
-| FR-1: Open local Vault | `src-tauri/src/storage.rs`, `useVaultStore.ts` | AD-1, AD-6 |
-| FR-2: Render File Tree (filtered + icons) | `components/sidebar/FileTree.tsx` (SVG icons), `useVaultStore.ts`, `src-tauri/src/storage.rs:79` | AD-1, AD-8 |
-| FR-3: Active File Highlight & Library + Settings gear | `components/sidebar/Sidebar.tsx` (folder SVG + gear), `useTabStore.ts`, `useThemeStore.ts` | AD-5, AD-10 |
-| FR-4: Search via ⌘P (filename) | `components/palette/CommandPalette.tsx`, `useVaultStore.ts` | AD-5 |
-| FR-5: Navigate via File Tree & Multi-Tabs | `components/editor/TabBar.tsx` (scrollable tabs, ×/⌘W/Ctrl+Tab), `useTabStore.ts` | AD-5, AD-8 |
-| FR-6: Live Markdown & Mermaid + Draft | `components/editor/EditorSurface.tsx` (isNew draft init), Tiptap NodeViews | AD-2, AD-5, AD-8 |
-| FR-7: Raw Markdown Round-Trip + hasContent | `utils/envelope.ts`, `src-tauri/src/storage.rs`, `useEditorStore.ts:84` | AD-1, AD-2, AD-7, AD-8 |
-| FR-8: File Watcher & Conflict Banner | `src-tauri/src/watcher.rs`, `ConflictBanner.tsx` | AD-1, AD-3, AD-4 |
-| FR-9: Multi-Tab + Draft-Until-Content `+` | `components/editor/TabBar.tsx`, `useTabStore.ts`, `App.tsx:124` (handleNewNote draft), `useEditorStore.ts` | AD-5, AD-8 |
-| FR-10: Live Document Statistics | `components/editor/StatusBar.tsx`, `utils/stats.ts` | AD-5 |
-| FR-11: Vibrant Window & Persistence | `src-tauri/src/session.rs` (`openTabs`), `tauri.conf.json` (`1280×720` `transparent`), `lib.rs:14` `EffectsBuilder`, `useThemeStore.ts` | AD-6, AD-9, AD-10 |
-| FR-12: Theme Light/Dark/System | `src/stores/useThemeStore.ts`, `src/App.css:43` `[data-theme="dark"]`, `SettingsDialog.tsx` | AD-10 |
-| FR-13: Settings Overlay `⌘,` | `src/components/settings/SettingsDialog.tsx`, `Sidebar.tsx:5` gear, `App.tsx:119` global `keydown` | AD-10 |
-| Right Panel (hidden) | `src/components/rightPanel/*` (`TerminalPane`, `BrowserPane`, `CanvasPane`), `App.css:136` | Deferred — built but `App.tsx` commented |
+| FR-1: Open local Vault + WelcomeGate | `WelcomeGate.tsx`, `useVaultStore.ts`, `storage.rs` | AD-1, AD-6 |
+| FR-2: Render File Tree (filtered + icons) | `FileTree.tsx`, `useVaultStore.ts`, `storage.rs` | AD-1, AD-8 |
+| FR-3: Active highlight & Library + Settings gear | `Sidebar.tsx`, `useTabStore.ts` | AD-5, AD-10 |
+| FR-4: Search via `{mod}P` | `CommandPalette.tsx`, `useVaultStore.ts` | AD-5 |
+| FR-5: File Tree & Multi-Tabs | `TabBar.tsx`, `useTabStore.ts` | AD-5, AD-8 |
+| FR-6: Live Markdown & Mermaid + Draft | `EditorSurface.tsx`, TipTap NodeViews | AD-2, AD-5, AD-8 |
+| FR-7: Raw Markdown Round-Trip | `envelope.ts`, `storage.rs`, `useEditorStore.ts` | AD-1, AD-2, AD-7, AD-8 |
+| FR-8: Watcher & Conflict Banner | `watcher.rs`, `ConflictBanner.tsx` | AD-1, AD-3, AD-4 |
+| FR-9: Multi-Tab + Draft-Until-Content | `TabBar.tsx`, `useTabStore.ts`, `App.tsx` | AD-5, AD-8 |
+| FR-10: Live Document Statistics | `StatusBar.tsx`, `stats.ts` | AD-5 |
+| FR-11: Platform chrome & material | `lib.rs` window builder + effects cfg | AD-6, AD-9 |
+| FR-12: Theme + tint | `useThemeStore.ts`, `App.css`, `SettingsView.tsx` | AD-10 |
+| FR-13: Settings tab `{mod},` | `SettingsView.tsx`, `specialTabs.ts`, `App.tsx` | AD-10 |
+| FR-14: Auto-update & Launch at Login | `lib/updater.ts`, `SettingsView.tsx`, `tauri-plugin-updater`/`autostart` | AD-11, AD-12 |
+| Right Panel (hidden) | `src/components/rightPanel/*` | Deferred |
 
 ## Deferred (with stubs built but hidden)
 
 | Item | Reason for Deferral / Current State |
 | --- | --- |
-| Canvas & Whiteboarding (Excalidraw) | Stub `src/components/rightPanel/CanvasPane.tsx:1` (dotted grid `canvas` + pen/rect/arrow + Clear) built but `App.tsx` hides `RightPanel`; full `@excalidraw/excalidraw` + JSON persistence deferred to v3. |
-| Embedded Terminal & PTY Host | Stub `src/components/rightPanel/TerminalPane.tsx:1` (mock `help/ls/pwd/echo` on dark `#0F0F0F`) built but hidden; PTY wiring via `tauri-plugin-shell` + `xterm.js` deferred to v4 (Claude still in Ghostty). |
-| In-App Browser | Stub `src/components/rightPanel/BrowserPane.tsx:1` (`iframe` + URL bar + reload) built but hidden; `frame-src` CSP + `opener` fallback deferred. |
-| Floating Window Capture Panel | Competes with Mote; requires multi-window sync complexity (deferred to v5). |
-| Cloud Sync & User Accounts | v1 is strictly local-first and single-user. File abstraction remains ready for sync layer. |
-| Full-Text Search & Indexing | Filename search via ⌘P meets v1 performance goals (<100ms for 500 notes). Inverted index deferred to v2. |
-| Three-Way Git Merge Conflicts | Automated merge logic risks corrupting agent-written specs; v1 banner lets human decide cleanly. |
-| Mobile and Web Distributions | Requires custom filesystem bridges; v1 prioritizes macOS/desktop developer workflows. |
+| Canvas & Whiteboarding (Excalidraw) | Stub built; full Excalidraw deferred to v3. |
+| Embedded Terminal & PTY Host | Stub built; PTY deferred to v4. |
+| In-App Browser | Stub built; CSP/opener hardening deferred. |
+| Floating Window Capture Panel | Deferred to v5. |
+| Cloud Sync & User Accounts | v1 local-first; updater HTTPS is the only intentional outbound. |
+| Full-Text Search & Indexing | Filename search meets v1 goals. |
+| Three-Way Git Merge Conflicts | Banner lets human decide. |
+| Linux packaged + QA | Opaque fallback only; not a v1 release target. |
+| Mobile and Web Distributions | Out of scope. |

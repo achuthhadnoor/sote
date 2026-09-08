@@ -77,4 +77,6 @@ jobs:
           releaseBody: "See the assets below to install this release."
           releaseDraft: true
           prerelease: false
+          # Prefer NSIS for Windows updater payloads in latest.json
+          updaterJsonPreferNsis: true
           args: ${{ matrix.args }}

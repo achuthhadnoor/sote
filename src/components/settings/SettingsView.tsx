@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Theme, useThemeStore } from "../../stores/useThemeStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { formatLogsAsText, getRecentLogs, getBackendLogPath, createLogger, isStreamLogs, setStreamLogs } from "../../lib/logger";
+import {
+  isAutoUpdateCheckEnabled,
+  runUpdateCheck,
+  setAutoUpdateCheckEnabled,
+} from "../../lib/updater";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -123,6 +128,7 @@ export const SettingsView: React.FC = () => {
   const setSpellCheckEnabled = useSpellCheckStore((s) => s.setEnabled);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [autoUpdateCheck, setAutoUpdateCheck] = useState(true);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [logPath, setLogPath] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
@@ -138,6 +144,7 @@ export const SettingsView: React.FC = () => {
   }, [bgOpacity]);
 
   useEffect(() => {
+    setAutoUpdateCheck(isAutoUpdateCheckEnabled());
     (async () => {
       try {
         const { isEnabled } = await import("@tauri-apps/plugin-autostart");
@@ -154,33 +161,27 @@ export const SettingsView: React.FC = () => {
     setChecking(true);
     setUpdateStatus("Checking…");
     try {
-      const { check } = await import("@tauri-apps/plugin-updater");
-      const update = await check();
-      if (!update) {
-        setUpdateStatus("Up to date");
-        setTimeout(() => setUpdateStatus(null), 3000);
-        return;
+      const result = await runUpdateCheck({ prompt: true });
+      switch (result.status) {
+        case "up-to-date":
+          setUpdateStatus("Up to date");
+          setTimeout(() => setUpdateStatus(null), 3000);
+          break;
+        case "declined":
+          setUpdateStatus(`Update ${result.version} available`);
+          setTimeout(() => setUpdateStatus(null), 5000);
+          break;
+        case "installed":
+          setUpdateStatus("Installed — restart snipnote to finish");
+          break;
+        case "available":
+          setUpdateStatus(`Update ${result.version} available`);
+          break;
+        case "error":
+          setUpdateStatus(`Check failed: ${result.message}`);
+          setTimeout(() => setUpdateStatus(null), 4000);
+          break;
       }
-      const install = window.confirm(
-        `Update ${update.version} is available.\n\nDownload and install now? The app will restart when finished.`,
-      );
-      if (!install) {
-        setUpdateStatus(`Update ${update.version} available`);
-        setTimeout(() => setUpdateStatus(null), 5000);
-        return;
-      }
-      setUpdateStatus(`Downloading ${update.version}…`);
-      await update.downloadAndInstall();
-      setUpdateStatus("Installed — restarting…");
-      try {
-        const { relaunch } = await import("@tauri-apps/plugin-process");
-        await relaunch();
-      } catch {
-        setUpdateStatus("Installed — restart snipnote to finish");
-      }
-    } catch (e: any) {
-      setUpdateStatus(`Check failed: ${e?.message || e}`);
-      setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
       setChecking(false);
     }
@@ -295,7 +296,7 @@ export const SettingsView: React.FC = () => {
         <SettingsSection title="System">
           <SettingsRow
             title="Launch at Login"
-            description="Open snipnote when you sign in to this Mac"
+            description="Open snipnote when you sign in"
             control={
               <Switch
                 checked={autostartEnabled}
@@ -305,8 +306,22 @@ export const SettingsView: React.FC = () => {
             }
           />
           <SettingsRow
+            title="Automatic Updates"
+            description="Check for a new version shortly after launch (at most twice a day)"
+            control={
+              <Switch
+                checked={autoUpdateCheck}
+                onCheckedChange={(checked) => {
+                  setAutoUpdateCheck(checked);
+                  setAutoUpdateCheckEnabled(checked);
+                }}
+                aria-label="Automatic update checks"
+              />
+            }
+          />
+          <SettingsRow
             title="Check for Updates"
-            description={updateStatus || "Look for a newer version"}
+            description={updateStatus || "Look for a newer version now"}
             last
             control={
               <button

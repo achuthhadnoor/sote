@@ -68,11 +68,18 @@ WebView2 is required at runtime (bundled with recent Windows 11; evergreen boots
 ## Publish
 
 1. Tag: `git tag v0.1.0 && git push origin v0.1.0`
-2. Create a GitHub Release for that tag (or let CI draft it).
-3. Upload platform installers + updater archives + `.sig`, and a `latest.json` (tauri-action generates this in CI).
+2. CI drafts a GitHub Release and uploads installers + updater archives + `.sig` + `latest.json`.
+3. **Publish the draft** (Draft → Publish release). Until it is public, `…/releases/latest/download/latest.json` 404s and the in-app updater reports up-to-date / network error.
 4. Endpoint expected by the app:
 
    `https://github.com/achuth/snipnote/releases/latest/download/latest.json`
+
+### Auto-updater behavior
+
+- On launch (≈4s after window reveal), snipnote checks that endpoint if **Automatic Updates** is on (Settings → System; default on), at most every 12 hours.
+- When a newer signed build is found, the user is prompted to download, install, and relaunch.
+- **Check for Updates** in Settings always checks immediately and offers the same install prompt.
+- Requires `TAURI_SIGNING_PRIVATE_KEY` in CI so `.sig` files match the public key in `tauri.conf.json`.
 
 ## CI
 

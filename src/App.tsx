@@ -16,6 +16,7 @@ import { createLogger, msSinceJsBoot, recordStartupSample, getStartupLoadBreakdo
 import { canonicalPath, isPathWithin, normalizePath } from "./lib/path";
 import { flushActiveNote } from "./lib/flushActiveNote";
 import { SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE, isSettingsTab, isVirtualTab } from "./lib/specialTabs";
+import { runStartupUpdateCheck } from "./lib/updater";
 import "./App.css";
 
 // Heavy UI split out of the initial bundle so first paint only pays for the
@@ -161,6 +162,10 @@ function App() {
         isInitialized.current = true;
         // Reveal native window now that initial session, vault, and active tabs are set
         invoke("reveal_window").catch(() => {});
+        // Defer updater so it never races cold boot / first paint.
+        window.setTimeout(() => {
+          void runStartupUpdateCheck();
+        }, 4000);
       }
     }
 
