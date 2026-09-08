@@ -258,6 +258,24 @@ export const SettingsView: React.FC = () => {
             }
           />
           <SettingsRow
+            title="Opacity"
+            description="Window surface opacity over system vibrancy"
+            control={
+              <CompactSlider
+                value={bgOpacity}
+                min={10}
+                max={100}
+                step={1}
+                onChange={(value) => {
+                  setBgOpacity(value);
+                  if (value < 100) lastTranslucentOpacity.current = value;
+                }}
+                aria-label="Background opacity"
+                valueLabel={`${bgOpacity}%`}
+              />
+            }
+          />
+          <SettingsRow
             title="Reduce Transparency"
             description="Replace translucent surfaces with opaque backgrounds"
             last

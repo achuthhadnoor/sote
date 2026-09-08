@@ -1,12 +1,23 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { flushActiveNote } from "../../lib/flushActiveNote";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, PanelLeft, Plus, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, PanelLeft, Pin, Plus, Settings, Square, X } from "lucide-react";
 import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
-import { PLATFORM, modShortcut } from "../../utils/platform";
+import { PLATFORM, isWindows, modShortcut } from "../../utils/platform";
+import { cn } from "@/lib/utils";
+
+const ALWAYS_ON_TOP_KEY = "snipnote-always-on-top";
+
+/** Windows restore glyph (overlapping squares) when the window is maximized. */
+const RestoreIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className={className}>
+    <path d="M2.5 3.5H7.5V8.5H2.5V3.5Z" stroke="currentColor" strokeWidth="1.1" />
+    <path d="M3.5 3.5V2.5H8.5V7.5H7.5" stroke="currentColor" strokeWidth="1.1" />
+  </svg>
+);
 
 interface TabBarProps {
   onNewNote?: () => void;
@@ -58,9 +69,52 @@ export const TabBar: React.FC<TabBarProps> = ({
   const goForward = useTabStore((state) => state.goForward);
   const tabsScrollRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
+  const [pinned, setPinned] = useState(false);
+  const [maximized, setMaximized] = useState(false);
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const saved = localStorage.getItem(ALWAYS_ON_TOP_KEY) === "1";
+        const win = getCurrentWindow();
+        if (saved) await win.setAlwaysOnTop(true);
+        const actual = await win.isAlwaysOnTop();
+        if (!cancelled) setPinned(actual);
+      } catch {
+        // Non-Tauri / capability missing — leave unpinned.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isWindows) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void (async () => {
+      try {
+        const win = getCurrentWindow();
+        const sync = async () => {
+          const next = await win.isMaximized();
+          if (!disposed) setMaximized(next);
+        };
+        await sync();
+        unlisten = await win.onResized(() => {
+          void sync();
+        });
+      } catch {}
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   // Keep the active tab visible inside the horizontal strip.
   useEffect(() => {
@@ -126,6 +180,30 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
   };
 
+  const togglePinned = async () => {
+    const next = !pinned;
+    try {
+      await getCurrentWindow().setAlwaysOnTop(next);
+      try {
+        localStorage.setItem(ALWAYS_ON_TOP_KEY, next ? "1" : "0");
+      } catch {}
+      setPinned(next);
+    } catch {}
+  };
+
+  const minimizeWindow = () => {
+    getCurrentWindow().minimize().catch(() => {});
+  };
+
+  const toggleMaximizeWindow = () => {
+    getCurrentWindow().toggleMaximize().catch(() => {});
+  };
+
+  const closeWindow = async () => {
+    await flushActiveNote();
+    getCurrentWindow().close().catch(() => {});
+  };
+
   return (
     <header
       className="sticky top-0 z-20 isolate w-full flex h-header items-center border-b border-border-translucent select-none bg-transparent overflow-visible"
@@ -144,8 +222,7 @@ export const TabBar: React.FC<TabBarProps> = ({
       <div className="relative z-10 flex w-full h-full items-center gap-3 px-3">
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
           titlebar row. macOS Overlay reserves traffic-lights space on the left
-          when the bar reaches the window edge; Windows uses a native title bar
-          so no left inset is needed. */}
+          when the bar reaches the window edge. */}
       <div
         className={`flex gap-1 shrink-0 ${
           welcomeMode || sidebarCollapsed
@@ -300,31 +377,81 @@ export const TabBar: React.FC<TabBarProps> = ({
         )}
       </div>
 
-      {/* Right cluster: with native Windows decorations, caption buttons live
-          in the system title bar — no client-area reservation needed. */}
-      <div className="flex items-center justify-end shrink-0 gap-1.5 w-[72px]" data-tauri-drag-region>
-        {!welcomeMode && (
+      {/* Right cluster: app actions; Windows also draws caption buttons (frameless). */}
+      <div className="flex items-center justify-end shrink-0 h-full" data-tauri-drag-region>
+        <div className="flex items-center justify-end gap-1.5 pr-1">
+          {!welcomeMode && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+              onClick={onNewNote}
+              title={`New note (${modShortcut("N")})`}
+              aria-label="New note"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground",
+              pinned && "text-foreground bg-muted-translucent"
+            )}
+            onClick={() => void togglePinned()}
+            title={pinned ? "Unpin window (always on top)" : "Pin window (always on top)"}
+            aria-label={pinned ? "Unpin window" : "Pin window"}
+            aria-pressed={pinned}
+          >
+            <Pin className={cn("h-[14px] w-[14px]", pinned && "fill-current")} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
-            onClick={onNewNote}
-            title={`New note (${modShortcut("N")})`}
-            aria-label="New note"
+            onClick={() => onOpenSettings?.()}
+            title={`Settings (${modShortcut(",")})`}
+            aria-label="Open settings"
           >
-            <Plus className="h-4 w-4" />
+            <Settings className="h-[14px] w-[14px]" />
           </Button>
+        </div>
+        {isWindows && (
+          <div className="flex items-stretch h-full -mr-3 ml-1" role="group" aria-label="Window controls">
+            <button
+              type="button"
+              className="flex h-full w-[46px] items-center justify-center text-foreground/80 hover:bg-muted-translucent hover:text-foreground transition-colors"
+              onClick={minimizeWindow}
+              title="Minimize"
+              aria-label="Minimize"
+            >
+              <Minus className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              className="flex h-full w-[46px] items-center justify-center text-foreground/80 hover:bg-muted-translucent hover:text-foreground transition-colors"
+              onClick={toggleMaximizeWindow}
+              title={maximized ? "Restore" : "Maximize"}
+              aria-label={maximized ? "Restore" : "Maximize"}
+            >
+              {maximized ? (
+                <RestoreIcon />
+              ) : (
+                <Square className="h-3 w-3" strokeWidth={1.75} />
+              )}
+            </button>
+            <button
+              type="button"
+              className="flex h-full w-[46px] items-center justify-center text-foreground/80 hover:bg-[#E81123] hover:text-white transition-colors"
+              onClick={() => void closeWindow()}
+              title="Close"
+              aria-label="Close"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+          </div>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
-          onClick={() => onOpenSettings?.()}
-          title={`Settings (${modShortcut(",")})`}
-          aria-label="Open settings"
-        >
-          <Settings className="h-[14px] w-[14px]" />
-        </Button>
       </div>
       </div>
     </header>

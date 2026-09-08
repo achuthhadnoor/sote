@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -12,6 +13,9 @@ interface ThemeState {
   effectiveTheme: "light" | "dark";
   bgOpacity: number;
   setBgOpacity: (opacity: number) => void;
+  /** True while the native window is fullscreen — surfaces render opaque. */
+  isFullscreen: boolean;
+  setFullscreen: (fullscreen: boolean) => void;
   tintHue: number;
   setTintHue: (hue: number) => void;
   tintAmount: number;
@@ -53,6 +57,11 @@ function syncNativeWindowTheme(theme: Theme) {
 function applyBgOpacityToDom(opacity: number) {
   if (typeof document === "undefined") return;
   document.documentElement.style.setProperty("--bg-opacity", `${opacity / 100}`);
+}
+
+/** Prefer user opacity; force fully opaque while fullscreen (vibrancy looks wrong). */
+function applyEffectiveBgOpacity(bgOpacity: number, isFullscreen: boolean) {
+  applyBgOpacityToDom(isFullscreen ? 100 : bgOpacity);
 }
 
 function applyTintToDom(hue: number, amount: number) {
@@ -109,10 +118,11 @@ function loadInitialTintAmount(): number {
   return DEFAULT_TINT_AMOUNT;
 }
 
-export const useThemeStore = create<ThemeState>((set) => ({
+export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: loadInitialTheme(),
   effectiveTheme: computeEffective(loadInitialTheme()),
   bgOpacity: loadInitialBgOpacity(),
+  isFullscreen: false,
   tintHue: loadInitialTintHue(),
   tintAmount: loadInitialTintAmount(),
   setTheme: (t) =>
@@ -129,8 +139,14 @@ export const useThemeStore = create<ThemeState>((set) => ({
     try {
       localStorage.setItem("snipnote-bg-opacity", String(opacity));
     } catch {}
-    applyBgOpacityToDom(opacity);
+    applyEffectiveBgOpacity(opacity, get().isFullscreen);
     set({ bgOpacity: opacity });
+  },
+  setFullscreen: (fullscreen) => {
+    const { isFullscreen, bgOpacity } = get();
+    if (isFullscreen === fullscreen) return;
+    applyEffectiveBgOpacity(bgOpacity, fullscreen);
+    set({ isFullscreen: fullscreen });
   },
   setTintHue: (hue) => {
     const clamped = Math.min(360, Math.max(0, Math.round(hue)));
@@ -177,4 +193,21 @@ if (typeof window !== "undefined") {
       // Native window is already on system theme (None); no forced override needed.
     }
   });
+
+  // Fullscreen: drop translucency; leave fullscreen restores the saved preference.
+  void (async () => {
+    try {
+      const win = getCurrentWindow();
+      const syncFullscreen = async () => {
+        const fullscreen = await win.isFullscreen();
+        useThemeStore.getState().setFullscreen(fullscreen);
+      };
+      await syncFullscreen();
+      await win.onResized(() => {
+        void syncFullscreen();
+      });
+    } catch {
+      // Non-Tauri / preview: leave opacity as configured.
+    }
+  })();
 }

@@ -1,17 +1,46 @@
 import React, { useMemo } from "react";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { useTabStore } from "../../stores/useTabStore";
+import { useVaultStore } from "../../stores/useVaultStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isVirtualTab } from "../../lib/specialTabs";
 
+function statusBarPathLabel(vaultPath: string | null, absPath: string): string {
+  const fileParts = absPath.split(/[/\\]/).filter(Boolean);
+  const fileName = fileParts[fileParts.length - 1] || absPath;
+  if (!vaultPath) return fileName;
+
+  const vaultNorm = vaultPath.replace(/[/\\]+$/, "");
+  const vaultParts = vaultNorm.split(/[/\\]/).filter(Boolean);
+  const vaultName = vaultParts[vaultParts.length - 1] || vaultNorm;
+
+  const absLower = absPath.toLocaleLowerCase();
+  const vaultLower = vaultNorm.toLocaleLowerCase();
+  const prefixSlash = vaultLower + "/";
+  const prefixBackslash = vaultLower + "\\";
+
+  let relative: string | null = null;
+  if (absLower.startsWith(prefixSlash) || absLower.startsWith(prefixBackslash)) {
+    relative = absPath.slice(vaultNorm.length + 1);
+  } else if (absLower === vaultLower) {
+    return vaultName;
+  }
+
+  if (!relative) return [vaultName, fileName].join(" > ");
+  const relParts = relative.split(/[/\\]/).filter(Boolean);
+  return [vaultName, ...relParts].join(" > ");
+}
+
 export const StatusBar: React.FC = () => {
   const body = useEditorStore((state) => state.body);
+  const vaultPath = useVaultStore((state) => state.vaultPath);
   const activePath = useTabStore((state) => state.activePath);
   const isRawMode = useEditorStore((state) => state.isRawMode);
   const toggleRawMode = useEditorStore((state) => state.toggleRawMode);
   const isVirtual = isVirtualTab(activePath);
   const notePath = isVirtual ? null : activePath;
+  const pathLabel = notePath ? statusBarPathLabel(vaultPath, notePath) : null;
 
   const stats = useMemo(() => {
     if (!notePath || !body || !body.trim()) {
@@ -49,9 +78,9 @@ export const StatusBar: React.FC = () => {
       </div>
       <div className="relative z-10 flex w-full h-full items-center justify-between gap-3 px-3 type-meta select-none">
       <div className="flex items-center min-w-0 flex-1 mr-2">
-        {notePath && (
-          <span className="truncate" title={notePath}>
-            {notePath}
+        {pathLabel && (
+          <span className="truncate" title={notePath ?? pathLabel}>
+            {pathLabel}
           </span>
         )}
         {isVirtual && (

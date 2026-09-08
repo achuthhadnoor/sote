@@ -303,10 +303,9 @@ pub fn run() {
             // Window chrome:
             // - macOS: Overlay title bar + empty title so traffic lights sit over
             //   our custom TabBar (no system title text drawn centered).
-            // - Windows/Linux: keep native decorations + a real title. TabBar is
-            //   content chrome only — caption buttons live in the system title
-            //   bar (no Overlay API on Windows). Transparent stays on for Win11
-            //   Mica; set_effects fails soft on older Windows.
+            // - Windows: undecorated + Mica; TabBar draws min/max/close on the right.
+            // - Linux: native decorations + title (opaque / non-QA).
+            // Never combine Sidebar+Mica or use Overlay on Windows.
             let mut window_builder = tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
@@ -327,7 +326,14 @@ pub fn run() {
                     .title("")
                     .title_bar_style(tauri::TitleBarStyle::Overlay);
             }
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(target_os = "windows")]
+            {
+                window_builder = window_builder
+                    .title("snipnote")
+                    .decorations(false)
+                    .shadow(true);
+            }
+            #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
             {
                 window_builder = window_builder.title("snipnote");
             }

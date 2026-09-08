@@ -16,7 +16,7 @@ yarn tauri build        # platform installers + updater artifacts when keys set
 
 1. **Window chrome is platform-split** (`src-tauri/src/lib.rs`):
    - macOS: Overlay + empty title + `Effect::Sidebar` + radius 12
-   - Windows: native decorations + title `snipnote` + `Effect::Mica` (soft-fail)
+   - Windows: undecorated + title `snipnote` + `Effect::Mica` (soft-fail); TabBar draws min/max/close
    - Never reintroduce combined `EffectsBuilder([Sidebar, Mica])` or Overlay-on-Windows
 2. **Settings is a tab** (`SettingsView.tsx`), not a modal dialog
 3. **Shortcut labels** use `modShortcut` / `platform.ts` — never hard-code `⌘` for Windows UI

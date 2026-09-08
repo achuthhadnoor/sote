@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { FileTree } from "./FileTree";
@@ -7,19 +7,46 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PanelLeft } from "lucide-react";
+import { VaultNode } from "../../types/vault";
 import { modShortcut } from "../../utils/platform";
 
 interface SidebarProps {
   onToggleSidebar?: () => void;
-  onOpenPalette?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette }) => {
+function filterVaultTree(nodes: VaultNode[], query: string): VaultNode[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return nodes;
+
+  const filterNode = (node: VaultNode): VaultNode | null => {
+    if (node.isDirectory) {
+      const children = (node.children ?? [])
+        .map(filterNode)
+        .filter((child): child is VaultNode => child !== null);
+      if (children.length > 0 || node.name.toLowerCase().includes(q)) {
+        return { ...node, children };
+      }
+      return null;
+    }
+    return node.name.toLowerCase().includes(q) ? node : null;
+  };
+
+  return nodes.map(filterNode).filter((node): node is VaultNode => node !== null);
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar }) => {
   const { vaultPath, tree, isLoading, error, openVaultDialog } = useVaultStore();
+  const [filterQuery, setFilterQuery] = useState("");
 
   const folderName = vaultPath
     ? vaultPath.replace(/[/\\]+$/, "").split(/[/\\]/).pop() || vaultPath
     : null;
+
+  const filteredTree = useMemo(
+    () => filterVaultTree(tree, filterQuery),
+    [tree, filterQuery]
+  );
+  const isFiltering = filterQuery.trim().length > 0;
 
   const handleEmptyContextMenu = async (e: React.MouseEvent) => {
     // only if clicking on the container itself (empty area below tree) — native menu
@@ -62,10 +89,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette
 
       <div className="px-3 py-2 border-b border-border-translucent shrink-0">
         <Input
-          className="h-[26px] bg-muted-translucent border-transparent  text-[13px] cursor-pointer"
-          placeholder={`Search notes... (${modShortcut("P")})`}
-          readOnly
-          onClick={onOpenPalette}
+          className="h-[26px] bg-muted-translucent border-transparent text-[13px] outline-none"
+          placeholder="Filter files…"
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && filterQuery) {
+              e.preventDefault();
+              e.stopPropagation();
+              setFilterQuery("");
+            }
+          }}
+          aria-label="Filter files in sidebar"
+          disabled={!vaultPath}
         />
       </div>
 
@@ -102,7 +138,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar, onOpenPalette
             </div>
           )}
 
-          {!isLoading && tree.length > 0 && <FileTree nodes={tree} />}
+          {!isLoading && tree.length > 0 && filteredTree.length === 0 && isFiltering && (
+            <div className="p-4 text-center type-label text-muted-foreground leading-relaxed">
+              No matching files
+            </div>
+          )}
+
+          {!isLoading && filteredTree.length > 0 && (
+            <FileTree nodes={filteredTree} forceExpand={isFiltering} />
+          )}
           </div>
         </ScrollArea>
       </div>

@@ -19,9 +19,11 @@ const log = createLogger("file-tree");
 interface FileTreeProps {
   nodes: VaultNode[];
   level?: number;
+  /** Expand all folders (used while a sidebar filter is active). */
+  forceExpand?: boolean;
 }
 
-export const FileTree: React.FC<FileTreeProps> = ({ nodes, level = 0 }) => {
+export const FileTree: React.FC<FileTreeProps> = ({ nodes, level = 0, forceExpand = false }) => {
   const activePath = useTabStore((s) => s.activePath);
   const rovingPath = activePath || nodes[0]?.path || null;
 
@@ -41,7 +43,13 @@ export const FileTree: React.FC<FileTreeProps> = ({ nodes, level = 0 }) => {
       onContextMenu={level === 0 ? handleEmptyContextMenu : undefined}
     >
       {nodes.map((node) => (
-        <FileTreeNode key={node.path} node={node} level={level} rovingPath={rovingPath} />
+        <FileTreeNode
+          key={node.path}
+          node={node}
+          level={level}
+          rovingPath={rovingPath}
+          forceExpand={forceExpand}
+        />
       ))}
     </div>
   );
@@ -51,6 +59,7 @@ interface FileTreeNodeProps {
   node: VaultNode;
   level: number;
   rovingPath?: string | null;
+  forceExpand?: boolean;
 }
 
 const FolderIcon: React.FC<{ open: boolean }> = ({ open }) => {
@@ -95,16 +104,20 @@ const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
   />
 );
 
-const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) => {
+const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath, forceExpand = false }) => {
   const vaultPath = useVaultStore((s) => s.vaultPath);
   const defaultOpen = level === 0;
-  const isOpen = useFileTreeExpandStore((s) => {
+  const storedOpen = useFileTreeExpandStore((s) => {
     if (!vaultPath) return defaultOpen;
     const entry = s.byVault[vaultPath]?.[node.path];
     return entry === undefined ? defaultOpen : entry;
   });
+  const isOpen = forceExpand || storedOpen;
   const setExpanded = useFileTreeExpandStore((s) => s.setExpanded);
-  const setIsOpen = (open: boolean) => setExpanded(vaultPath, node.path, open);
+  const setIsOpen = (open: boolean) => {
+    if (forceExpand) return;
+    setExpanded(vaultPath, node.path, open);
+  };
 
   const [isDragOver, setIsDragOver] = useState(false);
   const activePath = useTabStore((state) => state.activePath);
@@ -216,7 +229,12 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({ node, level, rovingPath }) 
           </CollapsibleTrigger>
           <CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
             {node.children && (
-              <FileTreeSubGroup nodes={node.children} level={level + 1} rovingPath={rovingPath} />
+              <FileTreeSubGroup
+                nodes={node.children}
+                level={level + 1}
+                rovingPath={rovingPath}
+                forceExpand={forceExpand}
+              />
             )}
           </CollapsibleContent>
         </Collapsible>
@@ -255,11 +273,18 @@ const FileTreeSubGroup: React.FC<FileTreeProps & { rovingPath?: string | null }>
   nodes,
   level = 0,
   rovingPath,
+  forceExpand = false,
 }) => {
   return (
     <div className="flex flex-col gap-0.5 w-full" role="group">
       {nodes.map((node) => (
-        <FileTreeNode key={node.path} node={node} level={level} rovingPath={rovingPath} />
+        <FileTreeNode
+          key={node.path}
+          node={node}
+          level={level}
+          rovingPath={rovingPath}
+          forceExpand={forceExpand}
+        />
       ))}
     </div>
   );

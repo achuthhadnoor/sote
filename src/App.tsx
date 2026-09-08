@@ -607,10 +607,7 @@ function App() {
         inert={hideSidebar}
         aria-hidden={hideSidebar}
       >
-        <Sidebar
-          onToggleSidebar={() => setSidebarCollapsed(true)}
-          onOpenPalette={() => setIsPaletteOpen(true)}
-        />
+        <Sidebar onToggleSidebar={() => setSidebarCollapsed(true)} />
       </div>
       <main className="relative flex-1 flex flex-col h-full overflow-hidden bg-transparent">
         <TabBar
