@@ -1,0 +1,53 @@
+name: Release (macOS)
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - target: aarch64-apple-darwin
+          - target: x86_64-apple-darwin
+
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "yarn"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: yarn install --frozen-lockfile
+
+      # Unsigned build (no Apple Developer ID). Gatekeeper will warn until you add
+      # APPLE_CERTIFICATE + APPLE_SIGNING_IDENTITY and notarization secrets later.
+      - uses: tauri-apps/tauri-action@v0
+        with:
+          tagName: v__VERSION__
+          releaseName: "snipnote v__VERSION__"
+          releaseBody: "See the assets below to install this release (macOS). Unsigned builds need Right-click → Open the first time."
+          releaseDraft: true
+          prerelease: false
+          args: "--target ${{ matrix.settings.target }}"
