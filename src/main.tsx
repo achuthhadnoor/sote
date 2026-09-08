@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { createLogger, NAV_TO_JS_MS, navigationEpochMs } from "./lib/logger";
 
@@ -20,11 +20,35 @@ window.addEventListener("error", (event) => {
   log.error("Uncaught window error:", event.error || event.message);
 });
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>,
-);
+// Route by window label: `float` (v1 default panel) vs `main` (v2 full shell).
+// Each surface loads its own chunk so the compact panel never pulls in the
+// full vault shell (and vice-versa).
+function resolveWindowLabel(): string {
+  try {
+    const label = getCurrentWindow().label;
+    if (typeof label === "string" && label) return label;
+  } catch {}
+  return "main";
+}
 
+async function mountRoot() {
+  const label = resolveWindowLabel();
+  log.info(`mounting window label="${label}"`);
+
+  const Root =
+    label === "float"
+      ? (await import("./components/float/FloatingShell")).FloatingShell
+      : (await import("./App")).default;
+
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <Root />
+      </ErrorBoundary>
+    </React.StrictMode>,
+  );
+}
+
+mountRoot().catch((err) => {
+  log.error("Failed to mount root:", err);
+});

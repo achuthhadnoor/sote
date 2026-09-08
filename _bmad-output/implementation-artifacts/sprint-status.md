@@ -18,7 +18,7 @@ source: sprint-change-proposal-2026-09-08-floating-v1.md (approved)
 
 | Item | Status |
 |---|---|
-| **Epic F** Floating + tray + hotkey + flag | **next (build)** |
+| **Epic F** Floating + tray + hotkey + flag | **done (review)** |
 | Epic 2–3 editor/watcher | shared — reuse |
 | Epic 1 / 4 full shell | v2 — behind flag |
 | Epic 5.9 updater | keep in v1 |

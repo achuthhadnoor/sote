@@ -1,16 +1,22 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Capability for the main and float windows",
   "windows": [
-    "main"
+    "main",
+    "float"
   ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-toggle-maximize",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-close",
     "core:menu:default",
     "core:menu:allow-popup",
+    "global-shortcut:default",
     "opener:default",
     "opener:allow-open-url",
     "opener:allow-open-path",

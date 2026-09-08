@@ -1,0 +1,28 @@
+/*
+ * Float panel overrides for the shared EditorSurface.
+ *
+ * EditorSurface is tuned for the full editor (wide max-width + generous
+ * vertical padding, centered). In the compact float we want it to fill the
+ * frame with tighter spacing — without forking the component. Scoped under
+ * `.snipnote-float` so the full shell is unaffected.
+ */
+
+/* Tighter scroll padding than the full editor's py-12/px-8. */
+.snipnote-float [data-editor-scroll] {
+  padding: 0.75rem 1rem;
+  align-items: stretch;
+}
+
+/* Fill the frame instead of the 760px-ish centered column. */
+.snipnote-float [data-editor-scroll] > .max-w-editor {
+  max-width: none;
+  margin: 0;
+}
+
+/* Settings view: reduce the full-shell page padding for the small panel.
+ * Scoped to the panel's own <main> and excludes the editor scroll section so
+ * it only affects SettingsView, never shared editor content. */
+.snipnote-float > main > section.flex-1:not([data-editor-scroll]) {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}

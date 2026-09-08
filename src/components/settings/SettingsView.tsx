@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { modShortcut } from "../../utils/platform";
+import { invoke } from "@tauri-apps/api/core";
+import { isFullEditorEnabled, setFullEditorEnabled } from "../../lib/fullEditorFlag";
 
 const THEME_OPTIONS: { value: Theme; label: string }[] = [
   { value: "light", label: "Light" },
@@ -130,6 +132,7 @@ export const SettingsView: React.FC = () => {
   const [checking, setChecking] = useState(false);
   const [autoUpdateCheck, setAutoUpdateCheck] = useState(true);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [fullEditor, setFullEditor] = useState(isFullEditorEnabled());
   const [logPath, setLogPath] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
   const [streamToTerminal, setStreamToTerminal] = useState(isStreamLogs());
@@ -184,6 +187,22 @@ export const SettingsView: React.FC = () => {
       }
     } finally {
       setChecking(false);
+    }
+  };
+
+  const toggleFullEditor = async (checked: boolean) => {
+    // Show/hide the full vault shell (`main`) to match the flag. The floating
+    // panel + tray keep running regardless. Only persist the flag if the window
+    // action succeeds — otherwise UI, flag, and window state would diverge.
+    const previous = fullEditor;
+    setFullEditor(checked);
+    setFullEditorEnabled(checked);
+    try {
+      await invoke(checked ? "open_full_editor" : "close_full_editor");
+    } catch (e) {
+      log.error("Full editor toggle failed", e);
+      setFullEditor(previous);
+      setFullEditorEnabled(previous);
     }
   };
 
@@ -294,6 +313,17 @@ export const SettingsView: React.FC = () => {
         </SettingsSection>
 
         <SettingsSection title="System">
+          <SettingsRow
+            title="Full Editor"
+            description="Open the full vault window with sidebar and tabs (advanced)"
+            control={
+              <Switch
+                checked={fullEditor}
+                onCheckedChange={(checked) => void toggleFullEditor(checked)}
+                aria-label="Full editor"
+              />
+            }
+          />
           <SettingsRow
             title="Launch at Login"
             description="Open snipnote when you sign in"
