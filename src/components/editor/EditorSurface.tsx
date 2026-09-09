@@ -33,6 +33,7 @@ import {
   pathDirname,
   pathJoin,
 } from "../../utils/paths";
+import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 
 const log = createLogger("editor-surface");
 const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -307,6 +308,7 @@ export const EditorSurface: React.FC = () => {
   const isProgrammaticUpdateRef = useRef(false);
   const [isFindOpen, setIsFindOpen] = useState(false);
   const [showReplace, setShowReplace] = useState(false);
+  const dockOutline = useNarrowLayout();
   const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
 
   type PendingSave = { path: string; wasNew: boolean; body: string; frontmatter: string | null };
@@ -791,68 +793,83 @@ export const EditorSurface: React.FC = () => {
   }
 
   return (
-    <section
-      className={
-        isRawMode
-          ? "flex-1 min-h-0 overflow-hidden flex flex-col relative pt-4 "
-          : "flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth"
-      }
-      data-editor-scroll
-    >
-      <div
+    <div className="flex-1 min-h-0 flex flex-col relative">
+      <section
         className={
           isRawMode
-            ? "w-full h-full min-h-0 type-editor flex flex-col"
-            : "w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center"
+            ? "flex-1 min-h-0 overflow-hidden flex flex-col relative pt-4 "
+            : "flex-1 min-h-0 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth"
         }
+        data-editor-scroll
       >
-        {isLoading && (
-          <div className="py-4 type-label text-muted-foreground">
-            Loading note...
+        <div
+          className={
+            isRawMode
+              ? "w-full h-full min-h-0 type-editor flex flex-col"
+              : "w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center"
+          }
+        >
+          {isLoading && (
+            <div className="py-4 type-label text-muted-foreground">
+              Loading note...
+            </div>
+          )}
+          {error && (
+            <div className="py-4 type-label text-destructive">
+              Failed to read note: {error}
+            </div>
+          )}
+          <div className={isRawMode ? "shrink-0 px-3 pt-2" : undefined}>
+            <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
           </div>
-        )}
-        {error && (
-          <div className="py-4 type-label text-destructive">
-            Failed to read note: {error}
-          </div>
-        )}
-        <div className={isRawMode ? "shrink-0 px-3 pt-2" : undefined}>
-          <FrontmatterTable onAutoSaveTrigger={triggerAutoSave} />
+          {isRawMode ? (
+            <RawEditor
+              value={body}
+              onChange={(val) => {
+                updateBody(val);
+                triggerAutoSave();
+              }}
+              spellCheck={spellCheckEnabled}
+            />
+          ) : (
+            <>
+              {editorReady && <EditorBubbleMenu editor={editor} isRawMode={isRawMode} />}
+              <EditorContent editor={editor} />
+            </>
+          )}
         </div>
-        {isRawMode ? (
-          <RawEditor
-            value={body}
-            onChange={(val) => {
-              updateBody(val);
-              triggerAutoSave();
-            }}
-            spellCheck={spellCheckEnabled}
+        {!dockOutline && (
+          <MarkdownOutline
+            key={activePath ?? "outline"}
+            editor={editor}
+            body={body}
+            isRawMode={isRawMode}
+            notePath={activePath}
+            noteTitle={activeTab?.title ?? null}
+            placement="floating"
           />
-        ) : (
-          <>
-            {editorReady && <EditorBubbleMenu editor={editor} isRawMode={isRawMode} />}
-            <EditorContent editor={editor} />
-          </>
         )}
-      </div>
-      {/* Floating outline — horizontal dashes at right center, expand on hover */}
-      <MarkdownOutline
-        key={activePath ?? "outline"}
-        editor={editor}
-        body={body}
-        isRawMode={isRawMode}
-        notePath={activePath}
-        noteTitle={activeTab?.title ?? null}
-      />
-      {!isRawMode && (
-        <FindBar
+        {!isRawMode && (
+          <FindBar
+            editor={editor}
+            isOpen={isFindOpen}
+            showReplace={showReplace}
+            onClose={handleFindClose}
+            onToggleReplace={() => setShowReplace((v) => !v)}
+          />
+        )}
+      </section>
+      {dockOutline && (
+        <MarkdownOutline
+          key={`${activePath ?? "outline"}-dock`}
           editor={editor}
-          isOpen={isFindOpen}
-          showReplace={showReplace}
-          onClose={handleFindClose}
-          onToggleReplace={() => setShowReplace((v) => !v)}
+          body={body}
+          isRawMode={isRawMode}
+          notePath={activePath}
+          noteTitle={activeTab?.title ?? null}
+          placement="docked"
         />
       )}
-    </section>
+    </div>
   );
 };

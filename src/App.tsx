@@ -18,6 +18,7 @@ import { flushActiveNote } from "./lib/flushActiveNote";
 import { SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE, isSettingsTab, isVirtualTab } from "./lib/specialTabs";
 import { runStartupUpdateCheck } from "./lib/updater";
 import { isWindows } from "./utils/platform";
+import { useNarrowLayout } from "./hooks/useNarrowLayout";
 import "./App.css";
 
 // Heavy UI split out of the initial bundle so first paint only pays for the
@@ -47,6 +48,7 @@ function App() {
   const tabs = useTabStore((state) => state.tabs);
   const selectNote = useTabStore((state) => state.selectNote);
   const setTabs = useTabStore((state) => state.setTabs);
+  const isNarrow = useNarrowLayout();
   const isInitialized = useRef(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -622,10 +624,14 @@ function App() {
           inert + delayed visibility keep hidden controls out of the tab order.
           Fully hidden until a folder is open (welcome gate). */}
       <div
-        className={`h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] ${
-          hideSidebar
-            ? "w-0 min-w-0 invisible"
-            : "w-sidebar min-w-sidebar visible"
+        className={`h-full overflow-hidden transition-[width,min-width,transform] duration-200 ease-[cubic-bezier(0.2,0,0,1)] ${
+          isNarrow
+            ? hideSidebar
+              ? "absolute inset-y-0 left-0 z-40 w-sidebar min-w-0 -translate-x-full invisible"
+              : "absolute inset-y-0 left-0 z-40 w-sidebar min-w-sidebar translate-x-0 visible shadow-xl bg-sidebar-translucent backdrop-blur-xl"
+            : hideSidebar
+              ? "relative shrink-0 w-0 min-w-0 invisible"
+              : "relative shrink-0 w-sidebar min-w-sidebar visible"
         }`}
         inert={hideSidebar}
         aria-hidden={hideSidebar}
@@ -651,7 +657,7 @@ function App() {
             <EditorSurface />
           )}
         </Suspense>
-        {!welcomeMode && vaultPath && <StatusBar />}
+        {!welcomeMode && vaultPath && !isNarrow && <StatusBar />}
       </main>
       {/* RightPanel hidden for now — terminal/browser/canvas to be handled later */}
       <Suspense fallback={null}>

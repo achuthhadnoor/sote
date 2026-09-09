@@ -4,6 +4,9 @@ pub mod session;
 pub mod storage;
 pub mod watcher;
 
+#[cfg(target_os = "macos")]
+mod macos_hover;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
@@ -365,7 +368,10 @@ pub fn run() {
             {
                 window_builder = window_builder
                     .title("")
-                    .title_bar_style(tauri::TitleBarStyle::Overlay);
+                    .title_bar_style(tauri::TitleBarStyle::Overlay)
+                    // First click over an inactive window is delivered to the
+                    // webview (hover / outline) instead of only activating.
+                    .accept_first_mouse(true);
             }
             #[cfg(target_os = "windows")]
             {
@@ -380,6 +386,9 @@ pub fn run() {
             }
 
             let window = window_builder.build()?;
+
+            #[cfg(target_os = "macos")]
+            macos_hover::enable_inactive_hover(&window);
 
             {
                 use tauri_plugin_deep_link::DeepLinkExt;

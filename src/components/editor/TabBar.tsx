@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Minus, PanelLeft, Pin, Plus, Settings, Squar
 import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 import { PLATFORM, isWindows, modShortcut } from "../../utils/platform";
 import { cn } from "@/lib/utils";
+import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 
 const ALWAYS_ON_TOP_KEY = "snipnote-always-on-top";
 
@@ -68,12 +69,19 @@ export const TabBar: React.FC<TabBarProps> = ({
   const goBack = useTabStore((state) => state.goBack);
   const goForward = useTabStore((state) => state.goForward);
   const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const tabsListRef = useRef<HTMLDivElement>(null);
+  const tabsRailRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
   const [pinned, setPinned] = useState(false);
   const [maximized, setMaximized] = useState(false);
+  const [tabsOverflow, setTabsOverflow] = useState(false);
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
+  const isRawMode = useEditorStore((state) => state.isRawMode);
+  const toggleRawMode = useEditorStore((state) => state.toggleRawMode);
+  const isNarrow = useNarrowLayout();
+  const tabsBelow = isNarrow && !welcomeMode;
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +128,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   useEffect(() => {
     const strip = tabsScrollRef.current;
     const tab = activeTabRef.current;
-    if (!strip || !tab) return;
+    if (!strip || !tab || !tabsOverflow) return;
 
     const pad = 12;
     const tabLeft = tab.offsetLeft;
@@ -133,7 +141,33 @@ export const TabBar: React.FC<TabBarProps> = ({
     } else if (tabRight > viewRight - pad) {
       strip.scrollTo({ left: tabRight - strip.clientWidth + pad, behavior: "smooth" });
     }
-  }, [activePath, tabs]);
+  }, [activePath, tabs, tabsOverflow]);
+
+  // Stick + to the rail end only when tabs overflow; otherwise sit beside the last tab.
+  useLayoutEffect(() => {
+    const rail = tabsRailRef.current;
+    const list = tabsListRef.current;
+    if (!rail || !list || welcomeMode) {
+      setTabsOverflow(false);
+      return;
+    }
+
+    const PLUS_SLOT = 30; // 26px button + gap
+    const measure = () => {
+      const available = Math.max(0, rail.clientWidth - PLUS_SLOT);
+      setTabsOverflow(list.scrollWidth > available + 1);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(rail);
+    ro.observe(list);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [tabs, welcomeMode, tabsBelow]);
 
   const handleTabClick = async (path: string, title: string) => {
     if (path !== activePath && !(await flushActiveNote())) return;
@@ -204,9 +238,128 @@ export const TabBar: React.FC<TabBarProps> = ({
     getCurrentWindow().close().catch(() => {});
   };
 
+  const newNoteButton = !welcomeMode ? (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground shrink-0"
+      onClick={onNewNote}
+      title={`New note (${modShortcut("N")})`}
+      aria-label="New note"
+    >
+      <Plus className="h-4 w-4" />
+    </Button>
+  ) : null;
+
+  const tabStrip = welcomeMode ? null : tabs.length === 0 ? (
+    <div className="text-xs text-muted-foreground px-2" data-tauri-drag-region>
+      No open notes
+    </div>
+  ) : (
+    <div
+      ref={tabsScrollRef}
+      className={cn(
+        "tab-strip h-full overflow-y-hidden overscroll-x-contain",
+        tabsOverflow ? "w-full min-w-0 overflow-x-auto" : "w-max overflow-x-hidden"
+      )}
+      onWheel={handleTabsWheel}
+      data-tauri-drag-region
+    >
+      <div
+        ref={tabsListRef}
+        className="flex items-center gap-1.5 h-full px-2 py-1.5 w-max"
+        role="tablist"
+        aria-label="Open notes"
+        data-tauri-drag-region
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
+          const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
+          const activeIdx = tabsEls.findIndex((el) => el.getAttribute("aria-selected") === "true");
+          let nextIdx = activeIdx;
+          if (e.key === "ArrowLeft") nextIdx = Math.max(0, activeIdx - 1);
+          else if (e.key === "ArrowRight") nextIdx = Math.min(tabsEls.length - 1, activeIdx + 1);
+          else if (e.key === "Home") nextIdx = 0;
+          else if (e.key === "End") nextIdx = tabsEls.length - 1;
+          if (nextIdx !== activeIdx && tabsEls[nextIdx]) {
+            e.preventDefault();
+            tabsEls.forEach((el) => (el.tabIndex = -1));
+            tabsEls[nextIdx].tabIndex = 0;
+            tabsEls[nextIdx].focus();
+            tabsEls[nextIdx].scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+            const el = tabsEls[nextIdx];
+            const path = el.getAttribute("data-tab-path");
+            const title = el.getAttribute("data-tab-title");
+            if (path && title) handleTabClick(path, title);
+          }
+        }}
+      >
+        {tabs.map((tab) => {
+          const isActive = tab.path === activePath;
+          const isDraft = !!tab.isNew;
+          const isVirtual = isVirtualTab(tab.path);
+          const showDirty = isActive && !isVirtual && isDirty && !isSaving;
+          const showSaving = isActive && !isVirtual && isSaving;
+          return (
+            <button
+              key={tab.path}
+              ref={isActive ? activeTabRef : undefined}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`editor-${tab.path}`}
+              tabIndex={isActive ? 0 : -1}
+              data-tab-path={tab.path}
+              data-tab-title={tab.title}
+              className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] cursor-pointer ${
+                isActive
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => handleTabClick(tab.path, tab.title)}
+              onFocus={(e) => {
+                const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
+                tabsEls.forEach((el) => (el.tabIndex = -1));
+                (e.currentTarget as HTMLElement).tabIndex = 0;
+              }}
+              title={isDraft ? `${tab.path} — not yet saved` : isSettingsTab(tab.path) ? "Settings" : tab.path}
+            >
+              {isSettingsTab(tab.path) ? (
+                <Settings className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+              ) : (
+                <FileTabIcon active={isActive} />
+              )}
+              <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
+              {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
+              {isActive && isDraft && !isDirty && <span className="type-meta italic font-normal shrink-0">draft</span>}
+              {showDirty && (
+                <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0 group-hover:opacity-0 transition-opacity" title="Unsaved changes" />
+              )}
+              {showSaving && (
+                <span className="type-meta font-normal shrink-0">saving…</span>
+              )}
+              <span
+                className="tab-item__close absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
+                role="button"
+                aria-label={`Close ${tab.title}`}
+                onClick={(e) => handleClose(e, tab.path)}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                </svg>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <header
-      className="sticky top-0 z-20 isolate w-full flex h-header items-center border-b border-border-translucent select-none bg-transparent overflow-visible"
+      className={cn(
+        "sticky top-0 z-20 isolate w-full flex border-b border-border-translucent select-none bg-transparent overflow-visible",
+        tabsBelow ? "tab-bar--narrow flex-col h-auto" : "h-header items-center"
+      )}
       data-tauri-drag-region
       onMouseDown={handleStartDragging}
     >
@@ -219,10 +372,14 @@ export const TabBar: React.FC<TabBarProps> = ({
         <div className="chrome-blur__layer chrome-blur__b5" />
         <div className="chrome-blur__layer chrome-blur__tint" />
       </div>
-      <div className="relative z-10 flex w-full h-full items-center gap-3 px-3">
-      {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
-          titlebar row. macOS Overlay reserves traffic-lights space on the left
-          when the bar reaches the window edge. */}
+      <div
+        className={cn(
+          "relative z-10 flex w-full items-center gap-3 px-3",
+          tabsBelow ? "h-header shrink-0" : "h-full"
+        )}
+      >
+      {/* Left cluster: sidebar toggle + navigation — macOS Overlay reserves
+          traffic-lights space on the left when the bar reaches the window edge. */}
       <div
         className={`flex gap-1 shrink-0 ${
           welcomeMode || sidebarCollapsed
@@ -273,125 +430,68 @@ export const TabBar: React.FC<TabBarProps> = ({
         )}
       </div>
 
-      {/* Tabs: horizontal scroll when they overflow the titlebar. */}
-      <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full justify-start" data-tauri-drag-region>
-        {welcomeMode ? (
-          <div className="flex-1 h-full" data-tauri-drag-region />
-        ) : tabs.length === 0 ? (
-          <div className="text-xs text-muted-foreground text-center" data-tauri-drag-region>
-            No open notes
-          </div>
-        ) : (
-          <div
-            ref={tabsScrollRef}
-            className="tab-strip w-full h-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
-            onWheel={handleTabsWheel}
-            data-tauri-drag-region
-          >
+      {/* Wide: tabs in the titlebar. Narrow: spacer so actions stay right. */}
+      {tabsBelow ? (
+        <div className="flex-1 min-w-0 h-full" data-tauri-drag-region />
+      ) : (
+        <div className="flex-1 min-w-0 flex items-center overflow-hidden h-full justify-start" data-tauri-drag-region>
+          {welcomeMode ? (
+            <div className="flex-1 h-full" data-tauri-drag-region />
+          ) : (
             <div
-              className="flex items-center gap-1.5 h-full px-2 py-1.5 w-max min-w-full"
-              role="tablist"
-              aria-label="Open notes"
-              data-tauri-drag-region
-              onKeyDown={(e) => {
-                if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
-                const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
-                const activeIdx = tabsEls.findIndex((el) => el.getAttribute("aria-selected") === "true");
-                let nextIdx = activeIdx;
-                if (e.key === "ArrowLeft") nextIdx = Math.max(0, activeIdx - 1);
-                else if (e.key === "ArrowRight") nextIdx = Math.min(tabsEls.length - 1, activeIdx + 1);
-                else if (e.key === "Home") nextIdx = 0;
-                else if (e.key === "End") nextIdx = tabsEls.length - 1;
-                if (nextIdx !== activeIdx && tabsEls[nextIdx]) {
-                  e.preventDefault();
-                  tabsEls.forEach((el) => (el.tabIndex = -1));
-                  tabsEls[nextIdx].tabIndex = 0;
-                  tabsEls[nextIdx].focus();
-                  tabsEls[nextIdx].scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
-                  const el = tabsEls[nextIdx];
-                  const path = el.getAttribute("data-tab-path");
-                  const title = el.getAttribute("data-tab-title");
-                  if (path && title) handleTabClick(path, title);
-                }
-              }}
+              ref={tabsRailRef}
+              className="flex-1 min-w-0 flex items-center gap-0.5 h-full overflow-hidden"
             >
-              {tabs.map((tab) => {
-                const isActive = tab.path === activePath;
-                const isDraft = !!tab.isNew;
-                const isVirtual = isVirtualTab(tab.path);
-                const showDirty = isActive && !isVirtual && isDirty && !isSaving;
-                const showSaving = isActive && !isVirtual && isSaving;
-                return (
-                  <button
-                    key={tab.path}
-                    ref={isActive ? activeTabRef : undefined}
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-controls={`editor-${tab.path}`}
-                    tabIndex={isActive ? 0 : -1}
-                    data-tab-path={tab.path}
-                    data-tab-title={tab.title}
-                    className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] cursor-pointer ${
-                      isActive
-                        ? "text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    onClick={() => handleTabClick(tab.path, tab.title)}
-                    onFocus={(e) => {
-                      const tabsEls = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
-                      tabsEls.forEach((el) => (el.tabIndex = -1));
-                      (e.currentTarget as HTMLElement).tabIndex = 0;
-                    }}
-                    title={isDraft ? `${tab.path} — not yet saved` : isSettingsTab(tab.path) ? "Settings" : tab.path}
-                  >
-                    {isSettingsTab(tab.path) ? (
-                      <Settings className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
-                    ) : (
-                      <FileTabIcon active={isActive} />
-                    )}
-                    <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
-                    {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
-                    {isActive && isDraft && !isDirty && <span className="type-meta italic font-normal shrink-0">draft</span>}
-                    {showDirty && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0 group-hover:opacity-0 transition-opacity" title="Unsaved changes" />
-                    )}
-                    {showSaving && (
-                      <span className="type-meta font-normal shrink-0">saving…</span>
-                    )}
-                    <span
-                      className="tab-item__close absolute right-0.5 top-1/2 -translate-y-1/2 h-5 pl-5 pr-1 rounded-md inline-flex items-center justify-end text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
-                      role="button"
-                      aria-label={`Close ${tab.title}`}
-                      onClick={(e) => handleClose(e, tab.path)}
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                      </svg>
-                    </span>
-                  </button>
-                );
-              })}
+              <div
+                className={cn(
+                  "min-w-0 h-full",
+                  tabsOverflow ? "flex-1 overflow-hidden" : "w-max overflow-hidden"
+                )}
+              >
+                {tabStrip}
+              </div>
+              {newNoteButton}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Right cluster: app actions; Windows also draws caption buttons (frameless). */}
       <div className="flex items-center justify-end shrink-0 h-full" data-tauri-drag-region>
         <div className="flex items-center justify-end gap-1.5 pr-1">
           {!welcomeMode && (
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
-              onClick={onNewNote}
-              title={`New note (${modShortcut("N")})`}
-              aria-label="New note"
+              variant={isRawMode ? "secondary" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-[26px] px-2 rounded-sm type-label font-medium gap-1.5 border border-transparent text-muted-foreground hover:bg-muted-translucent hover:text-foreground",
+                isRawMode && "bg-transparent border-border-translucent text-foreground",
+                (!activePath || isSettingsTab(activePath)) && "opacity-40 pointer-events-none"
+              )}
+              onClick={toggleRawMode}
+              title={isRawMode ? "Switch to rich view" : "Show raw markdown"}
+              aria-label={isRawMode ? "Switch to rich view" : "Show raw markdown"}
+              aria-pressed={isRawMode}
+              disabled={!activePath || isSettingsTab(activePath)}
             >
-              <Plus className="h-4 w-4" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M8 9L4 12L8 15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M16 9L20 12L16 15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M14 5L10 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span>{isRawMode ? "Rich" : "Raw"}</span>
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
+            onClick={() => onOpenSettings?.()}
+            title={`Settings (${modShortcut(",")})`}
+            aria-label="Open settings"
+          >
+            <Settings className="h-[14px] w-[14px]" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -405,16 +505,6 @@ export const TabBar: React.FC<TabBarProps> = ({
             aria-pressed={pinned}
           >
             <Pin className={cn("h-[14px] w-[14px]", pinned && "fill-current")} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground"
-            onClick={() => onOpenSettings?.()}
-            title={`Settings (${modShortcut(",")})`}
-            aria-label="Open settings"
-          >
-            <Settings className="h-[14px] w-[14px]" />
           </Button>
         </div>
         {isWindows && (
@@ -454,6 +544,24 @@ export const TabBar: React.FC<TabBarProps> = ({
         )}
       </div>
       </div>
+
+      {tabsBelow && (
+        <div
+          ref={tabsRailRef}
+          className="relative z-10 flex w-full h-9 shrink-0 items-center gap-0.5 border-t border-border-translucent overflow-hidden"
+          data-tauri-drag-region
+        >
+          <div
+            className={cn(
+              "min-w-0 h-full",
+              tabsOverflow ? "flex-1 overflow-hidden" : "w-max overflow-hidden"
+            )}
+          >
+            {tabStrip}
+          </div>
+          {newNoteButton}
+        </div>
+      )}
     </header>
   );
 };

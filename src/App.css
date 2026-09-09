@@ -345,11 +345,13 @@ textarea.frontmatter-textarea:focus-visible {
 }
 
 /* Titlebar tab strip — scrollable without a visible scrollbar */
-.tab-strip {
+.tab-strip,
+.outline-strip {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.tab-strip::-webkit-scrollbar {
+.tab-strip::-webkit-scrollbar,
+.outline-strip::-webkit-scrollbar {
   display: none;
   height: 0;
   width: 0;
@@ -1047,19 +1049,6 @@ html, body, #root {
   .find-bar { width: calc(100vw - 1rem) !important; max-width: none !important; }
   .palette-dialog, .settings-dialog { width: calc(100vw - 1rem) !important; max-width: none !important; }
   .tab-item { max-width: min(180px, 42vw); }
-
-  /* Park outline above the status bar with extra bottom margin so it stays
-     clear of chrome and doesn’t cover mid-editor prose. */
-  .markdown-outline {
-    top: auto;
-    bottom: calc(var(--status-height) + 40px);
-    transform: none;
-    right: calc(var(--scrollbar-size) + 12px);
-  }
-  .markdown-outline .outline-panel {
-    transform-origin: bottom right;
-    max-height: min(40vh, calc(100vh - var(--header-height) - var(--status-height) - 96px));
-  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
