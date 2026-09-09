@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isVirtualTab } from "../../lib/specialTabs";
 
+function formatCompactCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return `${Math.round(n / 1000)}k`;
+}
+
 function statusBarPathLabel(vaultPath: string | null, absPath: string): string {
   const fileParts = absPath.split(/[/\\]/).filter(Boolean);
   const fileName = fileParts[fileParts.length - 1] || absPath;
@@ -76,8 +82,8 @@ export const StatusBar: React.FC = () => {
         <div className="chrome-blur__layer chrome-blur__b5" />
         <div className="chrome-blur__layer chrome-blur__tint" />
       </div>
-      <div className="relative z-10 flex w-full h-full items-center justify-between gap-3 px-3 type-meta select-none">
-      <div className="flex items-center min-w-0 flex-1 mr-2">
+      <div className="relative z-10 flex w-full h-full items-center justify-between gap-2 max-[480px]:gap-1.5 px-3 max-[480px]:px-2 type-meta select-none">
+      <div className="flex items-center min-w-0 flex-1 mr-2 max-[480px]:hidden">
         {pathLabel && (
           <span className="truncate" title={notePath ?? pathLabel}>
             {pathLabel}
@@ -89,17 +95,35 @@ export const StatusBar: React.FC = () => {
           </span>
         )}
       </div>
-      <div className="flex items-center gap-3 shrink-0">
-        {!isVirtual && (
-          <span className="truncate" aria-live="polite">
-            {stats.words} words · {stats.characters} characters · {stats.paragraphs} paragraphs
+      <div className="flex items-center gap-3 max-[480px]:gap-2 min-w-0 shrink max-[480px]:flex-1">
+        {isVirtual && (
+          <span className="min-[481px]:hidden truncate min-w-0" title="Settings">
+            Settings
           </span>
+        )}
+        {!isVirtual && (
+          <>
+            <span
+              className="hidden min-[481px]:inline truncate min-w-0"
+              aria-live="polite"
+              title={`${stats.words} words · ${stats.characters} characters · ${stats.paragraphs} paragraphs`}
+            >
+              {stats.words} words · {stats.characters} characters · {stats.paragraphs} paragraphs
+            </span>
+            <span
+              className="min-[481px]:hidden truncate min-w-0"
+              aria-live="polite"
+              title={`${stats.words} words · ${stats.characters} characters · ${stats.paragraphs} paragraphs`}
+            >
+              {formatCompactCount(stats.words)} words
+            </span>
+          </>
         )}
         <Button
           variant={isRawMode ? "secondary" : "ghost"}
           size="sm"
           className={cn(
-            "h-5 px-2 type-label font-medium gap-1.5 rounded-sm border border-transparent",
+            "h-5 px-2 type-label font-medium gap-1.5 rounded-sm border border-transparent shrink-0",
             isRawMode && "bg-transparent border-border-translucent text-foreground",
             (!notePath || isVirtual) && "opacity-40 pointer-events-none"
           )}

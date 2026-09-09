@@ -21,6 +21,8 @@ interface Props {
   noteTitle?: string | null;
 }
 
+const NARROW_MQ = "(max-width: 480px)";
+
 function slugify(text: string) {
   return text
     .toLowerCase()
@@ -130,6 +132,22 @@ function getEditorHeadingPositions(editor: Editor | null): number[] {
   return positions;
 }
 
+function useNarrowWindow() {
+  const [isNarrow, setIsNarrow] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(NARROW_MQ).matches : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_MQ);
+    const onChange = () => setIsNarrow(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  return isNarrow;
+}
+
 export const MarkdownOutline: React.FC<Props> = ({
   editor,
   body,
@@ -140,6 +158,7 @@ export const MarkdownOutline: React.FC<Props> = ({
   const [expanded, setExpanded] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [outline, setOutline] = useState<OutlineItem[]>([]);
+  const isNarrow = useNarrowWindow();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -149,9 +168,11 @@ export const MarkdownOutline: React.FC<Props> = ({
   const rafRef = useRef<number | null>(null);
   const activeIdRef = useRef<string | null>(null);
   const notePathRef = useRef(notePath);
+  const isNarrowRef = useRef(isNarrow);
 
   bodyRef.current = body;
   activeIdRef.current = activeId;
+  isNarrowRef.current = isNarrow;
 
   // Reset when the active note changes.
   useEffect(() => {
@@ -290,7 +311,13 @@ export const MarkdownOutline: React.FC<Props> = ({
     setExpanded(true);
   };
 
+  const closePanel = useCallback(() => {
+    clearCloseTimer();
+    setExpanded(false);
+  }, []);
+
   const scheduleClosePanel = () => {
+    if (isNarrowRef.current) return;
     clearCloseTimer();
     closeTimerRef.current = window.setTimeout(() => {
       setExpanded(false);
@@ -299,6 +326,19 @@ export const MarkdownOutline: React.FC<Props> = ({
   };
 
   useEffect(() => () => clearCloseTimer(), []);
+
+  // Narrow: Esc dismisses the sheet; leave hover-dismiss for wide only.
+  useEffect(() => {
+    if (!expanded || !isNarrow) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closePanel();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded, isNarrow, closePanel]);
 
   const handleClick = useCallback(
     (item: OutlineItem, index: number) => {
@@ -318,6 +358,7 @@ export const MarkdownOutline: React.FC<Props> = ({
         ta.focus();
         ta.setSelectionRange(charPos, charPos);
         ta.scrollTop = Math.max(0, item.line * lineHeight - 72);
+        if (isNarrowRef.current) setExpanded(false);
         return;
       }
 
@@ -335,6 +376,7 @@ export const MarkdownOutline: React.FC<Props> = ({
         const sel = Math.min(pos + 1, editor.state.doc.content.size);
         editor.chain().focus().setTextSelection(sel).run();
       }
+      if (isNarrowRef.current) setExpanded(false);
     },
     [editor, isRawMode]
   );
@@ -342,43 +384,72 @@ export const MarkdownOutline: React.FC<Props> = ({
   if (outline.length === 0) return null;
 
   const headerLabel = (noteTitle && noteTitle.trim()) || "On this page";
+  const showSheet = isNarrow && expanded;
 
   return (
     <div
       ref={rootRef}
-      className="fixed right-3 top-1/2 z-30 -translate-y-1/2 flex items-center gap-2 py-2 pl-2 pointer-events-auto"
-      onMouseEnter={openPanel}
-      onMouseLeave={scheduleClosePanel}
+      className={cn(
+        "z-30 pointer-events-auto",
+        showSheet
+          ? "fixed inset-0 flex items-center justify-center p-4"
+          : "fixed right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 py-2 pl-2"
+      )}
+      onMouseEnter={isNarrow ? undefined : openPanel}
+      onMouseLeave={isNarrow ? undefined : scheduleClosePanel}
       aria-label={`Outline for ${headerLabel}`}
     >
+      {showSheet && (
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/45 backdrop-blur-[2px] border-0 cursor-default"
+          aria-label="Close outline"
+          onClick={closePanel}
+        />
+      )}
+
       <div
         className={cn(
-          "outline-panel flex flex-col max-h-[60vh] overflow-hidden border border-border-translucent rounded-[var(--radius-md)] transition-all duration-200 ease-out origin-right",
+          "outline-panel relative flex flex-col overflow-hidden border border-border-translucent rounded-[var(--radius-md)] transition-all duration-200 ease-out",
+          showSheet ? "origin-center max-h-[70vh]" : "origin-right max-h-[60vh]",
           expanded
-            ? "w-[260px] opacity-100 translate-x-0"
+            ? cn(
+                "opacity-100 translate-x-0",
+                showSheet
+                  ? "w-[min(320px,calc(100vw-2rem))]"
+                  : "w-[min(260px,calc(100vw-3rem))]"
+              )
             : "w-0 opacity-0 translate-x-2 pointer-events-none border-transparent"
         )}
         role="navigation"
         aria-label="Headings"
         aria-hidden={!expanded}
       >
-        <div className="px-3 pt-2.5 pb-2 border-b border-border-translucent shrink-0 min-w-[248px]">
+        <div className="px-3 pt-2.5 pb-2 border-b border-border-translucent shrink-0">
           <div className="type-label font-semibold text-foreground truncate" title={headerLabel}>
             {headerLabel}
           </div>
           <div className="type-meta tracking-wider uppercase mt-0.5">On this page</div>
         </div>
-        <div ref={listRef} className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-0.5 min-w-[248px]">
+        <div
+          ref={listRef}
+          className="outline-panel-list flex-1 overflow-y-auto overflow-x-hidden p-1.5 pr-2 flex flex-col gap-0.5"
+        >
           {outline.map((item, index) => {
             const isActive = activeId === item.id;
-            const indentClass =
-              item.level === 1
+            const indentClass = isNarrow
+              ? item.level === 1
                 ? "pl-2 font-medium type-chrome"
                 : item.level === 2
-                ? "pl-4 type-label"
-                : item.level === 3
-                ? "pl-6 type-label opacity-90"
-                : "pl-8 type-meta opacity-90";
+                ? "pl-3 type-label"
+                : "pl-4 type-label opacity-90"
+              : item.level === 1
+              ? "pl-2 font-medium type-chrome"
+              : item.level === 2
+              ? "pl-4 type-label"
+              : item.level === 3
+              ? "pl-6 type-label opacity-90"
+              : "pl-8 type-meta opacity-90";
 
             return (
               <button
@@ -386,7 +457,7 @@ export const MarkdownOutline: React.FC<Props> = ({
                 type="button"
                 data-outline-id={item.id}
                 className={cn(
-                  "flex items-center gap-2 w-full text-left py-1.5 pr-2 rounded-md border border-transparent leading-snug cursor-pointer transition-colors duration-100",
+                  "flex items-start gap-2 w-full text-left py-1.5 pr-2 rounded-md border border-transparent leading-snug cursor-pointer transition-colors duration-100",
                   indentClass,
                   isActive
                     ? "bg-accent text-accent-foreground font-semibold"
@@ -398,48 +469,64 @@ export const MarkdownOutline: React.FC<Props> = ({
               >
                 <span
                   className={cn(
-                    "w-2.5 h-[2px] rounded-full shrink-0",
+                    "w-2.5 h-[2px] rounded-full shrink-0 mt-[0.55em]",
                     isActive ? "bg-accent-foreground opacity-100" : "bg-current opacity-40"
                   )}
                   aria-hidden="true"
                 />
-                <span className="truncate flex-1 min-w-0">{item.text}</span>
+                <span
+                  className={cn(
+                    "flex-1 min-w-0",
+                    isNarrow ? "line-clamp-2 whitespace-normal" : "truncate"
+                  )}
+                >
+                  {item.text}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
 
-      <div
-        className="flex flex-col items-end gap-2 p-2 bg-bg-translucent border border-border-translucent rounded-full backdrop-blur-md shadow-xs shrink-0"
-        aria-hidden={expanded}
-      >
-        {outline.map((item, index) => {
-          const isActive = activeId === item.id;
-          return (
-            <button
-              key={`${notePath ?? "note"}:${item.id}:dash`}
-              type="button"
-              className={cn(
-                "h-[2px] rounded-full bg-muted-foreground border-0 cursor-pointer p-0 shrink-0 transition-all duration-150 hover:opacity-100 hover:bg-foreground hover:scale-x-110",
-                isActive
-                  ? "w-5 h-[2.5px] bg-accent opacity-100"
-                  : item.level === 1
-                  ? "w-[18px] opacity-60"
-                  : item.level === 2
-                  ? "w-3 opacity-50"
-                  : item.level === 3
-                  ? "w-2 opacity-45"
-                  : "w-1.5 opacity-40"
-              )}
-              onClick={() => handleClick(item, index)}
-              title={item.text}
-              aria-label={item.text}
-              aria-current={isActive ? "true" : undefined}
-            />
-          );
-        })}
-      </div>
+      {/* Tick rail — hidden while the panel is open so it doesn't steal width. */}
+      {!expanded && (
+        <div
+          className="flex flex-col items-end gap-2 p-2 bg-bg-translucent border border-border-translucent rounded-full backdrop-blur-md shadow-xs shrink-0"
+          aria-hidden={false}
+        >
+          {outline.map((item, index) => {
+            const isActive = activeId === item.id;
+            return (
+              <button
+                key={`${notePath ?? "note"}:${item.id}:dash`}
+                type="button"
+                className={cn(
+                  "h-[2px] rounded-full bg-muted-foreground border-0 cursor-pointer p-0 shrink-0 transition-all duration-150 hover:opacity-100 hover:bg-foreground hover:scale-x-110",
+                  isActive
+                    ? "w-5 h-[2.5px] bg-accent opacity-100"
+                    : item.level === 1
+                    ? "w-[18px] opacity-60"
+                    : item.level === 2
+                    ? "w-3 opacity-50"
+                    : item.level === 3
+                    ? "w-2 opacity-45"
+                    : "w-1.5 opacity-40"
+                )}
+                onClick={() => {
+                  if (isNarrow) {
+                    openPanel();
+                    return;
+                  }
+                  handleClick(item, index);
+                }}
+                title={item.text}
+                aria-label={isNarrow ? `Open outline · ${item.text}` : item.text}
+                aria-current={isActive ? "true" : undefined}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

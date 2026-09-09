@@ -988,12 +988,27 @@ html, body, #root {
 
 /* Outline panel translucent surface */
 .outline-panel {
-  background: var(--bg-translucent) !important;
-  background-color: var(--bg-translucent) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--bg) 78%, transparent) !important;
+  background-color: color-mix(in srgb, var(--bg) 78%, transparent) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-color: var(--border-translucent) !important;
   box-shadow: var(--overlay-shadow);
+}
+
+.outline-panel-list {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted-fg) 45%, transparent) transparent;
+}
+.outline-panel-list::-webkit-scrollbar {
+  width: 6px;
+}
+.outline-panel-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-fg) 40%, transparent);
+  border-radius: 999px;
+}
+.outline-panel-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 
@@ -1012,6 +1027,17 @@ html, body, #root {
   .find-bar { width: calc(100vw - 1rem) !important; max-width: none !important; }
   .palette-dialog, .settings-dialog { width: calc(100vw - 1rem) !important; max-width: none !important; }
   .tab-item { max-width: min(180px, 42vw); }
+}
+
+@media (max-width: 480px) {
+  :root { --sidebar-width: min(200px, 62vw); }
+  .outline-panel {
+    background: color-mix(in srgb, var(--bg) 90%, transparent) !important;
+    background-color: color-mix(in srgb, var(--bg) 90%, transparent) !important;
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+  }
+  .tab-item { max-width: min(240px, 58vw); }
 }
 
 @media (prefers-reduced-transparency: reduce) {

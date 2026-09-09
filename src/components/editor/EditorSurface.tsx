@@ -791,8 +791,11 @@ export const EditorSurface: React.FC = () => {
   }
 
   return (
-    <section className="flex-1 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 relative scroll-smooth" data-editor-scroll>
-      <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center">
+    <section
+      className="flex-1 min-w-0 overflow-y-auto flex justify-center items-center py-12 px-8 sm:px-6 max-[480px]:px-3 max-[480px]:py-6 relative scroll-smooth"
+      data-editor-scroll
+    >
+      <div className="w-full max-w-editor m-auto self-center type-editor flex flex-col justify-center min-w-0">
         {isLoading && (
           <div className="py-4 type-label text-muted-foreground">
             Loading note...

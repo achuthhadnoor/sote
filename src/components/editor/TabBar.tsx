@@ -219,7 +219,7 @@ export const TabBar: React.FC<TabBarProps> = ({
         <div className="chrome-blur__layer chrome-blur__b5" />
         <div className="chrome-blur__layer chrome-blur__tint" />
       </div>
-      <div className="relative z-10 flex w-full h-full items-center gap-3 px-3">
+      <div className="relative z-10 flex w-full h-full items-center gap-3 max-[480px]:gap-1.5 px-3 max-[480px]:px-2">
       {/* Left cluster: sidebar toggle + navigation, then tabs — all in the
           titlebar row. macOS Overlay reserves traffic-lights space on the left
           when the bar reaches the window edge. */}
@@ -227,9 +227,9 @@ export const TabBar: React.FC<TabBarProps> = ({
         className={`flex gap-1 shrink-0 ${
           welcomeMode || sidebarCollapsed
             ? PLATFORM === "mac"
-              ? "pl-16 justify-end "
-              : "w-[86px]"
-            : "w-[56px]"
+              ? "pl-16 max-[480px]:pl-14 justify-end "
+              : "w-[86px] max-[480px]:w-[72px]"
+            : "w-[56px] max-[480px]:w-[48px]"
         }`}
         data-tauri-drag-region
       >
@@ -331,7 +331,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                     tabIndex={isActive ? 0 : -1}
                     data-tab-path={tab.path}
                     data-tab-title={tab.title}
-                    className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] cursor-pointer ${
+                    className={`tab-item ui-row group relative inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 border border-transparent type-label font-medium whitespace-nowrap shrink-0 max-w-[180px] max-[480px]:max-w-[min(240px,58vw)] cursor-pointer ${
                       isActive
                         ? "text-foreground"
                         : "text-muted-foreground hover:text-foreground"
@@ -349,7 +349,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                     ) : (
                       <FileTabIcon active={isActive} />
                     )}
-                    <span className={`truncate max-w-[120px] ${isDraft ? "italic" : ""}`}>{tab.title}</span>
+                    <span className={`truncate max-w-[120px] max-[480px]:max-w-none ${isDraft ? "italic" : ""}`}>{tab.title}</span>
                     {isDraft && !isActive && <span className="w-1.5 h-1.5 rounded-full border border-muted-foreground/70 shrink-0 group-hover:opacity-0 transition-opacity" title="Not yet saved" />}
                     {isActive && isDraft && !isDirty && <span className="type-meta italic font-normal shrink-0">draft</span>}
                     {showDirty && (
@@ -396,7 +396,7 @@ export const TabBar: React.FC<TabBarProps> = ({
             variant="ghost"
             size="icon"
             className={cn(
-              "h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground",
+              "h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground max-[480px]:hidden",
               pinned && "text-foreground bg-muted-translucent"
             )}
             onClick={() => void togglePinned()}
