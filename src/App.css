@@ -876,12 +876,21 @@ html, body, #root {
   text-align: center;
 }
 
-/* Custom table block — translucent, matches code-block density */
+/* Custom table block — translucent, matches code-block density.
+   Wide tables scroll horizontally instead of crushing columns. */
 .snipnote-table-wrapper {
   margin: 0.75em 0;
+  max-width: 100%;
+  min-width: 0;
+}
+.snipnote-table-container {
+  overflow-x: auto;
+  max-width: 100%;
+  overscroll-behavior-x: contain;
 }
 .snipnote-table-container table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   margin: 0;
@@ -898,6 +907,7 @@ html, body, #root {
   color: var(--muted-fg);
   font-size: 12px;
   font-family: var(--font-sans);
+  white-space: nowrap;
 }
 .snipnote-table-container th:last-child { border-right: none; }
 .snipnote-table-container td {
@@ -905,6 +915,7 @@ html, body, #root {
   border-bottom: 1px solid var(--border-translucent);
   border-right: 1px solid var(--border-translucent);
   vertical-align: top;
+  white-space: nowrap;
 }
 .snipnote-table-container td:last-child { border-right: none; }
 .snipnote-table-container tr:last-child td { border-bottom: none; }

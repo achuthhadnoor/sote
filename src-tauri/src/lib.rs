@@ -353,7 +353,7 @@ pub fn run() {
                 tauri::WebviewUrl::default(),
             )
             .inner_size(1280.0, 720.0)
-            .min_inner_size(1100.0, 600.0)
+            .min_inner_size(400.0, 600.0)
             .transparent(true)
             // Start hidden; the frontend calls `reveal_window` once session
             // restore completes, so the window only appears with content.
