@@ -92,11 +92,11 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
 
   return (
     <NodeViewWrapper
-      className={`not-prose snipnote-table-wrapper block select-none ${
+      className={`not-prose snipnote-table-wrapper block select-none min-w-0 ${
         selected ? "ring-2 ring-primary/40 rounded-md" : ""
       }`}
     >
-      <Card className="code-block-card relative overflow-hidden border bg-transparent shadow-none group">
+      <Card className="code-block-card relative min-w-0 overflow-hidden border bg-transparent shadow-none group">
         {/* Floating action buttons */}
         <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
           {!isEditing && raw && (
@@ -175,7 +175,7 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
           </div>
         ) : html ? (
           <div
-            className="overflow-x-auto p-1 snipnote-table-container"
+            className="p-1 snipnote-table-container"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (
