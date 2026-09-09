@@ -154,6 +154,7 @@ html.theming *::after {
   --header-height: 40px;
   --status-height: 28px;
   --editor-max-width: 720px;
+  --scrollbar-size: 10px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 8px;
@@ -352,6 +353,40 @@ textarea.frontmatter-textarea:focus-visible {
   display: none;
   height: 0;
   width: 0;
+}
+
+/* Floating overlay scrollbars — invisible until the scrollport is hovered
+   or focused. Thin thumb floats over content (transparent track). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover,
+*:focus-within {
+  scrollbar-color: color-mix(in srgb, var(--muted-fg) 40%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: var(--scrollbar-size, 10px);
+  height: var(--scrollbar-size, 10px);
+  background: transparent;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*:hover::-webkit-scrollbar-thumb,
+*:focus-within::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--muted-fg) 40%, transparent);
+}
+*:hover::-webkit-scrollbar-thumb:hover,
+*:focus-within::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--muted-fg) 60%, transparent);
 }
 
 /* Progressive chrome blur — stacked variable-radius backdrop layers.
@@ -1012,6 +1047,19 @@ html, body, #root {
   .find-bar { width: calc(100vw - 1rem) !important; max-width: none !important; }
   .palette-dialog, .settings-dialog { width: calc(100vw - 1rem) !important; max-width: none !important; }
   .tab-item { max-width: min(180px, 42vw); }
+
+  /* Park outline above the status bar with extra bottom margin so it stays
+     clear of chrome and doesn’t cover mid-editor prose. */
+  .markdown-outline {
+    top: auto;
+    bottom: calc(var(--status-height) + 40px);
+    transform: none;
+    right: calc(var(--scrollbar-size) + 12px);
+  }
+  .markdown-outline .outline-panel {
+    transform-origin: bottom right;
+    max-height: min(40vh, calc(100vh - var(--header-height) - var(--status-height) - 96px));
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {

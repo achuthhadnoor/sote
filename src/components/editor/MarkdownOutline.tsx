@@ -346,7 +346,7 @@ export const MarkdownOutline: React.FC<Props> = ({
   return (
     <div
       ref={rootRef}
-      className="fixed right-3 top-1/2 z-30 -translate-y-1/2 flex items-center gap-2 py-2 pl-2 pointer-events-auto"
+      className="markdown-outline fixed z-30 flex items-center gap-2 py-2 pl-2 pointer-events-auto top-1/2 right-[calc(var(--scrollbar-size)+8px)] -translate-y-1/2"
       onMouseEnter={openPanel}
       onMouseLeave={scheduleClosePanel}
       aria-label={`Outline for ${headerLabel}`}
