@@ -187,12 +187,12 @@ function resolveMarkdownLink(href: string, activePath: string | null, vaultPath:
   ) {
     // Already an absolute path inside the vault
     target = clean;
-  } else if (isAbsoluteFsPath(clean) && isHostAbsolutePath(clean)) {
-    target = clean;
-  } else if (clean.startsWith("/") && !isHostAbsolutePath(clean)) {
-    // Vault-root relative (e.g. /docs/intro.md)
+  } else if (clean.startsWith("/")) {
+    // Vault-root relative (e.g. /docs/intro.md). Leading `/` is also a Unix
+    // absolute shape — prefer vault policy unless already under the vault above.
     target = pathJoin(normalizedVault, clean.replace(/^[/\\]+/, ""));
-  } else if (isAbsoluteFsPath(clean)) {
+  } else if (isHostAbsolutePath(clean)) {
+    // Windows drive / UNC (and any other non-`/` absolute form)
     target = clean;
   } else {
     // Relative to active note's directory

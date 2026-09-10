@@ -10,19 +10,13 @@ export function isAbsoluteFsPath(p: string): boolean {
 }
 
 /**
- * Absolute paths that are clearly host filesystem roots (not vault-relative
- * markdown links like `/docs/intro.md`).
+ * Host filesystem absolute path (Unix `/`, Windows drive, UNC).
+ * Callers that also support vault-root markdown links (`/docs/intro.md`)
+ * must apply vault-relative policy themselves (prefer vault join for leading
+ * `/` unless the path is already under the vault).
  */
 export function isHostAbsolutePath(p: string): boolean {
-  if (/^[a-zA-Z]:[/\\]/.test(p) || p.startsWith("\\\\")) return true;
-  return (
-    p.startsWith("/Users/") ||
-    p.startsWith("/home/") ||
-    p.startsWith("/Volumes/") ||
-    p.startsWith("/var/") ||
-    p.startsWith("/tmp/") ||
-    p.startsWith("/private/")
-  );
+  return isAbsoluteFsPath(p);
 }
 
 /** File/folder name portion of a path (handles `/` and `\`). */
