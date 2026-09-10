@@ -191,6 +191,9 @@ fn reveal_window(app: AppHandle) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.set_focus();
+        // WKWebView may not exist yet during setup; re-apply inactive hover here.
+        #[cfg(target_os = "macos")]
+        macos_hover::enable_inactive_hover(&w);
         crate::logger::debug("app", "window revealed (frontend ready)");
     }
     Ok(())
