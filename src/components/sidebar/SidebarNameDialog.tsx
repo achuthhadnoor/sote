@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebarActionsStore } from "../../stores/useSidebarActionsStore";
-import { commitCreate, commitRename } from "../../utils/nativeContextMenu";
+import { useVaultStore } from "../../stores/useVaultStore";
+import {
+  commitCreate,
+  commitRename,
+  commitSaveDraft,
+  listVaultFolders,
+} from "../../utils/nativeContextMenu";
+import { cn } from "@/lib/utils";
 
 function dialogCopy(dialog: NonNullable<ReturnType<typeof useSidebarActionsStore.getState>["dialog"]>) {
   switch (dialog.mode) {
@@ -43,24 +50,43 @@ function dialogCopy(dialog: NonNullable<ReturnType<typeof useSidebarActionsStore
         defaultValue: "New Folder",
         selectExtension: false,
       };
+    case "save-draft":
+      return {
+        title: "Save Note",
+        description: "Choose a name and folder for this draft.",
+        label: "Name",
+        confirm: "Save",
+        defaultValue: dialog.suggestedName,
+        selectExtension: true,
+      };
   }
 }
 
 export const SidebarNameDialog: React.FC = () => {
   const dialog = useSidebarActionsStore((s) => s.dialog);
   const clear = useSidebarActionsStore((s) => s.clear);
+  const vaultPath = useVaultStore((s) => s.vaultPath);
+  const tree = useVaultStore((s) => s.tree);
   const open = dialog !== null;
   const copy = dialog ? dialogCopy(dialog) : null;
   const [value, setValue] = useState("");
+  const [dirPath, setDirPath] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
+  const locationId = useId();
+
+  const folders = useMemo(() => {
+    if (!vaultPath) return [];
+    return listVaultFolders(tree, vaultPath);
+  }, [tree, vaultPath]);
 
   useEffect(() => {
     if (!dialog) return;
     const next = dialogCopy(dialog);
     setValue(next.defaultValue);
+    setDirPath(dialog.mode === "save-draft" ? dialog.dirPath : "");
     setError(null);
     setSubmitting(false);
     const frame = requestAnimationFrame(() => {
@@ -98,8 +124,18 @@ export const SidebarNameDialog: React.FC = () => {
         await commitRename(dialog.path, trimmed, dialog.isDirectory);
       } else if (dialog.mode === "create-file") {
         await commitCreate(dialog.dirPath, "file", trimmed);
-      } else {
+      } else if (dialog.mode === "create-folder") {
         await commitCreate(dialog.dirPath, "folder", trimmed);
+      } else {
+        const location = dirPath || dialog.dirPath;
+        await commitSaveDraft(
+          dialog.draftPath,
+          location,
+          trimmed,
+          dialog.body,
+          dialog.frontmatter,
+          dialog.resolve
+        );
       }
     } catch (e: unknown) {
       const message =
@@ -155,6 +191,31 @@ export const SidebarNameDialog: React.FC = () => {
                 autoComplete="off"
                 spellCheck={false}
               />
+
+              {dialog?.mode === "save-draft" && (
+                <div className="grid gap-2 pt-1">
+                  <label htmlFor={locationId} className="type-label text-muted-foreground">
+                    Location
+                  </label>
+                  <select
+                    id={locationId}
+                    value={dirPath}
+                    disabled={submitting || folders.length === 0}
+                    onChange={(e) => setDirPath(e.target.value)}
+                    className={cn(
+                      "h-9 w-full rounded-md border border-input bg-background px-3 text-[13px]",
+                      "text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    )}
+                  >
+                    {folders.map((f) => (
+                      <option key={f.path} value={f.path}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {error && (
                 <p className="text-[12px] text-destructive leading-snug" role="alert">
                   {error}

@@ -1,9 +1,17 @@
 import { create } from "zustand";
 import { NoteEnvelope } from "../types/note";
 import { createLogger, loggedInvoke } from "../lib/logger";
+import { pathBasename, pathDirname } from "../utils/paths";
 import { useVaultStore } from "./useVaultStore";
+import { useTabStore } from "./useTabStore";
+import { useSidebarActionsStore } from "./useSidebarActionsStore";
 
 const log = createLogger("editor");
+
+export type SaveNowOptions = {
+  /** When true, prompt name+location for in-memory drafts before first disk write. */
+  promptDraft?: boolean;
+};
 
 interface EditorState {
   loadedPath: string | null;
@@ -22,7 +30,11 @@ interface EditorState {
   loadNote: (path: string) => Promise<string>;
   updateBody: (body: string) => void;
   updateFrontmatter: (frontmatter: string | null) => void;
-  saveNow: (filePath: string, snapshot?: { body: string; frontmatter: string | null }) => Promise<boolean>;
+  saveNow: (
+    filePath: string,
+    snapshot?: { body: string; frontmatter: string | null },
+    opts?: SaveNowOptions
+  ) => Promise<boolean>;
   setSaved: () => void;
   clearNote: () => void;
   setConflict: (val: boolean) => void;
@@ -35,6 +47,33 @@ interface EditorState {
 let latestLoadRequestId = 0;
 const saveQueues = new Map<string, Promise<void>>();
 const savedSnapshots = new Map<string, { body: string; frontmatter: string | null }>();
+/** In-memory draft bodies so unsaved tabs survive tab switches. */
+const draftBuffers = new Map<string, { body: string; frontmatter: string | null }>();
+
+/** Record the last-known disk snapshot so dirty checks stay accurate after external writes. */
+export function rememberSavedSnapshot(
+  path: string,
+  body: string,
+  frontmatter: string | null
+) {
+  savedSnapshots.set(path, { body, frontmatter });
+}
+
+export function rememberDraftBuffer(
+  path: string,
+  body: string,
+  frontmatter: string | null
+) {
+  draftBuffers.set(path, { body, frontmatter });
+}
+
+export function readDraftBuffer(path: string) {
+  return draftBuffers.get(path) ?? null;
+}
+
+export function forgetDraftBuffer(path: string) {
+  draftBuffers.delete(path);
+}
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   loadedPath: null,
@@ -103,7 +142,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  saveNow: async (filePath: string, snapshot) => {
+  saveNow: async (filePath: string, snapshot, opts) => {
     if (!filePath) return false;
     let didWrite = false;
     const previous = saveQueues.get(filePath) ?? Promise.resolve();
@@ -127,6 +166,55 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       // Do not create a new note file if there is no content.
       const hasContent = snapshotBody.trim().length > 0 || !!snapshotFrontmatter?.trim().length;
       if (!hasContent) return;
+
+      const tab = useTabStore.getState().tabs.find((t) => t.path === filePath);
+      if (tab?.isNew) {
+        rememberDraftBuffer(filePath, snapshotBody, snapshotFrontmatter);
+        const syncMemory = () => {
+          if (
+            get().loadedPath === filePath &&
+            get().body === snapshotBody &&
+            get().frontmatter === snapshotFrontmatter
+          ) {
+            set({
+              lastSavedBody: snapshotBody,
+              lastSavedFrontmatter: snapshotFrontmatter,
+              isDirty: false,
+            });
+          }
+        };
+        if (!opts?.promptDraft) {
+          syncMemory();
+          return;
+        }
+        const vaultPath = useVaultStore.getState().vaultPath;
+        if (!vaultPath) {
+          set({ error: "No folder is open" });
+          return;
+        }
+        const suggestedName = pathBasename(filePath) || "Untitled.md";
+        const dirPath = pathDirname(filePath) || vaultPath;
+        set({ isSaving: true });
+        try {
+          const saved = await useSidebarActionsStore.getState().requestSaveDraft({
+            draftPath: filePath,
+            suggestedName,
+            dirPath,
+            body: snapshotBody,
+            frontmatter: snapshotFrontmatter,
+          });
+          if (saved) {
+            didWrite = true;
+            forgetDraftBuffer(filePath);
+          } else {
+            // Cancelled — keep draft in memory; mark clean so we don't re-prompt until edits.
+            syncMemory();
+          }
+        } finally {
+          set({ isSaving: false });
+        }
+        return;
+      }
 
       set({ isSaving: true });
       try {

@@ -15,7 +15,7 @@ import { formatMarkdownLinkDestination, prepareMarkdownForEditor } from "../../u
 import { FindBar } from "./FindBar";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
-import { useEditorStore } from "../../stores/useEditorStore";
+import { useEditorStore, readDraftBuffer, rememberDraftBuffer } from "../../stores/useEditorStore";
 import { useSpellCheckStore } from "../../stores/useSpellCheckStore";
 import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { RawEditor } from "./RawEditor";
@@ -347,10 +347,15 @@ export const EditorSurface: React.FC = () => {
     debounceTimerRef.current = null;
     pendingSaveRef.current = null;
     if (!pending) return false;
-    const didWrite = await saveNow(pending.path, {
-      body: pending.body,
-      frontmatter: pending.frontmatter,
-    });
+    const didWrite = await saveNow(
+      pending.path,
+      {
+        body: pending.body,
+        frontmatter: pending.frontmatter,
+      },
+      // Pending debounce flush is never a deliberate "Save" — drafts stay in memory.
+      { promptDraft: false }
+    );
     if (didWrite) await handlePostSave(pending.path, pending.wasNew, true);
     return didWrite;
   }, [handlePostSave, saveNow]);
@@ -363,8 +368,20 @@ export const EditorSurface: React.FC = () => {
     if (!path) return;
     const tab = useTabStore.getState().tabs.find((t) => t.path === path);
     const { body, frontmatter } = useEditorStore.getState();
-    const pending: PendingSave = { path, wasNew: !!tab?.isNew, body, frontmatter };
+    const wasNew = !!tab?.isNew;
+    const pending: PendingSave = { path, wasNew, body, frontmatter };
     pendingSaveRef.current = pending;
+    // Drafts stay in memory — never auto-write Untitled.md or pop the save dialog while typing.
+    if (wasNew) {
+      rememberDraftBuffer(path, body, frontmatter);
+      debounceTimerRef.current = setTimeout(() => {
+        if (pendingSaveRef.current !== pending) return;
+        pendingSaveRef.current = null;
+        debounceTimerRef.current = null;
+        void saveNow(path, { body, frontmatter }, { promptDraft: false });
+      }, 500);
+      return;
+    }
     debounceTimerRef.current = setTimeout(async () => {
       if (pendingSaveRef.current !== pending) return;
       pendingSaveRef.current = null;
@@ -619,14 +636,15 @@ export const EditorSurface: React.FC = () => {
     return () => window.removeEventListener("keydown", onEsc);
   }, [editor, isFindOpen]);
 
-  // Flush save on window blur or beforeunload (respects draft-no-content guard)
+  // Flush save on window blur or beforeunload (respects draft-no-content guard).
+  // Drafts: memory-sync only — don't pop the save dialog on alt-tab.
   useEffect(() => {
     const handleFlush = () => {
       void flushPendingAutoSave().then((didWrite) => {
         if (didWrite || !activePathRef.current || !useEditorStore.getState().isDirty) return;
         const path = activePathRef.current;
         const tab = useTabStore.getState().tabs.find((t) => t.path === path);
-        void saveNow(path).then((written) => {
+        void saveNow(path, undefined, { promptDraft: false }).then((written) => {
           if (written) return handlePostSave(path, !!tab?.isNew, true);
         });
       });
@@ -681,7 +699,9 @@ export const EditorSurface: React.FC = () => {
 
     const run = async () => {
       if (prev && snapshotForPrev && prev !== activePath && !isVirtualTab(prev)) {
-        const didWrite = await saveNow(prev, snapshotForPrev);
+        const didWrite = await saveNow(prev, snapshotForPrev, {
+          promptDraft: wasNewPrev,
+        });
         if (didWrite) await handlePostSave(prev, wasNewPrev, true);
       }
       if (cancelled) return;
@@ -689,21 +709,24 @@ export const EditorSurface: React.FC = () => {
       // Settings (and other virtual tabs) are not notes — keep prior buffer loaded.
       if (isVirtualTab(activePath)) return;
 
-      // Draft new note: no file on disk yet, init empty
+      // Draft new note: restore in-memory buffer (no disk file yet)
       if (isNewDraft) {
+        const buf = readDraftBuffer(activePath);
+        const nextBody = buf?.body ?? "";
+        const nextFm = buf?.frontmatter ?? null;
         isProgrammaticUpdateRef.current = true;
         useEditorStore.setState({
           loadedPath: activePath,
-          frontmatter: null,
-          lastSavedFrontmatter: null,
-          body: "",
-          lastSavedBody: "",
+          frontmatter: nextFm,
+          lastSavedFrontmatter: nextFm,
+          body: nextBody,
+          lastSavedBody: nextBody,
           isDirty: false,
           isLoading: false,
           error: null,
           hasConflict: false,
         } as any);
-        editor.commands.setContent("", { emitUpdate: false } as any);
+        setEditorMarkdown(editor, nextBody);
         setTimeout(() => {
           isProgrammaticUpdateRef.current = false;
         }, 50);

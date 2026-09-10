@@ -1,10 +1,22 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
 import { flushActiveNote } from "../../lib/flushActiveNote";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Minus, PanelLeft, Pin, Plus, Settings, Square, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+  PanelLeft,
+  Pin,
+  Plus,
+  RectangleVertical,
+  Settings,
+  Square,
+  X,
+} from "lucide-react";
 import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 import { PLATFORM, isWindows, modShortcut } from "../../utils/platform";
 import { createWindowChromeDragHandler } from "../../utils/windowChromeDrag";
@@ -12,6 +24,10 @@ import { cn } from "@/lib/utils";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 
 const ALWAYS_ON_TOP_KEY = "snipnote-always-on-top";
+/** Inner size that lands under the narrow-layout media query (max-width 720). */
+const NARROW_WINDOW_WIDTH = 420;
+const NARROW_WINDOW_HEIGHT = 700;
+const WIDE_WINDOW_FALLBACK = { width: 1280, height: 720 };
 
 /** Drag + double-click maximize; excludes tab strip / interactive chrome. */
 const handleStartDragging = createWindowChromeDragHandler(
@@ -81,6 +97,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   const [pinned, setPinned] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [tabsOverflow, setTabsOverflow] = useState(false);
+  const wideSizeRef = useRef<{ width: number; height: number } | null>(null);
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
@@ -214,6 +231,33 @@ export const TabBar: React.FC<TabBarProps> = ({
       } catch {}
       setPinned(next);
     } catch {}
+  };
+
+  /** Resize the native Tauri window (not CSS). Remembers the last wide size. */
+  const toggleNarrowWindow = async () => {
+    try {
+      const win = getCurrentWindow();
+      const factor = await win.scaleFactor();
+      const physical = await win.innerSize();
+      const width = physical.width / factor;
+      const height = physical.height / factor;
+
+      if (await win.isMaximized()) {
+        await win.unmaximize();
+      }
+
+      if (isNarrow || width <= 720) {
+        const restore = wideSizeRef.current ?? WIDE_WINDOW_FALLBACK;
+        await win.setSize(new LogicalSize(restore.width, restore.height));
+        await win.center();
+        return;
+      }
+
+      wideSizeRef.current = { width, height };
+      await win.setSize(new LogicalSize(NARROW_WINDOW_WIDTH, NARROW_WINDOW_HEIGHT));
+    } catch (e) {
+      console.error("narrow window resize failed", e);
+    }
   };
 
   const minimizeWindow = () => {
@@ -482,6 +526,20 @@ export const TabBar: React.FC<TabBarProps> = ({
             aria-label="Open settings"
           >
             <Settings className="h-[14px] w-[14px]" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-[26px] w-[26px] rounded-sm text-muted-foreground hover:bg-muted-translucent hover:text-foreground",
+              isNarrow && "text-foreground bg-muted-translucent"
+            )}
+            onClick={() => void toggleNarrowWindow()}
+            title={isNarrow ? "Expand window" : "Narrow window"}
+            aria-label={isNarrow ? "Expand window" : "Narrow window"}
+            aria-pressed={isNarrow}
+          >
+            <RectangleVertical className="h-[14px] w-[14px]" />
           </Button>
           <Button
             variant="ghost"

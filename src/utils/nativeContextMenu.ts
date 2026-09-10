@@ -4,12 +4,13 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useVaultStore } from "../stores/useVaultStore";
 import { useTabStore } from "../stores/useTabStore";
+import { useEditorStore, rememberSavedSnapshot, forgetDraftBuffer } from "../stores/useEditorStore";
 import { useSidebarActionsStore } from "../stores/useSidebarActionsStore";
 import { useFileTreeExpandStore } from "../stores/useFileTreeExpandStore";
 import type { VaultNode } from "../types/vault";
 import { createLogger } from "../lib/logger";
 import { isMac } from "./platform";
-import { pathBasename } from "./paths";
+import { pathBasename, pathJoin, normalizePath } from "./paths";
 
 const log = createLogger("context-menu");
 
@@ -19,6 +20,31 @@ async function refreshVault() {
   try {
     await useVaultStore.getState().loadVault(vaultPath);
   } catch {}
+}
+
+/** Flatten vault folders for the save-draft location picker. */
+export function listVaultFolders(tree: VaultNode[], vaultPath: string): { path: string; label: string }[] {
+  const out: { path: string; label: string }[] = [
+    { path: vaultPath, label: pathBasename(vaultPath) || "Vault" },
+  ];
+  const walk = (nodes: VaultNode[], prefix: string) => {
+    for (const n of nodes) {
+      if (!n.isDirectory) continue;
+      const label = prefix ? `${prefix} / ${n.name}` : n.name;
+      out.push({ path: n.path, label });
+      if (n.children?.length) walk(n.children, label);
+    }
+  };
+  walk(tree, "");
+  return out;
+}
+
+function ensureMarkdownName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.startsWith(".")) return trimmed;
+  if (/\.[a-zA-Z0-9]+$/.test(trimmed)) return trimmed;
+  return `${trimmed}.md`;
 }
 
 function closeTabsUnder(path: string, isDirectory: boolean) {
@@ -105,6 +131,91 @@ export async function commitCreate(dirPath: string, kind: "file" | "folder", nam
     useFileTreeExpandStore.getState().setExpanded(vaultPath, newPath, true);
   }
   useSidebarActionsStore.getState().clear();
+}
+
+/**
+ * First disk write for an in-memory draft: write chosen name under chosen folder,
+ * retarget the draft tab, and resolve the pending save promise.
+ */
+export async function commitSaveDraft(
+  draftPath: string,
+  dirPath: string,
+  fileName: string,
+  body: string,
+  frontmatter: string | null,
+  resolve: (saved: boolean) => void
+) {
+  const vaultPath = useVaultStore.getState().vaultPath;
+  if (!vaultPath) {
+    resolve(false);
+    useSidebarActionsStore.setState({ dialog: null });
+    return;
+  }
+  const name = ensureMarkdownName(fileName);
+  if (!name) {
+    resolve(false);
+    useSidebarActionsStore.setState({ dialog: null });
+    return;
+  }
+  const newPath = pathJoin(dirPath, name);
+  if (normalizePath(newPath) !== normalizePath(draftPath)) {
+    // Refuse silent overwrite of an existing note.
+    const tree = useVaultStore.getState().tree;
+    const exists = (() => {
+      const target = normalizePath(newPath);
+      const walk = (nodes: VaultNode[]): boolean => {
+        for (const n of nodes) {
+          if (normalizePath(n.path) === target) return true;
+          if (n.children && walk(n.children)) return true;
+        }
+        return false;
+      };
+      return walk(tree);
+    })();
+    if (exists) {
+      throw new Error(`A file named “${name}” already exists here.`);
+    }
+  }
+
+  await invoke("write_file", {
+    vaultPath,
+    filePath: newPath,
+    body,
+    frontmatter,
+  });
+
+  const title = pathBasename(newPath) || name;
+  const samePath = normalizePath(newPath) === normalizePath(draftPath);
+  if (samePath) {
+    useTabStore.getState().markTabSaved(draftPath);
+    useTabStore.getState().updateTabTitle(draftPath, title);
+  } else {
+    const tabs = useTabStore.getState().tabs;
+    if (tabs.find((t) => t.path === draftPath)) {
+      useTabStore.getState().closeTab(draftPath);
+    }
+    useTabStore.getState().selectNote(newPath, title);
+    useTabStore.getState().markTabSaved(newPath);
+  }
+
+  forgetDraftBuffer(draftPath);
+  rememberSavedSnapshot(newPath, body, frontmatter);
+  useEditorStore.setState({
+    loadedPath: newPath,
+    body,
+    frontmatter,
+    lastSavedBody: body,
+    lastSavedFrontmatter: frontmatter,
+    isDirty: false,
+    error: null,
+    lastSelfWrite: { path: newPath, at: Date.now() },
+  });
+
+  await refreshVault();
+  useFileTreeExpandStore.getState().setExpanded(vaultPath, dirPath, true);
+
+  resolve(true);
+  useSidebarActionsStore.setState({ dialog: null });
 }
 
 export async function showNativeContextMenu(
