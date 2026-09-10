@@ -1,4 +1,4 @@
-/** Cross-platform filesystem path helpers for link resolution. */
+/** Cross-platform filesystem path helpers (`/` and `\`). Canonical module — prefer this over `lib/path`. */
 
 /** True for Unix absolute, Windows drive (`C:\` / `C:/`), or UNC (`\\server\…`). */
 export function isAbsoluteFsPath(p: string): boolean {
@@ -25,6 +25,12 @@ export function isHostAbsolutePath(p: string): boolean {
   );
 }
 
+/** File/folder name portion of a path (handles `/` and `\`). */
+export function pathBasename(p: string): string {
+  const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return i >= 0 ? p.slice(i + 1) : p;
+}
+
 /** Directory portion of a path (handles `/` and `\`). */
 export function pathDirname(p: string): string {
   const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
@@ -37,6 +43,29 @@ export function pathJoin(base: string, relative: string): string {
   const trimmed = base.replace(/[/\\]+$/, "");
   const rel = relative.replace(/^[/\\]+/, "");
   return `${trimmed}${sep}${rel}`;
+}
+
+/** Always-`/` join used by comparison helpers (then normalized). */
+export function joinPath(root: string, child: string): string {
+  return `${root.replace(/[\\/]+$/, "")}/${child.replace(/^[\\/]+/, "")}`;
+}
+
+/** Normalize filesystem paths for safe comparisons across native event sources. */
+export function normalizePath(value: string): string {
+  const normalized = value.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/\/+$/, "");
+  return normalized.length > 1 ? normalized.toLocaleLowerCase() : normalized;
+}
+
+export function canonicalPath(value: string, root?: string): string {
+  const normalized = normalizePath(value);
+  if (!root || /^(?:[a-z]:\/|\/)/i.test(normalized)) return normalized;
+  return normalizePath(joinPath(root, normalized));
+}
+
+export function isPathWithin(path: string, root: string): boolean {
+  const normalizedPath = normalizePath(path);
+  const normalizedRoot = normalizePath(root);
+  return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`);
 }
 
 /** Resolve `.` / `..` segments while preserving Windows drive / UNC roots. */
@@ -69,4 +98,24 @@ export function normalizeFsPath(target: string): string {
   }
   const joined = parts.join(sep);
   return joined || (sep === "/" ? "/" : joined);
+}
+
+/**
+ * Next free `Untitled.md` / `Untitled N.md` under `baseVault`.
+ * Uses `pathJoin` so Windows vault roots keep `\`.
+ */
+export function nextUntitledNotePath(
+  baseVault: string,
+  existingPaths: Iterable<string>
+): { name: string; path: string } {
+  const existing = existingPaths instanceof Set ? existingPaths : new Set(existingPaths);
+  let name = "Untitled.md";
+  let path = pathJoin(baseVault, name);
+  let idx = 1;
+  while (existing.has(path)) {
+    name = `Untitled ${idx}.md`;
+    path = pathJoin(baseVault, name);
+    idx++;
+  }
+  return { name, path };
 }

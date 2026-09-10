@@ -10,7 +10,7 @@ Audit by [AI slop code audit](ea5a11d6-9284-4246-abb3-5aaf8bb1cb77) (2026-09-10)
 ## Medium
 
 - [x] **Right panel mocks** — Deleted `src/components/rightPanel/**` and removed the stale App.tsx comment; nothing imported it.
-- [ ] **Path helpers** — Consolidate `src/lib/path.ts` and `src/utils/paths.ts`. Replace `split("/")` / Untitled path builders so Windows `\` works (AGENTS.md).
+- [x] **Path helpers** — Canonical `utils/paths.ts` (+ `lib/path` re-export); `pathBasename` / `nextUntitledNotePath` fix App/EditorSurface/tabs/context-menu.
 - [ ] **`haptic_feedback`** — Remove the dead `invoke("haptic_feedback")` in `App.tsx` or implement the Rust command; drop double empty catch.
 - [ ] **Window drag duplication** — Share TabBar / Sidebar drag + double-click maximize handlers.
 - [ ] **EditorSurface `setContent`** — One markdown→editor helper; reduce empty `catch {}` / `as any` where cheap.

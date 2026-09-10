@@ -29,7 +29,9 @@ import { isMac } from "../../utils/platform";
 import {
   isAbsoluteFsPath,
   isHostAbsolutePath,
+  nextUntitledNotePath,
   normalizeFsPath,
+  pathBasename,
   pathDirname,
   pathJoin,
 } from "../../utils/paths";
@@ -259,7 +261,7 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
       return true;
     }
     if (shouldSkipDuplicateLinkNav(resolved)) return true;
-    const name = resolved.split("/").pop() || "Note";
+    const name = pathBasename(resolved) || "Note";
     void flushActiveNote().then((ok) => {
       if (ok) useTabStore.getState().selectNote(resolved, name);
     });
@@ -506,7 +508,7 @@ export const EditorSurface: React.FC = () => {
           if (resolved || isMarkdownNoteHref(href)) {
             if (!resolved) return true;
             if (shouldSkipDuplicateLinkNav(`aux:${resolved}`)) return true;
-            const name = resolved.split("/").pop() || "Note";
+            const name = pathBasename(resolved) || "Note";
             useTabStore.getState().openInNewBackgroundTab(resolved, name);
             return true;
           }
@@ -766,7 +768,6 @@ export const EditorSurface: React.FC = () => {
     const handleHomeNewNote = () => {
       const vp = useVaultStore.getState().vaultPath;
       if (!vp) return;
-      const baseVault = vp.replace(/\/+$/, "");
       const collectPaths = (nodes: any[]): string[] => {
         const out: string[] = [];
         for (const n of nodes) {
@@ -779,15 +780,8 @@ export const EditorSurface: React.FC = () => {
         ...collectPaths(useVaultStore.getState().tree as any),
         ...useTabStore.getState().tabs.map((t) => t.path),
       ]);
-      let candidateName = "Untitled.md";
-      let candidatePath = `${baseVault}/${candidateName}`;
-      let idx = 1;
-      while (existing.has(candidatePath)) {
-        candidateName = `Untitled ${idx}.md`;
-        candidatePath = `${baseVault}/${candidateName}`;
-        idx++;
-      }
-      useTabStore.getState().selectNote(candidatePath, candidateName, { isNew: true });
+      const { name, path } = nextUntitledNotePath(vp, existing);
+      useTabStore.getState().selectNote(path, name, { isNew: true });
     };
     return <HomeView onNewNote={handleHomeNewNote} />;
   }

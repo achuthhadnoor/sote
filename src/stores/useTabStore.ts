@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { pathBasename } from "../utils/paths";
 
 export interface Tab {
   path: string;
@@ -189,7 +190,7 @@ export const useTabStore = create<TabState>((set, get) => ({
       const newIndex = historyIndex - 1;
       const prevPath = history[newIndex];
       const tab = tabs.find((t) => t.path === prevPath);
-      const name = tab?.title ?? (prevPath.split("/").pop() || prevPath);
+      const name = tab?.title ?? (pathBasename(prevPath) || prevPath);
       // ensure tab exists for this path
       let nextTabs = tabs;
       if (!tab) {
@@ -212,7 +213,7 @@ export const useTabStore = create<TabState>((set, get) => ({
       const newIndex = historyIndex + 1;
       const nextPath = history[newIndex];
       const tab = tabs.find((t) => t.path === nextPath);
-      const name = tab?.title ?? (nextPath.split("/").pop() || nextPath);
+      const name = tab?.title ?? (pathBasename(nextPath) || nextPath);
       let nextTabs = tabs;
       if (!tab) {
         nextTabs = [...tabs, { path: nextPath, title: name }];

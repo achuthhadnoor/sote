@@ -13,7 +13,13 @@ import { useThemeStore } from "./stores/useThemeStore";
 import { useRecentNotesStore } from "./stores/useRecentNotesStore";
 import { SessionState } from "./types/session";
 import { createLogger, msSinceJsBoot, recordStartupSample, getStartupLoadBreakdown } from "./lib/logger";
-import { canonicalPath, isPathWithin, normalizePath } from "./lib/path";
+import {
+  canonicalPath,
+  isPathWithin,
+  nextUntitledNotePath,
+  normalizePath,
+  pathBasename,
+} from "./utils/paths";
 import { flushActiveNote } from "./lib/flushActiveNote";
 import { SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE, isSettingsTab, isVirtualTab } from "./lib/specialTabs";
 import { runStartupUpdateCheck } from "./lib/updater";
@@ -119,16 +125,16 @@ function App() {
           if (openTabs && openTabs.length > 0) {
             const tabObjs = openTabs.map((p) => ({
               path: p,
-              title: p.split("/").pop() || "Note",
+              title: pathBasename(p) || "Note",
             }));
             setTabs(tabObjs, active);
             // if active not in openTabs, ensure it is opened
             if (active && !openTabs.includes(active)) {
-              const fileName = active.split("/").pop() || "Note";
+              const fileName = pathBasename(active) || "Note";
               selectNote(active, fileName);
             }
           } else if (active) {
-            const fileName = active.split("/").pop() || "Note";
+            const fileName = pathBasename(active) || "Note";
             selectNote(active, fileName);
           }
         }
@@ -196,7 +202,7 @@ function App() {
     if (!activePath || !vaultPath || isVirtualTab(activePath)) return;
     const tab = tabs.find((t) => t.path === activePath);
     if (tab?.isNew) return; // don't record unsaved drafts
-    const title = tab?.title ?? activePath.split("/").pop() ?? "Note";
+    const title = tab?.title ?? pathBasename(activePath) ?? "Note";
     useRecentNotesStore.getState().pushRecent(activePath, title, vaultPath);
   }, [activePath, vaultPath, tabs]);
 
@@ -260,7 +266,7 @@ function App() {
                   granted = perm === "granted";
                 }
                 if (granted) {
-                  const name = changedPath.split("/").pop() || "File";
+                  const name = pathBasename(changedPath) || "File";
                   sendNotification({ title: "File changed on disk", body: `${name} changed — click to review` });
                 }
               }
@@ -296,7 +302,6 @@ function App() {
       vp = useVaultStore.getState().vaultPath;
       if (!vp) return;
     }
-    const baseVault = vp.replace(/\/+$/, "");
     // collect existing file paths from tree + open tabs
     const collectPaths = (nodes: any[]): string[] => {
       const out: string[] = [];
@@ -310,19 +315,12 @@ function App() {
       ...collectPaths(useVaultStore.getState().tree as any),
       ...useTabStore.getState().tabs.map((t) => t.path),
     ]);
-    let candidateName = "Untitled.md";
-    let candidatePath = `${baseVault}/${candidateName}`;
-    let idx = 1;
-    while (existing.has(candidatePath)) {
-      candidateName = `Untitled ${idx}.md`;
-      candidatePath = `${baseVault}/${candidateName}`;
-      idx++;
-    }
-    selectNote(candidatePath, candidateName, { isNew: true });
+    const { name, path } = nextUntitledNotePath(vp, existing);
+    selectNote(path, name, { isNew: true });
   }, [selectNote]);
 
   const openLinkedNote = useCallback(async (path: string) => {
-    const name = path.split(/[\\/]/).pop() || "Note";
+    const name = pathBasename(path) || "Note";
     if (!(await flushActiveNote())) return;
     const currentVault = useVaultStore.getState().vaultPath;
     if (currentVault && isPathWithin(path, currentVault)) {
