@@ -10,7 +10,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { modShortcut } from "../../utils/platform";
+import { isMac, modShortcut } from "../../utils/platform";
+import { useNarrowWindowStore } from "../../stores/useNarrowWindowStore";
 
 const THEME_OPTIONS: { value: Theme; label: string }[] = [
   { value: "light", label: "Light" },
@@ -126,6 +127,10 @@ export const SettingsView: React.FC = () => {
   const setTintAmount = useThemeStore((s) => s.setTintAmount);
   const spellCheckEnabled = useSpellCheckStore((s) => s.enabled);
   const setSpellCheckEnabled = useSpellCheckStore((s) => s.setEnabled);
+  const menuBarIcon = useNarrowWindowStore((s) => s.menuBarIcon);
+  const setMenuBarIcon = useNarrowWindowStore((s) => s.setMenuBarIcon);
+  const hideDock = useNarrowWindowStore((s) => s.hideDock);
+  const setHideDock = useNarrowWindowStore((s) => s.setHideDock);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [autoUpdateCheck, setAutoUpdateCheck] = useState(true);
@@ -326,6 +331,42 @@ export const SettingsView: React.FC = () => {
               />
             }
           />
+        </SettingsSection>
+
+        <SettingsSection title="Compact window">
+          <SettingsRow
+            title={isMac ? "Menu bar icon" : "Tray icon"}
+            description={
+              isMac
+                ? hideDock
+                  ? "Required while the Dock icon is hidden — use it to show or quit snipnote"
+                  : "Show a status item in the menu bar while the window is compact"
+                : "Show a system tray icon while the window is compact"
+            }
+            last={!isMac}
+            control={
+              <Switch
+                checked={menuBarIcon}
+                onCheckedChange={setMenuBarIcon}
+                disabled={isMac && hideDock}
+                aria-label={isMac ? "Menu bar icon in compact mode" : "Tray icon in compact mode"}
+              />
+            }
+          />
+          {isMac ? (
+            <SettingsRow
+              title="Hide Dock icon"
+              description="Remove snipnote from the Dock while compact (keeps the menu bar icon so you can still quit)"
+              last
+              control={
+                <Switch
+                  checked={hideDock}
+                  onCheckedChange={setHideDock}
+                  aria-label="Hide Dock icon in compact mode"
+                />
+              }
+            />
+          ) : null}
         </SettingsSection>
 
         <SettingsSection title="System">

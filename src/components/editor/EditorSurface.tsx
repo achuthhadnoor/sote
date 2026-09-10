@@ -13,6 +13,7 @@ import { SearchHighlight } from "./extensions/SearchHighlight";
 import { FrontmatterTable } from "./FrontmatterTable";
 import { MarkdownOutline } from "./MarkdownOutline";
 import { formatMarkdownLinkDestination, prepareMarkdownForEditor } from "../../utils/markdownUtils";
+import { EMPTY_H1_DOC, isBlankNoteMarkdown } from "../../utils/noteContent";
 import { FindBar } from "./FindBar";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTabStore } from "../../stores/useTabStore";
@@ -292,6 +293,11 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
 /** Load markdown into the TipTap editor (prefer extension parse, else contentType). */
 function setEditorMarkdown(editor: Editor, body: string): void {
   const cleanBody = prepareMarkdownForEditor(body);
+  // Blank notes open as an empty H1 (placeholder "Heading 1"), not a paragraph.
+  if (isBlankNoteMarkdown(cleanBody)) {
+    editor.commands.setContent(EMPTY_H1_DOC, { emitUpdate: false } as any);
+    return;
+  }
   const ed = editor as any;
   if (ed.markdown?.parse) {
     const parsedDoc = ed.markdown.parse(cleanBody);
@@ -394,6 +400,7 @@ export const EditorSurface: React.FC = () => {
 
   const editor = useEditor({
     contentType: "markdown",
+    content: EMPTY_H1_DOC,
     shouldRerenderOnTransaction: false,
     extensions: [
       StarterKit.configure({
@@ -435,7 +442,13 @@ export const EditorSurface: React.FC = () => {
         },
       }),
       Placeholder.configure({
-        placeholder: "Start writing…",
+        placeholder: ({ node }) => {
+          if (node.type.name === "heading") {
+            const level = node.attrs.level ?? 1;
+            return level === 1 ? "Heading" : `Heading ${level}`;
+          }
+          return "";
+        },
       }),
       Markdown,
     ],

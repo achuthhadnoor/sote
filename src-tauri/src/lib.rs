@@ -226,77 +226,96 @@ fn path_is_directory(path: String) -> bool {
 
 const NARROW_TRAY_ID: &str = "snipnote-narrow";
 
-/// Narrow / compact mode chrome: menu-bar (tray) icon on, Dock icon off (macOS).
-/// Restores the Dock and removes the tray when leaving narrow mode.
-#[tauri::command]
-fn set_narrow_chrome(app: AppHandle, enabled: bool) -> Result<(), String> {
+fn ensure_narrow_tray(app: &AppHandle) -> Result<(), String> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
     use tauri::Emitter;
 
-    if enabled {
-        if app.tray_by_id(NARROW_TRAY_ID).is_none() {
-            let icon = app
-                .default_window_icon()
-                .ok_or_else(|| "No default window icon for tray".to_string())?
-                .clone();
+    if app.tray_by_id(NARROW_TRAY_ID).is_some() {
+        return Ok(());
+    }
 
-            let show = MenuItem::with_id(&app, "tray_show", "Show snipnote", true, None::<&str>)
-                .map_err(|e| e.to_string())?;
-            let expand =
-                MenuItem::with_id(&app, "tray_expand", "Expand window", true, None::<&str>)
-                    .map_err(|e| e.to_string())?;
-            let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
-            let quit = PredefinedMenuItem::quit(&app, Some("Quit snipnote")).map_err(|e| e.to_string())?;
-            let menu = Menu::with_items(&app, &[&show, &expand, &sep, &quit]).map_err(|e| e.to_string())?;
+    let icon = app
+        .default_window_icon()
+        .ok_or_else(|| "No default window icon for tray".to_string())?
+        .clone();
 
-            let mut builder = TrayIconBuilder::with_id(NARROW_TRAY_ID)
-                .icon(icon)
-                .tooltip("snipnote")
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| {
-                    match event.id().as_ref() {
-                        "tray_show" => {
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
-                        }
-                        "tray_expand" => {
-                            let _ = app.emit("narrow:expand", ());
-                        }
-                        _ => {}
-                    }
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                });
+    let show = MenuItem::with_id(app, "tray_show", "Show snipnote", true, None::<&str>)
+        .map_err(|e| e.to_string())?;
+    let expand = MenuItem::with_id(app, "tray_expand", "Expand window", true, None::<&str>)
+        .map_err(|e| e.to_string())?;
+    let sep = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
+    let quit = PredefinedMenuItem::quit(app, Some("Quit snipnote")).map_err(|e| e.to_string())?;
+    let menu = Menu::with_items(app, &[&show, &expand, &sep, &quit]).map_err(|e| e.to_string())?;
 
-            // Template icons follow the menu-bar appearance on macOS.
-            #[cfg(target_os = "macos")]
-            {
-                builder = builder.icon_as_template(true);
+    let mut builder = TrayIconBuilder::with_id(NARROW_TRAY_ID)
+        .icon(icon)
+        .tooltip("snipnote")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "tray_show" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
             }
+            "tray_expand" => {
+                let _ = app.emit("narrow:expand", ());
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                let app = tray.app_handle();
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+        });
 
-            builder.build(&app).map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.icon_as_template(true);
+    }
+
+    builder.build(app).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Narrow / compact mode chrome. `show_tray` and `hide_dock` are independent prefs,
+/// but hiding the Dock without a tray would strand the app — force a tray then.
+#[tauri::command]
+fn set_narrow_chrome(
+    app: AppHandle,
+    enabled: bool,
+    show_tray: bool,
+    hide_dock: bool,
+) -> Result<(), String> {
+    // Never hide Dock with no tray: user loses Cmd-Tab + menu-bar recovery.
+    let hide_dock = hide_dock;
+    let show_tray = show_tray || hide_dock;
+
+    if enabled {
+        if show_tray {
+            ensure_narrow_tray(&app)?;
+        } else {
+            let _ = app.remove_tray_by_id(NARROW_TRAY_ID);
         }
 
         #[cfg(target_os = "macos")]
         {
-            app.set_dock_visibility(false)
-                .map_err(|e| format!("hide dock failed: {e}"))?;
+            app.set_dock_visibility(!hide_dock)
+                .map_err(|e| format!("dock visibility failed: {e}"))?;
+            if !hide_dock {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+            }
         }
     } else {
         let _ = app.remove_tray_by_id(NARROW_TRAY_ID);
@@ -305,7 +324,6 @@ fn set_narrow_chrome(app: AppHandle, enabled: bool) -> Result<(), String> {
         {
             app.set_dock_visibility(true)
                 .map_err(|e| format!("show dock failed: {e}"))?;
-            // Ensure we are a normal app again after accessory-style hide.
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
         }
 

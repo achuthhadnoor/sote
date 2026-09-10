@@ -157,10 +157,10 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
       editor={editor}
       updateDelay={80}
       shouldShow={shouldShow}
-      className="snipnote-bubble-menu flex items-center gap-0.5 p-1 border z-50 animate-in fade-in zoom-in-95 duration-100"
+      className="snipnote-bubble-menu flex flex-wrap items-center gap-0.5 p-1 border z-50 animate-in fade-in zoom-in-95 duration-100 max-w-[min(100vw-1.5rem,28rem)]"
     >
       {isLinkMode ? (
-        <div className="flex items-center gap-1.5 px-1 py-0.5">
+        <div className="flex flex-wrap items-center gap-1.5 px-1 py-0.5 max-w-full">
           <LinkIcon className="w-3.5 h-3.5 text-muted-foreground ml-0.5 shrink-0" />
           <input
             ref={linkInputRef}
@@ -169,7 +169,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             onChange={(e) => setLinkUrl(e.target.value)}
             onKeyDown={handleLinkInputKeyDown}
             placeholder="URL or markdown path..."
-            className="h-6.5 w-52 bg-transparent px-2 type-label text-foreground placeholder:text-muted-foreground focus:outline-hidden border border-border-translucent rounded-md focus:border-primary/80"
+            className="h-6.5 w-52 max-w-full min-w-[10rem] flex-1 bg-transparent px-2 type-label text-foreground placeholder:text-muted-foreground focus:outline-hidden border border-border-translucent rounded-md focus:border-primary/80"
           />
           <button
             type="button"

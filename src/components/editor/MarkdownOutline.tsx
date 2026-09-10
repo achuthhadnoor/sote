@@ -424,9 +424,9 @@ export const MarkdownOutline: React.FC<Props> = ({
             {headingList}
           </div>
         )}
-        <div className="flex items-center justify-end gap-2 px-3 pt-2 pb-1">
+        <div className="flex items-center justify-center gap-2 px-3 pt-2 pb-1">
           <div
-            className="outline-strip flex flex-row items-baseline justify-end gap-1.5 flex-1 min-w-0 overflow-x-auto overflow-y-hidden"
+            className="outline-strip flex flex-row items-baseline Heading justify-center gap-1.5 flex-1 min-w-0 overflow-x-auto overflow-y-hidden"
             aria-hidden={expanded}
           >
               {outline.map((item, index) => {

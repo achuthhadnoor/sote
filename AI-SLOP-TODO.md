@@ -4,7 +4,7 @@ Audit by [AI slop code audit](ea5a11d6-9284-4246-abb3-5aaf8bb1cb77) (2026-09-10)
 
 ## High
 
-- [x] **`macos_hover` swizzle** — Removed all `isKeyWindow` spoofing (`object_setClass` and process-wide IMP replace both crash AppKit KVO). Kept WKWebView `ActiveAlways` tracking + `acceptsMouseMovedEvents`; `accept_first_mouse` remains in `lib.rs`. Inactive `:hover` may still be incomplete.
+- [x] **`macos_hover` swizzle** — Restored pointer-scoped `NSWindow isKeyWindow` IMP replace (forwards other windows to the original; no `object_setClass`). `object_setClass` / private-selector exchange both crash AppKit. Tracking + `acceptsMouseMovedEvents` + `accept_first_mouse` kept.
 - [x] **`website/`** — Kept source; root `.gitignore` now ignores only `website/node_modules`, `.next`, `out`, `.vercel` (no longer blanket `/website/*`). Brand/CTA cleanup deferred.
 
 ## Medium

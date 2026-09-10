@@ -624,7 +624,7 @@ html, body, #root {
 }
 .ProseMirror :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
   padding-bottom: 0.35em;
-  border-bottom: 1px solid var(--border-translucent);
+  /* border-bottom: 1px solid var(--border-translucent); */
 }
 
 /* Cursor-like compact rhythm: tight blocks, a little air between paragraphs. */
@@ -673,8 +673,8 @@ html, body, #root {
   margin: 1.25em 0;
 }
 
-/* Subtle placeholder when empty */
-.ProseMirror p.is-editor-empty:first-child::before {
+/* Subtle placeholder when empty (Heading 1…N; paragraphs intentionally blank) */
+.ProseMirror .is-empty[data-placeholder]:not([data-placeholder=""])::before {
   content: attr(data-placeholder);
   float: left;
   color: var(--muted-fg);
@@ -1172,6 +1172,8 @@ input[type="range"]::-moz-range-thumb {
   border-radius: var(--radius-md);
   user-select: none;
   z-index: 100;
+  /* Keep icons on-screen in narrow windows by wrapping to a second row */
+  max-width: min(calc(100vw - 1.5rem), 28rem);
 }
 
 [data-theme="dark"] .snipnote-bubble-menu {

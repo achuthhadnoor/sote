@@ -20,7 +20,7 @@ import {
   normalizePath,
   pathBasename,
 } from "./utils/paths";
-import { flushActiveNote } from "./lib/flushActiveNote";
+import { flushActiveNote, flushBeforeClose } from "./lib/flushActiveNote";
 import { SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE, isSettingsTab, isVirtualTab } from "./lib/specialTabs";
 import { runStartupUpdateCheck } from "./lib/updater";
 import { isWindows } from "./utils/platform";
@@ -64,6 +64,11 @@ function App() {
   const setTheme = useThemeStore((s) => s.setTheme);
   const welcomeMode = !vaultPath && !isSettingsTab(activePath);
   const hideSidebar = !vaultPath || sidebarCollapsed;
+
+  // Narrow chrome is overlay-only — close an open sidebar when the window becomes narrow.
+  useEffect(() => {
+    if (isNarrow) setSidebarCollapsed(true);
+  }, [isNarrow]);
 
   const openSettingsTab = useCallback(async () => {
     if (!(await flushActiveNote())) return;
@@ -353,7 +358,7 @@ function App() {
         void (async () => {
           const active = useTabStore.getState().activePath;
           if (!active) return;
-          if (!(await flushActiveNote())) return;
+          if (!(await flushBeforeClose(active))) return;
           useTabStore.getState().closeTab(active);
         })();
       });
@@ -537,7 +542,7 @@ function App() {
         e.preventDefault();
         const active = useTabStore.getState().activePath;
         if (active) {
-          if (!(await flushActiveNote())) return;
+          if (!(await flushBeforeClose(active))) return;
           useTabStore.getState().closeTab(active);
         }
         return;

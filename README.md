@@ -4,6 +4,17 @@ A fast local Markdown file editor for macOS and Windows (Tauri + React).
 
 Open a folder, edit `.md` files in a WYSIWYG editor, and keep disk as the source of truth — autosave, tabs, command palette, and live reload when files change outside the app.
 
+## Features
+
+- Local-first Markdown editing with disk as source of truth (autosave, tabs, command palette, live reload)
+- Platform-native window chrome (macOS Overlay + Sidebar vibrancy; Windows undecorated + Mica)
+- **Narrow / compact window**
+  - Windows can shrink to a **400×600** floor; wide tables scroll horizontally instead of forcing a wide layout
+  - At **≤720px** width: overlay sidebar, tabs on a second row, outline docked above the status area, status bar hidden
+  - One-click toggle resizes to a compact **420×700** note window (and restores the previous size)
+  - Optional menu-bar / tray icon and (macOS) Dock hide while compact, with Settings controls for those prefs
+- **Inactive-window hover (macOS)** — CSS `:hover` and first-click work while another app is frontmost (`accept_first_mouse` + WKWebView tracking + scoped `isKeyWindow` spoof); floating hover scrollbars in the editor
+
 ## Develop
 
 ```bash

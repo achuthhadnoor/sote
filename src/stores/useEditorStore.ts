@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { NoteEnvelope } from "../types/note";
 import { createLogger, loggedInvoke } from "../lib/logger";
 import { pathBasename, pathDirname } from "../utils/paths";
+import { isBlankNoteMarkdown } from "../utils/noteContent";
 import { useVaultStore } from "./useVaultStore";
 import { useTabStore } from "./useTabStore";
 import { useSidebarActionsStore } from "./useSidebarActionsStore";
@@ -161,13 +162,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ? snapshotBody !== (savedForPath?.body ?? current.lastSavedBody) ||
           snapshotFrontmatter !== (savedForPath?.frontmatter ?? current.lastSavedFrontmatter)
         : current.isDirty;
-      if (!isDirty) return;
 
-      // Do not create a new note file if there is no content.
-      const hasContent = snapshotBody.trim().length > 0 || !!snapshotFrontmatter?.trim().length;
+      // Do not create a new note file if there is no content (empty H1 alone stays draft).
+      const hasContent =
+        !isBlankNoteMarkdown(snapshotBody) || !!snapshotFrontmatter?.trim().length;
       if (!hasContent) return;
 
       const tab = useTabStore.getState().tabs.find((t) => t.path === filePath);
+      // In-memory draft autosave clears isDirty; still prompt when explicitly requested.
+      const needsDraftPrompt = !!opts?.promptDraft && !!tab?.isNew;
+      if (!isDirty && !needsDraftPrompt) return;
+
       if (tab?.isNew) {
         rememberDraftBuffer(filePath, snapshotBody, snapshotFrontmatter);
         const syncMemory = () => {

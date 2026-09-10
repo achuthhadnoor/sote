@@ -5,7 +5,7 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
 import { useEditorStore } from "../../stores/useEditorStore";
-import { flushActiveNote } from "../../lib/flushActiveNote";
+import { flushActiveNote, flushBeforeClose } from "../../lib/flushActiveNote";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
@@ -24,6 +24,7 @@ import { PLATFORM, isWindows, modShortcut } from "../../utils/platform";
 import { createWindowChromeDragHandler } from "../../utils/windowChromeDrag";
 import { cn } from "@/lib/utils";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
+import { narrowChromeOptions, useNarrowWindowStore } from "../../stores/useNarrowWindowStore";
 
 const ALWAYS_ON_TOP_KEY = "snipnote-always-on-top";
 /** Inner size that lands under the narrow-layout media query (max-width 720). */
@@ -31,9 +32,17 @@ const NARROW_WINDOW_WIDTH = 420;
 const NARROW_WINDOW_HEIGHT = 700;
 const WIDE_WINDOW_FALLBACK = { width: 1280, height: 720 };
 
-async function setNarrowChrome(enabled: boolean) {
+async function setNarrowChrome(
+  enabled: boolean,
+  opts?: { showTray?: boolean; hideDock?: boolean }
+) {
+  const { showTray, hideDock } = opts ?? {};
   try {
-    await invoke("set_narrow_chrome", { enabled });
+    await invoke("set_narrow_chrome", {
+      enabled,
+      showTray: showTray ?? true,
+      hideDock: hideDock ?? true,
+    });
   } catch (e) {
     console.error("narrow chrome failed", e);
   }
@@ -109,12 +118,16 @@ export const TabBar: React.FC<TabBarProps> = ({
   const [tabsOverflow, setTabsOverflow] = useState(false);
   const wideSizeRef = useRef<{ width: number; height: number } | null>(null);
   const narrowChromeRef = useRef(false);
+  /** Pin state before entering compact mode — restored on expand. */
+  const pinnedBeforeNarrowRef = useRef(false);
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
   const isRawMode = useEditorStore((state) => state.isRawMode);
   const toggleRawMode = useEditorStore((state) => state.toggleRawMode);
   const isNarrow = useNarrowLayout();
+  const menuBarIcon = useNarrowWindowStore((s) => s.menuBarIcon);
+  const hideDockPref = useNarrowWindowStore((s) => s.hideDock);
   const tabsBelow = isNarrow && !welcomeMode;
 
   useEffect(() => {
@@ -210,7 +223,7 @@ export const TabBar: React.FC<TabBarProps> = ({
 
   const handleClose = async (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
-    if (path === activePath && !(await flushActiveNote())) return;
+    if (!(await flushBeforeClose(path))) return;
     closeTab(path);
   };
 
@@ -233,8 +246,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
   };
 
-  const togglePinned = async () => {
-    const next = !pinned;
+  const applyPinned = async (next: boolean) => {
     try {
       await getCurrentWindow().setAlwaysOnTop(next);
       try {
@@ -242,6 +254,10 @@ export const TabBar: React.FC<TabBarProps> = ({
       } catch {}
       setPinned(next);
     } catch {}
+  };
+
+  const togglePinned = async () => {
+    await applyPinned(!pinned);
   };
 
   /** Resize the native Tauri window (not CSS). Remembers the last wide size. */
@@ -256,8 +272,10 @@ export const TabBar: React.FC<TabBarProps> = ({
       await win.center();
       if (narrowChromeRef.current) {
         narrowChromeRef.current = false;
-        await setNarrowChrome(false);
+        await setNarrowChrome(false, narrowChromeOptions());
       }
+      // Restore pin from before compact mode (compact always pins).
+      await applyPinned(pinnedBeforeNarrowRef.current);
     } catch (e) {
       console.error("narrow window expand failed", e);
     }
@@ -281,10 +299,13 @@ export const TabBar: React.FC<TabBarProps> = ({
       }
 
       wideSizeRef.current = { width, height };
+      pinnedBeforeNarrowRef.current = pinned;
       await win.setSize(new LogicalSize(NARROW_WINDOW_WIDTH, NARROW_WINDOW_HEIGHT));
-      // Menu-bar tray + hide Dock (macOS) while in compact mode.
+      // Compact note windows stay above other apps.
+      await applyPinned(true);
+      // Apply user prefs for menu-bar tray + Dock while compact.
       narrowChromeRef.current = true;
-      await setNarrowChrome(true);
+      await setNarrowChrome(true, narrowChromeOptions());
     } catch (e) {
       console.error("narrow window resize failed", e);
     }
@@ -304,13 +325,20 @@ export const TabBar: React.FC<TabBarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Manual resize out of narrow — drop tray / restore Dock if we had enabled them.
+  // Manual resize out of narrow — drop tray / restore Dock + pin if we had enabled them.
   useEffect(() => {
     if (!isNarrow && narrowChromeRef.current) {
       narrowChromeRef.current = false;
-      void setNarrowChrome(false);
+      void setNarrowChrome(false, narrowChromeOptions());
+      void applyPinned(pinnedBeforeNarrowRef.current);
     }
   }, [isNarrow]);
+
+  // Live-apply preference changes while already in narrow mode.
+  useEffect(() => {
+    if (!narrowChromeRef.current || !isNarrow) return;
+    void setNarrowChrome(true, narrowChromeOptions());
+  }, [menuBarIcon, hideDockPref, isNarrow]);
 
   const minimizeWindow = () => {
     getCurrentWindow().minimize().catch(() => {});
@@ -462,7 +490,7 @@ export const TabBar: React.FC<TabBarProps> = ({
       <div
         className={cn(
           "relative z-10 flex w-full items-center gap-3 px-3",
-          tabsBelow ? "h-header shrink-0" : "h-full"
+          tabsBelow ? "min-h-header h-auto py-1.5 shrink-0 flex-wrap" : "h-full"
         )}
       >
       {/* Left cluster: sidebar toggle + navigation — macOS Overlay reserves
@@ -544,8 +572,8 @@ export const TabBar: React.FC<TabBarProps> = ({
       )}
 
       {/* Right cluster: app actions; Windows also draws caption buttons (frameless). */}
-      <div className="flex items-center justify-end shrink-0 h-full" data-tauri-drag-region>
-        <div className="flex items-center justify-end gap-1.5 pr-1">
+      <div className="flex items-center justify-end min-w-0 shrink h-auto" data-tauri-drag-region>
+        <div className="flex flex-wrap items-center justify-end gap-1.5 pr-1 max-w-full">
           {!welcomeMode && (
             <Button
               variant={isRawMode ? "secondary" : "ghost"}

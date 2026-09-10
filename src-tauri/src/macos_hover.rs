@@ -1,23 +1,68 @@
-//! Keep mouse-move / CSS `:hover` delivery healthier on inactive windows (macOS).
+//! Keep CSS/JS hover working while the app is not the frontmost app (macOS).
 //!
-//! Installs `acceptsMouseMovedEvents` + an `ActiveAlways` tracking area on the
-//! WKWebView. Do not spoof `isKeyWindow` via `object_setClass` or process-wide
-//! IMP replace — both crash AppKit (KVO / TUINSWindow). WebKit may still gate
-//! some `:hover` updates on key-window; accept that until a safe approach exists.
+//! WebKit only updates mouseover / `:hover` when `-[NSWindow isKeyWindow]` is
+//! true. Spoof that for our main window by replacing `NSWindow`'s IMP and
+//! forwarding all other windows to the saved original (never `object_setClass`,
+//! which breaks AppKit KVO). Also install an `ActiveAlways` tracking area on
+//! the WKWebView.
 
 #![cfg(target_os = "macos")]
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+use std::sync::OnceLock;
 
 use objc2::rc::Retained;
-use objc2::runtime::AnyObject;
-use objc2::{AnyThread, MainThreadMarker, Message};
+use objc2::runtime::{AnyObject, Bool, Sel};
+use objc2::{sel, AnyThread, ClassType, MainThreadMarker, Message};
 use objc2_app_kit::{NSTrackingArea, NSTrackingAreaOptions, NSView, NSWindow};
 use objc2_foundation::NSRect;
 use tauri::WebviewWindow;
 
+type IsKeyWindowImp = unsafe extern "C-unwind" fn(*mut AnyObject, Sel) -> Bool;
+
+/// Pointer identity of the window that should report isKeyWindow=YES.
+static HOVER_WINDOW: AtomicUsize = AtomicUsize::new(0);
+/// Original `-[NSWindow isKeyWindow]` IMP (erased).
+static ORIGINAL_IS_KEY: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 /// View pointer we last attached a tracking area to (0 = none).
 static TRACKING_VIEW: AtomicUsize = AtomicUsize::new(0);
+
+fn mark_hover_window(window: &NSWindow) {
+    HOVER_WINDOW.store(window as *const NSWindow as usize, Ordering::SeqCst);
+}
+
+fn is_hover_window(this: *mut AnyObject) -> bool {
+    this as usize == HOVER_WINDOW.load(Ordering::SeqCst)
+}
+
+unsafe extern "C-unwind" fn snipnote_is_key_window(this: *mut AnyObject, cmd: Sel) -> Bool {
+    if is_hover_window(this) {
+        return Bool::YES;
+    }
+    let orig = ORIGINAL_IS_KEY.load(Ordering::SeqCst);
+    debug_assert!(!orig.is_null());
+    let f: IsKeyWindowImp = std::mem::transmute(orig);
+    f(this, cmd)
+}
+
+fn swizzle_nswindow_is_key() {
+    static SWIZZLED: OnceLock<()> = OnceLock::new();
+    let _ = SWIZZLED.get_or_init(|| {
+        let cls = NSWindow::class();
+        let Some(method) = cls.instance_method(sel!(isKeyWindow)) else {
+            return;
+        };
+        let original = method.implementation();
+        ORIGINAL_IS_KEY.store(original as *mut (), Ordering::SeqCst);
+        let replacement: IsKeyWindowImp = snipnote_is_key_window;
+        unsafe {
+            method.set_implementation(std::mem::transmute::<
+                IsKeyWindowImp,
+                unsafe extern "C-unwind" fn(),
+            >(replacement));
+        }
+    });
+}
 
 fn is_wkwebview(view: &NSView) -> bool {
     let mut cls = Some(view.class());
@@ -70,6 +115,10 @@ fn install_tracking_area(view: &NSView) {
 
 fn enable_on_native(ns_window: &NSWindow, ns_view: &NSView) {
     ns_window.setAcceptsMouseMovedEvents(true);
+
+    swizzle_nswindow_is_key();
+    mark_hover_window(ns_window);
+
     let target = find_wkwebview(ns_view).unwrap_or_else(|| ns_view.retain());
     install_tracking_area(&target);
 }

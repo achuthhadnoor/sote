@@ -18,6 +18,7 @@ import {
   listVaultFolders,
 } from "../../utils/nativeContextMenu";
 import { cn } from "@/lib/utils";
+import { pathBasename } from "../../utils/paths";
 
 function dialogCopy(dialog: NonNullable<ReturnType<typeof useSidebarActionsStore.getState>["dialog"]>) {
   switch (dialog.mode) {
@@ -59,6 +60,15 @@ function dialogCopy(dialog: NonNullable<ReturnType<typeof useSidebarActionsStore
         defaultValue: dialog.suggestedName,
         selectExtension: true,
       };
+    case "confirm-close-draft":
+      return {
+        title: "Save this note?",
+        description: `“${pathBasename(dialog.title) || dialog.title}” has content that hasn’t been saved to disk.`,
+        label: "",
+        confirm: "Save",
+        defaultValue: "",
+        selectExtension: false,
+      };
   }
 }
 
@@ -69,6 +79,7 @@ export const SidebarNameDialog: React.FC = () => {
   const tree = useVaultStore((s) => s.tree);
   const open = dialog !== null;
   const copy = dialog ? dialogCopy(dialog) : null;
+  const isConfirmClose = dialog?.mode === "confirm-close-draft";
   const [value, setValue] = useState("");
   const [dirPath, setDirPath] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +100,7 @@ export const SidebarNameDialog: React.FC = () => {
     setDirPath(dialog.mode === "save-draft" ? dialog.dirPath : "");
     setError(null);
     setSubmitting(false);
+    if (dialog.mode === "confirm-close-draft") return;
     const frame = requestAnimationFrame(() => {
       const el = inputRef.current;
       if (!el) return;
@@ -106,8 +118,15 @@ export const SidebarNameDialog: React.FC = () => {
     if (!next && !submitting) clear();
   };
 
+  const resolveCloseChoice = (choice: "save" | "discard" | "cancel") => {
+    if (dialog?.mode !== "confirm-close-draft") return;
+    const { resolve } = dialog;
+    useSidebarActionsStore.setState({ dialog: null });
+    resolve(choice);
+  };
+
   const submit = async () => {
-    if (!dialog || submitting) return;
+    if (!dialog || submitting || dialog.mode === "confirm-close-draft") return;
     const trimmed = value.trim();
     if (!trimmed) {
       setError("Name can’t be empty.");
@@ -168,75 +187,101 @@ export const SidebarNameDialog: React.FC = () => {
               <DialogDescription className="text-[13px]">{copy.description}</DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-2">
-              <label htmlFor={inputId} className="type-label text-muted-foreground">
-                {copy.label}
-              </label>
-              <Input
-                id={inputId}
-                ref={inputRef}
-                value={value}
-                disabled={submitting}
-                onChange={(e) => {
-                  setValue(e.target.value);
-                  if (error) setError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void submit();
-                  }
-                }}
-                className="h-9 text-[13px] outline-none"
-                autoComplete="off"
-                spellCheck={false}
-              />
-
-              {dialog?.mode === "save-draft" && (
-                <div className="grid gap-2 pt-1">
-                  <label htmlFor={locationId} className="type-label text-muted-foreground">
-                    Location
+            {isConfirmClose ? (
+              <DialogFooter className="gap-2 sm:gap-2 flex-col-reverse sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => resolveCloseChoice("cancel")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => resolveCloseChoice("discard")}
+                >
+                  Discard
+                </Button>
+                <Button type="button" size="sm" onClick={() => resolveCloseChoice("save")}>
+                  Save…
+                </Button>
+              </DialogFooter>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <label htmlFor={inputId} className="type-label text-muted-foreground">
+                    {copy.label}
                   </label>
-                  <select
-                    id={locationId}
-                    value={dirPath}
-                    disabled={submitting || folders.length === 0}
-                    onChange={(e) => setDirPath(e.target.value)}
-                    className={cn(
-                      "h-9 w-full rounded-md border border-input bg-background px-3 text-[13px]",
-                      "text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                    )}
-                  >
-                    {folders.map((f) => (
-                      <option key={f.path} value={f.path}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Input
+                    id={inputId}
+                    ref={inputRef}
+                    value={value}
+                    disabled={submitting}
+                    onChange={(e) => {
+                      setValue(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void submit();
+                      }
+                    }}
+                    className="h-9 text-[13px] outline-none"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+
+                  {dialog?.mode === "save-draft" && (
+                    <div className="grid gap-2 pt-1">
+                      <label htmlFor={locationId} className="type-label text-muted-foreground">
+                        Location
+                      </label>
+                      <select
+                        id={locationId}
+                        value={dirPath}
+                        disabled={submitting || folders.length === 0}
+                        onChange={(e) => setDirPath(e.target.value)}
+                        className={cn(
+                          "h-9 w-full rounded-md border border-input bg-background px-3 text-[13px]",
+                          "text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                        )}
+                      >
+                        {folders.map((f) => (
+                          <option key={f.path} value={f.path}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {error && (
+                    <p className="text-[12px] text-destructive leading-snug" role="alert">
+                      {error}
+                    </p>
+                  )}
                 </div>
-              )}
 
-              {error && (
-                <p className="text-[12px] text-destructive leading-snug" role="alert">
-                  {error}
-                </p>
-              )}
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={submitting}
-                onClick={() => clear()}
-              >
-                Cancel
-              </Button>
-              <Button type="button" size="sm" disabled={submitting} onClick={() => void submit()}>
-                {submitting ? "Working…" : copy.confirm}
-              </Button>
-            </DialogFooter>
+                <DialogFooter className="gap-2 sm:gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={submitting}
+                    onClick={() => clear()}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" disabled={submitting} onClick={() => void submit()}>
+                    {submitting ? "Working…" : copy.confirm}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
           </>
         )}
       </DialogContent>

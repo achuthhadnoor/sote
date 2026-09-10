@@ -10,6 +10,8 @@ export type SaveDraftRequest = {
   frontmatter: string | null;
 };
 
+export type CloseDraftChoice = "save" | "discard" | "cancel";
+
 export type SidebarNameDialog =
   | {
       mode: "rename";
@@ -33,6 +35,11 @@ export type SidebarNameDialog =
       body: string;
       frontmatter: string | null;
       resolve: (saved: boolean) => void;
+    }
+  | {
+      mode: "confirm-close-draft";
+      title: string;
+      resolve: (choice: CloseDraftChoice) => void;
     };
 
 interface SidebarActionsState {
@@ -44,6 +51,10 @@ interface SidebarActionsState {
    * Resolves true if saved, false if cancelled / failed open.
    */
   requestSaveDraft: (req: SaveDraftRequest) => Promise<boolean>;
+  /**
+   * Ask Save / Discard / Cancel before closing a draft with content.
+   */
+  requestCloseDraftChoice: (title: string) => Promise<CloseDraftChoice>;
   clear: () => void;
 }
 
@@ -61,13 +72,11 @@ export const useSidebarActionsStore = create<SidebarActionsState>((set, get) => 
   requestSaveDraft: (req) =>
     new Promise<boolean>((resolve) => {
       const current = get().dialog;
-      if (current?.mode === "save-draft") {
-        // Already prompting for a draft — don't stack dialogs.
+      if (current?.mode === "save-draft" || current?.mode === "confirm-close-draft") {
         resolve(false);
         return;
       }
       if (current) {
-        // Another dialog is open; don't interrupt it.
         resolve(false);
         return;
       }
@@ -83,10 +92,27 @@ export const useSidebarActionsStore = create<SidebarActionsState>((set, get) => 
         },
       });
     }),
+  requestCloseDraftChoice: (title) =>
+    new Promise<CloseDraftChoice>((resolve) => {
+      const current = get().dialog;
+      if (current) {
+        resolve("cancel");
+        return;
+      }
+      set({
+        dialog: {
+          mode: "confirm-close-draft",
+          title,
+          resolve,
+        },
+      });
+    }),
   clear: () => {
     const current = get().dialog;
     if (current?.mode === "save-draft") {
       current.resolve(false);
+    } else if (current?.mode === "confirm-close-draft") {
+      current.resolve("cancel");
     }
     set({ dialog: null });
   },
