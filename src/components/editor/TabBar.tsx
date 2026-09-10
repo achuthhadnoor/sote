@@ -7,10 +7,16 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Minus, PanelLeft, Pin, Plus, Settings, Square, X } from "lucide-react";
 import { isSettingsTab, isVirtualTab } from "../../lib/specialTabs";
 import { PLATFORM, isWindows, modShortcut } from "../../utils/platform";
+import { createWindowChromeDragHandler } from "../../utils/windowChromeDrag";
 import { cn } from "@/lib/utils";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 
 const ALWAYS_ON_TOP_KEY = "snipnote-always-on-top";
+
+/** Drag + double-click maximize; excludes tab strip / interactive chrome. */
+const handleStartDragging = createWindowChromeDragHandler(
+  'button, input, [role="button"], [role="tab"], .tab-item, a, .tab-strip'
+);
 
 /** Windows restore glyph (overlapping squares) when the window is maximized. */
 const RestoreIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -188,21 +194,6 @@ export const TabBar: React.FC<TabBarProps> = ({
   const handleGoForward = async () => {
     if (!(await flushActiveNote())) return;
     goForward();
-  };
-
-  const handleStartDragging = (e: React.MouseEvent) => {
-    // Only drag on primary click (left mouse button) and if not clicking an interactive child element
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement | null;
-    if (target && target.closest('button, input, [role="button"], [role="tab"], .tab-item, a, .tab-strip')) {
-      return;
-    }
-    // Double click to maximize/unmaximize window (native macOS/Windows behavior)
-    if (e.detail === 2) {
-      getCurrentWindow().toggleMaximize().catch(() => {});
-      return;
-    }
-    getCurrentWindow().startDragging().catch(() => {});
   };
 
   const handleTabsWheel = (e: React.WheelEvent<HTMLDivElement>) => {

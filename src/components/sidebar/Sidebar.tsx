@@ -1,14 +1,16 @@
 import React, { useMemo, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { FileTree } from "./FileTree";
 import { showNativeContextMenu } from "../../utils/nativeContextMenu";
+import { createWindowChromeDragHandler } from "../../utils/windowChromeDrag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PanelLeft } from "lucide-react";
 import { VaultNode } from "../../types/vault";
 import { modShortcut } from "../../utils/platform";
+
+const handleTopBarDragging = createWindowChromeDragHandler();
 
 interface SidebarProps {
   onToggleSidebar?: () => void;
@@ -55,17 +57,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onToggleSidebar }) => {
       e.stopPropagation();
       await showNativeContextMenu(null, e);
     }
-  };
-
-  const handleTopBarDragging = (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement | null;
-    if (target && target.closest('button, input, [role="button"], a')) return;
-    if (e.detail === 2) {
-      getCurrentWindow().toggleMaximize().catch(() => {});
-      return;
-    }
-    getCurrentWindow().startDragging().catch(() => {});
   };
 
   return (
