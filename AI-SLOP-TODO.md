@@ -4,12 +4,12 @@ Audit by [AI slop code audit](ea5a11d6-9284-4246-abb3-5aaf8bb1cb77) (2026-09-10)
 
 ## High
 
-- [x] **`macos_hover` swizzle** — Dropped process-wide `NSWindow` IMP replace. WebKit still needs `isKeyWindow` spoofing; scoped to the main window via a dynamic subclass of that window’s current isa (KVO-safe). Tracking + `acceptsMouseMovedEvents` kept; `accept_first_mouse` already in `lib.rs`.
+- [x] **`macos_hover` swizzle** — Removed all `isKeyWindow` spoofing (`object_setClass` and process-wide IMP replace both crash). Kept WKWebView `ActiveAlways` tracking + `acceptsMouseMovedEvents`; `accept_first_mouse` remains in `lib.rs`. Inactive `:hover` may be incomplete until a non-crashing approach exists.
 - [x] **`website/`** — Kept source; root `.gitignore` now ignores only `website/node_modules`, `.next`, `out`, `.vercel` (no longer blanket `/website/*`). Brand/CTA cleanup deferred.
 
 ## Medium
 
-- [ ] **Right panel mocks** — Delete or quarantine `src/components/rightPanel/**` (still unused; AGENTS.md says intentionally not rendered). Clean the stale App comment.
+- [x] **Right panel mocks** — Deleted `src/components/rightPanel/**` and removed the stale App.tsx comment; nothing imported it.
 - [ ] **Path helpers** — Consolidate `src/lib/path.ts` and `src/utils/paths.ts`. Replace `split("/")` / Untitled path builders so Windows `\` works (AGENTS.md).
 - [ ] **`haptic_feedback`** — Remove the dead `invoke("haptic_feedback")` in `App.tsx` or implement the Rust command; drop double empty catch.
 - [ ] **Window drag duplication** — Share TabBar / Sidebar drag + double-click maximize handlers.

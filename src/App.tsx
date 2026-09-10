@@ -659,7 +659,6 @@ function App() {
         </Suspense>
         {!welcomeMode && vaultPath && !isNarrow && <StatusBar />}
       </main>
-      {/* RightPanel hidden for now — terminal/browser/canvas to be handled later */}
       <Suspense fallback={null}>
         <CommandPalette
           isOpen={isPaletteOpen}
