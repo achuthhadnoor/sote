@@ -20,6 +20,8 @@
     "core:window:allow-inner-size",
     "core:window:allow-scale-factor",
     "core:window:allow-center",
+    "core:app:allow-set-dock-visibility",
+    "core:tray:default",
     "core:menu:default",
     "core:menu:allow-popup",
     "opener:default",

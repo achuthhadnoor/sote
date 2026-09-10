@@ -224,6 +224,100 @@ fn path_is_directory(path: String) -> bool {
     std::path::Path::new(&path).is_dir()
 }
 
+const NARROW_TRAY_ID: &str = "snipnote-narrow";
+
+/// Narrow / compact mode chrome: menu-bar (tray) icon on, Dock icon off (macOS).
+/// Restores the Dock and removes the tray when leaving narrow mode.
+#[tauri::command]
+fn set_narrow_chrome(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    use tauri::Emitter;
+
+    if enabled {
+        if app.tray_by_id(NARROW_TRAY_ID).is_none() {
+            let icon = app
+                .default_window_icon()
+                .ok_or_else(|| "No default window icon for tray".to_string())?
+                .clone();
+
+            let show = MenuItem::with_id(&app, "tray_show", "Show snipnote", true, None::<&str>)
+                .map_err(|e| e.to_string())?;
+            let expand =
+                MenuItem::with_id(&app, "tray_expand", "Expand window", true, None::<&str>)
+                    .map_err(|e| e.to_string())?;
+            let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+            let quit = PredefinedMenuItem::quit(&app, Some("Quit snipnote")).map_err(|e| e.to_string())?;
+            let menu = Menu::with_items(&app, &[&show, &expand, &sep, &quit]).map_err(|e| e.to_string())?;
+
+            let mut builder = TrayIconBuilder::with_id(NARROW_TRAY_ID)
+                .icon(icon)
+                .tooltip("snipnote")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| {
+                    match event.id().as_ref() {
+                        "tray_show" => {
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
+                        }
+                        "tray_expand" => {
+                            let _ = app.emit("narrow:expand", ());
+                        }
+                        _ => {}
+                    }
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                });
+
+            // Template icons follow the menu-bar appearance on macOS.
+            #[cfg(target_os = "macos")]
+            {
+                builder = builder.icon_as_template(true);
+            }
+
+            builder.build(&app).map_err(|e| e.to_string())?;
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            app.set_dock_visibility(false)
+                .map_err(|e| format!("hide dock failed: {e}"))?;
+        }
+    } else {
+        let _ = app.remove_tray_by_id(NARROW_TRAY_ID);
+
+        #[cfg(target_os = "macos")]
+        {
+            app.set_dock_visibility(true)
+                .map_err(|e| format!("show dock failed: {e}"))?;
+            // Ensure we are a normal app again after accessory-style hide.
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 fn add_recent_vault(app: AppHandle, vault_path: String) -> Result<(), String> {
     save_recent_vaults(&app, vault_path.clone())?;
@@ -297,6 +391,7 @@ pub fn run() {
             reveal_window,
             set_window_theme,
             toggle_app_menu,
+            set_narrow_chrome,
         ])
         .on_menu_event(|app, event| {
             use tauri::{Emitter, Manager};

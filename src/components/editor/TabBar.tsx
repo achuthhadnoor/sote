@@ -1,4 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTabStore } from "../../stores/useTabStore";
@@ -28,6 +30,14 @@ const ALWAYS_ON_TOP_KEY = "snipnote-always-on-top";
 const NARROW_WINDOW_WIDTH = 420;
 const NARROW_WINDOW_HEIGHT = 700;
 const WIDE_WINDOW_FALLBACK = { width: 1280, height: 720 };
+
+async function setNarrowChrome(enabled: boolean) {
+  try {
+    await invoke("set_narrow_chrome", { enabled });
+  } catch (e) {
+    console.error("narrow chrome failed", e);
+  }
+}
 
 /** Drag + double-click maximize; excludes tab strip / interactive chrome. */
 const handleStartDragging = createWindowChromeDragHandler(
@@ -98,6 +108,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   const [maximized, setMaximized] = useState(false);
   const [tabsOverflow, setTabsOverflow] = useState(false);
   const wideSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const narrowChromeRef = useRef(false);
 
   const isDirty = useEditorStore((state) => state.isDirty);
   const isSaving = useEditorStore((state) => state.isSaving);
@@ -234,6 +245,24 @@ export const TabBar: React.FC<TabBarProps> = ({
   };
 
   /** Resize the native Tauri window (not CSS). Remembers the last wide size. */
+  const expandNarrowWindow = async () => {
+    try {
+      const win = getCurrentWindow();
+      if (await win.isMaximized()) {
+        await win.unmaximize();
+      }
+      const restore = wideSizeRef.current ?? WIDE_WINDOW_FALLBACK;
+      await win.setSize(new LogicalSize(restore.width, restore.height));
+      await win.center();
+      if (narrowChromeRef.current) {
+        narrowChromeRef.current = false;
+        await setNarrowChrome(false);
+      }
+    } catch (e) {
+      console.error("narrow window expand failed", e);
+    }
+  };
+
   const toggleNarrowWindow = async () => {
     try {
       const win = getCurrentWindow();
@@ -247,18 +276,41 @@ export const TabBar: React.FC<TabBarProps> = ({
       }
 
       if (isNarrow || width <= 720) {
-        const restore = wideSizeRef.current ?? WIDE_WINDOW_FALLBACK;
-        await win.setSize(new LogicalSize(restore.width, restore.height));
-        await win.center();
+        await expandNarrowWindow();
         return;
       }
 
       wideSizeRef.current = { width, height };
       await win.setSize(new LogicalSize(NARROW_WINDOW_WIDTH, NARROW_WINDOW_HEIGHT));
+      // Menu-bar tray + hide Dock (macOS) while in compact mode.
+      narrowChromeRef.current = true;
+      await setNarrowChrome(true);
     } catch (e) {
       console.error("narrow window resize failed", e);
     }
   };
+
+  // Tray "Expand window" restores size + Dock.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen("narrow:expand", () => {
+      void expandNarrowWindow();
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Manual resize out of narrow — drop tray / restore Dock if we had enabled them.
+  useEffect(() => {
+    if (!isNarrow && narrowChromeRef.current) {
+      narrowChromeRef.current = false;
+      void setNarrowChrome(false);
+    }
+  }, [isNarrow]);
 
   const minimizeWindow = () => {
     getCurrentWindow().minimize().catch(() => {});
