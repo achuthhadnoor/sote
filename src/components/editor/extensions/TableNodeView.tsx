@@ -92,7 +92,7 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
 
   return (
     <NodeViewWrapper
-      className={`not-prose snipnote-table-wrapper block select-none min-w-0 ${
+      className={`not-prose sote-table-wrapper block select-none min-w-0 ${
         selected ? "ring-2 ring-primary/40 rounded-md" : ""
       }`}
     >
@@ -175,7 +175,7 @@ export const TableNodeView: React.FC<NodeViewProps> = ({
           </div>
         ) : html ? (
           <div
-            className="p-1 snipnote-table-container"
+            className="p-1 sote-table-container"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (

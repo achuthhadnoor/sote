@@ -35,7 +35,7 @@ fn is_hover_window(this: *mut AnyObject) -> bool {
     this as usize == HOVER_WINDOW.load(Ordering::SeqCst)
 }
 
-unsafe extern "C-unwind" fn snipnote_is_key_window(this: *mut AnyObject, cmd: Sel) -> Bool {
+unsafe extern "C-unwind" fn sote_is_key_window(this: *mut AnyObject, cmd: Sel) -> Bool {
     if is_hover_window(this) {
         return Bool::YES;
     }
@@ -54,7 +54,7 @@ fn swizzle_nswindow_is_key() {
         };
         let original = method.implementation();
         ORIGINAL_IS_KEY.store(original as *mut (), Ordering::SeqCst);
-        let replacement: IsKeyWindowImp = snipnote_is_key_window;
+        let replacement: IsKeyWindowImp = sote_is_key_window;
         unsafe {
             method.set_implementation(std::mem::transmute::<
                 IsKeyWindowImp,
@@ -141,7 +141,7 @@ pub fn enable_inactive_hover(window: &WebviewWindow) {
             .run_on_main_thread(move || enable_inactive_hover(&window));
         if result.is_err() {
             #[cfg(debug_assertions)]
-            eprintln!("snipnote: enable_inactive_hover main-thread hop failed");
+            eprintln!("sote: enable_inactive_hover main-thread hop failed");
         }
         return;
     }

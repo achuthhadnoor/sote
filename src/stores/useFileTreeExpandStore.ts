@@ -1,12 +1,13 @@
 import { create } from "zustand";
+import { getProductItem, setProductItem } from "../lib/productStorage";
 
-const STORAGE_KEY = "snipnote-file-tree-expanded";
+const STORAGE_KEY = "sote-file-tree-expanded";
 
 type ExpandedByVault = Record<string, Record<string, boolean>>;
 
 function load(): ExpandedByVault {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = getProductItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as ExpandedByVault;
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -16,11 +17,7 @@ function load(): ExpandedByVault {
 }
 
 function persist(byVault: ExpandedByVault) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(byVault));
-  } catch {
-    // ignore quota / private mode
-  }
+  setProductItem(STORAGE_KEY, JSON.stringify(byVault));
 }
 
 interface FileTreeExpandState {

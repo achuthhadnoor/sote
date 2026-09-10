@@ -84,7 +84,7 @@ function isExternalWebLink(href: string): boolean {
 
 /**
  * Opens any external link or non-markdown file in the system default browser or default application.
- * Never opens `.md` / `.markdown` notes — those stay in snipnote.
+ * Never opens `.md` / `.markdown` notes — those stay in sote.
  */
 async function openInExternalBrowser(href: string, activePath: string | null, vaultPath: string | null): Promise<void> {
   let target = href.trim();
@@ -256,7 +256,7 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
     return true;
   }
 
-  // 2. Markdown note inside the folder — ⌘/Ctrl-click opens in snipnote (never the browser)
+  // 2. Markdown note inside the folder — ⌘/Ctrl-click opens in sote (never the browser)
   const resolved = resolveMarkdownLink(href, curActive, vaultPath);
   if (resolved || isMarkdownNoteHref(href)) {
     if (!isMod) return true;
@@ -438,7 +438,7 @@ export const EditorSurface: React.FC = () => {
         inline: true,
         allowBase64: true,
         HTMLAttributes: {
-          class: "snipnote-image",
+          class: "sote-image",
         },
       }),
       Placeholder.configure({
@@ -454,7 +454,7 @@ export const EditorSurface: React.FC = () => {
     ],
     editorProps: {
       attributes: {
-        class: "snipnote-editor-content prose dark:prose-invert max-w-none focus:outline-none",
+        class: "sote-editor-content prose dark:prose-invert max-w-none focus:outline-none",
         spellcheck: spellCheckEnabled ? "true" : "false",
       },
       handleDrop: (view: any, event: DragEvent, _slice: any, _moved: boolean) => {

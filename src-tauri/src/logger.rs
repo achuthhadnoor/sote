@@ -20,9 +20,15 @@ pub enum Level {
     Error,
 }
 
+fn env_flag(primary: &str, legacy: &str) -> Option<String> {
+    std::env::var(primary)
+        .ok()
+        .or_else(|| std::env::var(legacy).ok())
+}
+
 fn min_level() -> Level {
-    // Allow `SNIPNOTE_LOG_LEVEL=debug` to get full logs out of a release build.
-    if let Ok(v) = std::env::var("SNIPNOTE_LOG_LEVEL") {
+    // Prefer `SOTE_LOG_LEVEL`; accept legacy `SNIPNOTE_LOG_LEVEL`.
+    if let Some(v) = env_flag("SOTE_LOG_LEVEL", "SNIPNOTE_LOG_LEVEL") {
         match v.to_lowercase().as_str() {
             "debug" => return Level::Debug,
             "info" => return Level::Info,
@@ -39,12 +45,13 @@ fn min_level() -> Level {
 }
 
 /// Mirror every line to stderr — i.e. the terminal running `tauri dev`.
-/// Always on for debug builds; opt-in for release via `SNIPNOTE_LOG_STDERR=1`.
+/// Always on for debug builds; opt-in for release via `SOTE_LOG_STDERR=1`
+/// (legacy `SNIPNOTE_LOG_STDERR` still accepted).
 fn mirror_to_stderr() -> bool {
     if cfg!(debug_assertions) {
         return true;
     }
-    std::env::var("SNIPNOTE_LOG_STDERR")
+    env_flag("SOTE_LOG_STDERR", "SNIPNOTE_LOG_STDERR")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
@@ -80,7 +87,7 @@ fn write_line(level: Level, target: &str, msg: &str) {
         }
     }
     if mirror_to_stderr() || level >= Level::Warn {
-        eprintln!("[snipnote][{}][{}] {}", level_str(level), target, msg);
+        eprintln!("[sote][{}][{}] {}", level_str(level), target, msg);
     }
 }
 
@@ -106,14 +113,14 @@ pub fn init(app: &tauri::AppHandle) -> PathBuf {
     let dir = app
         .path()
         .app_data_dir()
-        .unwrap_or_else(|_| std::env::temp_dir().join("snipnote"));
+        .unwrap_or_else(|_| std::env::temp_dir().join("sote"));
     let _ = fs::create_dir_all(&dir);
-    let path = dir.join("snipnote.log");
+    let path = dir.join("sote.log");
 
     // Rotate: keep one backup so a runaway session can't grow the log forever.
     if let Ok(meta) = fs::metadata(&path) {
         if meta.len() > MAX_LOG_BYTES {
-            let _ = fs::rename(&path, dir.join("snipnote.log.1"));
+            let _ = fs::rename(&path, dir.join("sote.log.1"));
         }
     }
 
@@ -129,7 +136,7 @@ pub fn init(app: &tauri::AppHandle) -> PathBuf {
             path
         }
         Err(e) => {
-            eprintln!("[snipnote][logger] failed to open log file: {}", e);
+            eprintln!("[sote][logger] failed to open log file: {}", e);
             path
         }
     }
@@ -163,5 +170,5 @@ pub fn get_log_path(app: tauri::AppHandle) -> Result<String, String> {
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app_data_dir: {}", e))?;
-    Ok(dir.join("snipnote.log").to_string_lossy().to_string())
+    Ok(dir.join("sote.log").to_string_lossy().to_string())
 }

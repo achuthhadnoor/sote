@@ -1,5 +1,5 @@
 <!-- bmad:context:start -->
-# snipnote — Agent Context
+# sote — Agent Context
 
 Local-first Markdown editor (Tauri 2 + React 19 + TipTap). Disk is source of truth. Ships **macOS + Windows**.
 
@@ -16,7 +16,7 @@ yarn tauri build        # platform installers + updater artifacts when keys set
 
 1. **Window chrome is platform-split** (`src-tauri/src/lib.rs`):
    - macOS: Overlay + empty title + `Effect::Sidebar` + radius 12
-   - Windows: undecorated + title `snipnote` + `Effect::Mica` (soft-fail); TabBar draws min/max/close
+   - Windows: undecorated + title `sote` + `Effect::Mica` (soft-fail); TabBar draws min/max/close
    - Never reintroduce combined `EffectsBuilder([Sidebar, Mica])` or Overlay-on-Windows
 2. **Settings is a tab** (`SettingsView.tsx`), not a modal dialog
 3. **Shortcut labels** use `modShortcut` / `platform.ts` — never hard-code `⌘` for Windows UI
@@ -42,5 +42,5 @@ yarn tauri build        # platform installers + updater artifacts when keys set
 - WelcomeGate owns first-run; do not resurrect a separate empty-state dashboard
 - Right Panel exists but is intentionally not rendered
 
-Updated: 2026-09-08 (Correct Course doc sync)
+Updated: 2026-09-10 (product rename snipnote → sote)
 <!-- bmad:context:end -->

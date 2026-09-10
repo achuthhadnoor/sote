@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getProductItem, setProductItem } from "../lib/productStorage";
 
 interface SpellCheckState {
   enabled: boolean;
@@ -6,34 +7,26 @@ interface SpellCheckState {
   toggle: () => void;
 }
 
-const STORAGE_KEY = "snipnote-spellcheck";
+const STORAGE_KEY = "sote-spellcheck";
 
 function loadInitial(): boolean {
   if (typeof window === "undefined") return true;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw === null) return true;
-    return raw === "true";
-  } catch {
-    return true;
-  }
+  const raw = getProductItem(STORAGE_KEY);
+  if (raw === null) return true;
+  return raw === "true";
 }
 
 export const useSpellCheckStore = create<SpellCheckState>((set) => ({
   enabled: loadInitial(),
   setEnabled: (v) =>
     set(() => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, String(v));
-      } catch {}
+      setProductItem(STORAGE_KEY, String(v));
       return { enabled: v };
     }),
   toggle: () =>
     set((s) => {
       const v = !s.enabled;
-      try {
-        window.localStorage.setItem(STORAGE_KEY, String(v));
-      } catch {}
+      setProductItem(STORAGE_KEY, String(v));
       return { enabled: v };
     }),
 }));

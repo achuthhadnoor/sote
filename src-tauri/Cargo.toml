@@ -5,7 +5,7 @@ description = "Local-first Markdown notes for macOS and Windows"
 authors = ["Achuth"]
 edition = "2021"
 license = "Proprietary"
-repository = "https://github.com/achuth/snipnote"
+repository = "https://github.com/achuthhadnoor/sote"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

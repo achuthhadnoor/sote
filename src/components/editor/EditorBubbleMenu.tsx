@@ -196,7 +196,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
       editor={editor}
       updateDelay={80}
       shouldShow={shouldShow}
-      className="snipnote-bubble-menu flex flex-wrap items-center gap-0.5 p-1 border z-50 animate-in fade-in zoom-in-95 duration-100 max-w-[min(100vw-1.5rem,28rem)]"
+      className="sote-bubble-menu flex flex-wrap items-center gap-0.5 p-1 border z-50 animate-in fade-in zoom-in-95 duration-100 max-w-[min(100vw-1.5rem,28rem)]"
     >
       {isLinkMode ? (
         <div className="flex flex-wrap items-center gap-1.5 px-1 py-0.5 max-w-full">

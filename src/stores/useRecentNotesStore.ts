@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getProductItem, setProductItem } from "../lib/productStorage";
 
 export interface RecentNote {
   path: string;
@@ -7,13 +8,13 @@ export interface RecentNote {
   lastOpened: number;
 }
 
-const STORAGE_KEY = "snipnote-recent-notes";
+const STORAGE_KEY = "sote-recent-notes";
 const MAX_RECENTS = 30;
 
 function loadInitial(): RecentNote[] {
   try {
     if (typeof window === "undefined") return [];
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = getProductItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as RecentNote[];
     if (!Array.isArray(parsed)) return [];
@@ -26,9 +27,7 @@ function loadInitial(): RecentNote[] {
 }
 
 function persist(recents: RecentNote[]) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS)));
-  } catch {}
+  setProductItem(STORAGE_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS)));
 }
 
 interface RecentNotesState {

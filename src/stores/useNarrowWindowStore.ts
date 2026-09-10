@@ -1,26 +1,19 @@
 import { create } from "zustand";
+import { getProductItem, setProductItem } from "../lib/productStorage";
 import { isMac } from "../utils/platform";
 
-const MENU_BAR_KEY = "snipnote-narrow-menu-bar-icon";
-const HIDE_DOCK_KEY = "snipnote-narrow-hide-dock";
+const MENU_BAR_KEY = "sote-narrow-menu-bar-icon";
+const HIDE_DOCK_KEY = "sote-narrow-hide-dock";
 
 function loadBool(key: string, fallback: boolean): boolean {
   if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw === null) return fallback;
-    return raw === "true";
-  } catch {
-    return fallback;
-  }
+  const raw = getProductItem(key);
+  if (raw === null) return fallback;
+  return raw === "true";
 }
 
 function saveBool(key: string, value: boolean) {
-  try {
-    window.localStorage.setItem(key, String(value));
-  } catch {
-    /* ignore quota / private mode */
-  }
+  setProductItem(key, String(value));
 }
 
 /**

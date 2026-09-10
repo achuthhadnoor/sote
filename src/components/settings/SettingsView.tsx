@@ -190,7 +190,7 @@ export const SettingsView: React.FC = () => {
           setTimeout(() => setUpdateStatus(null), 5000);
           break;
         case "installed":
-          setUpdateStatus("Installed — restart snipnote to finish");
+          setUpdateStatus("Installed — restart sote to finish");
           break;
         case "available":
           setUpdateStatus(`Update ${result.version} available`);
@@ -339,7 +339,7 @@ export const SettingsView: React.FC = () => {
             description={
               isMac
                 ? hideDock
-                  ? "Required while the Dock icon is hidden — use it to show or quit snipnote"
+                  ? "Required while the Dock icon is hidden — use it to show or quit sote"
                   : "Show a status item in the menu bar while the window is compact"
                 : "Show a system tray icon while the window is compact"
             }
@@ -356,7 +356,7 @@ export const SettingsView: React.FC = () => {
           {isMac ? (
             <SettingsRow
               title="Hide Dock icon"
-              description="Remove snipnote from the Dock while compact (keeps the menu bar icon so you can still quit)"
+              description="Remove sote from the Dock while compact (keeps the menu bar icon so you can still quit)"
               last
               control={
                 <Switch
@@ -375,7 +375,7 @@ export const SettingsView: React.FC = () => {
             description={
               autostartStatus === "Unavailable"
                 ? "Launch at login unavailable"
-                : "Open snipnote when you sign in"
+                : "Open sote when you sign in"
             }
             control={
               <div className="flex items-center gap-2">
@@ -486,7 +486,7 @@ export const SettingsView: React.FC = () => {
         </SettingsSection>
 
         <p className="px-0.5 text-[12px] text-muted-foreground">
-          {appVersion ? `snipnote ${appVersion}` : "snipnote"}
+          {appVersion ? `sote ${appVersion}` : "sote"}
         </p>
       </div>
     </section>

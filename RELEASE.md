@@ -1,11 +1,11 @@
-# snipnote release checklist
+# sote release checklist
 
-Version **0.1.0** is configured in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`. Keep those three in sync when bumping.
+Version **0.1.1** is configured in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`. Keep those three in sync when bumping.
 
 ## Before first public build
 
-1. **GitHub remote** — create `achuth/snipnote` (or update `plugins.updater.endpoints` and `Cargo.toml` `repository` if the name differs).
-2. **Updater private key** — already generated at `.tauri/snipnote.key` (gitignored). Back it up offline. Public key is embedded in `tauri.conf.json`.
+1. **GitHub remote** — `achuthhadnoor/sote` (update `plugins.updater.endpoints` and `Cargo.toml` `repository` if the name differs).
+2. **Updater private key** — already generated at `.tauri/snipnote.key` (gitignored; filename kept for existing backups). Back it up offline. Public key is embedded in `tauri.conf.json`.
 3. **Apple Developer ID** (macOS) — install a **Developer ID Application** certificate (not Apple Development). Required for Gatekeeper + notarization.
 4. **Notarization credentials** (macOS) — App Store Connect API key or `notarytool` Apple ID app-specific password.
 5. **Windows code signing** (optional) — unsigned NSIS/MSI installs work for testing; for public SmartScreen-friendly releases, add an Authenticode certificate and wire signing later. Updater payload signatures still use `TAURI_SIGNING_PRIVATE_KEY` on all platforms.
@@ -45,7 +45,7 @@ yarn tauri build
 
 Confirm:
 
-- `src-tauri/target/release/bundle/macos/snipnote.app`
+- `src-tauri/target/release/bundle/macos/sote.app`
 - `src-tauri/target/release/bundle/dmg/*.dmg`
 - Updater: `*.app.tar.gz` + matching `*.sig`
 
@@ -72,11 +72,11 @@ WebView2 is required at runtime (bundled with recent Windows 11; evergreen boots
 3. **Publish the draft** (Draft → Publish release). Until it is public, `…/releases/latest/download/latest.json` 404s and the in-app updater reports up-to-date / network error.
 4. Endpoint expected by the app:
 
-   `https://github.com/achuth/snipnote/releases/latest/download/latest.json`
+   `https://github.com/achuthhadnoor/sote/releases/latest/download/latest.json`
 
 ### Auto-updater behavior
 
-- On launch (≈4s after window reveal), snipnote checks that endpoint if **Automatic Updates** is on (Settings → System; default on), at most every 12 hours.
+- On launch (≈4s after window reveal), sote checks that endpoint if **Automatic Updates** is on (Settings → System; default on), at most every 12 hours.
 - When a newer signed build is found, the user is prompted to download, install, and relaunch.
 - **Check for Updates** in Settings always checks immediately and offers the same install prompt.
 - Requires `TAURI_SIGNING_PRIVATE_KEY` in CI so `.sig` files match the public key in `tauri.conf.json`.
@@ -114,5 +114,5 @@ Windows Authenticode secrets are intentionally not required yet; add them when y
 - Install from NSIS (or MSI) on Windows 11; confirm WebView2 present.
 - Launch — native title bar + Mica (Win11); opaque-enough chrome if Mica unavailable.
 - Open a folder on a drive letter path, create/edit/save a `.md` note, Ctrl+P palette, theme + hue.
-- Deep link / file association: open a `.md` via Explorer “Open with” snipnote if registered.
+- Deep link / file association: open a `.md` via Explorer “Open with” sote if registered.
 - Check for Updates; quit and relaunch — session restore.

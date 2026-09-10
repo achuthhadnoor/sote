@@ -47,7 +47,7 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         with:
           tagName: v__VERSION__
-          releaseName: "snipnote v__VERSION__"
+          releaseName: "sote v__VERSION__"
           releaseBody: "See the assets below to install this release (macOS). Unsigned builds need Right-click → Open the first time."
           releaseDraft: true
           prerelease: false

@@ -1,11 +1,16 @@
 /** Virtual tab paths that are not vault files. */
-export const SETTINGS_TAB_PATH = "snipnote://settings";
+export const SETTINGS_TAB_PATH = "sote://settings";
 export const SETTINGS_TAB_TITLE = "Settings";
 
+const LEGACY_SETTINGS_TAB_PATH = "snipnote://settings";
+
 export function isSettingsTab(path: string | null | undefined): boolean {
-  return path === SETTINGS_TAB_PATH;
+  return path === SETTINGS_TAB_PATH || path === LEGACY_SETTINGS_TAB_PATH;
 }
 
 export function isVirtualTab(path: string | null | undefined): boolean {
-  return typeof path === "string" && path.startsWith("snipnote://");
+  return (
+    typeof path === "string" &&
+    (path.startsWith("sote://") || path.startsWith("snipnote://"))
+  );
 }

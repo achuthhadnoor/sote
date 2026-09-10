@@ -51,7 +51,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ isExternalDragActive =
       <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center gap-8 text-center">
         <header className="flex flex-col items-center gap-2">
           <h1 className="font-display text-[34px] sm:text-[40px] font-semibold tracking-tight text-foreground leading-none">
-            snipnote
+            sote
           </h1>
           <p className="text-[14px] text-muted-foreground leading-relaxed max-w-[28ch]">
             Your notes live in a folder on disk.

@@ -1,4 +1,4 @@
-# snipnote
+# sote
 
 A fast local Markdown file editor for macOS and Windows (Tauri + React).
 
@@ -34,7 +34,7 @@ Artifacts land under `src-tauri/target/release/bundle/`:
 
 | Platform | Typical outputs |
 |----------|-----------------|
-| macOS | `macos/snipnote.app`, `dmg/*.dmg`, updater `.app.tar.gz` + `.sig` |
+| macOS | `macos/sote.app`, `dmg/*.dmg`, updater `.app.tar.gz` + `.sig` |
 | Windows | `nsis/*.exe`, `msi/*.msi`, updater `.nsis.zip` / `.msi.zip` + `.sig` |
 
 Updater signing keys (`TAURI_SIGNING_PRIVATE_KEY`) are required for `.sig` / `latest.json` artifacts.

@@ -1,11 +1,17 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getProductItem, setProductItem } from "../lib/productStorage";
 
 export type Theme = "light" | "dark" | "system";
 
 const DEFAULT_TINT_HUE = 220;
 const DEFAULT_TINT_AMOUNT = 12;
+
+const THEME_KEY = "sote-theme";
+const BG_OPACITY_KEY = "sote-bg-opacity";
+const TINT_HUE_KEY = "sote-theme-tint-hue";
+const TINT_AMOUNT_KEY = "sote-theme-tint-amount";
 
 interface ThemeState {
   theme: Theme;
@@ -72,49 +78,41 @@ function applyTintToDom(hue: number, amount: number) {
 }
 
 function loadInitialTheme(): Theme {
-  try {
-    const saved = localStorage.getItem("snipnote-theme") as Theme | null;
-    if (saved === "light" || saved === "dark" || saved === "system") return saved;
-  } catch {}
+  const saved = getProductItem(THEME_KEY) as Theme | null;
+  if (saved === "light" || saved === "dark" || saved === "system") return saved;
   return "system";
 }
 
 function loadInitialBgOpacity(): number {
-  try {
-    const saved = localStorage.getItem("snipnote-bg-opacity");
-    if (saved !== null) {
-      const parsed = Number(saved);
-      if (!isNaN(parsed) && parsed >= 10 && parsed <= 100) {
-        return parsed;
-      }
+  const saved = getProductItem(BG_OPACITY_KEY);
+  if (saved !== null) {
+    const parsed = Number(saved);
+    if (!isNaN(parsed) && parsed >= 10 && parsed <= 100) {
+      return parsed;
     }
-  } catch {}
+  }
   return 85;
 }
 
 function loadInitialTintHue(): number {
-  try {
-    const saved = localStorage.getItem("snipnote-theme-tint-hue");
-    if (saved !== null) {
-      const parsed = Number(saved);
-      if (!isNaN(parsed) && parsed >= 0 && parsed <= 360) {
-        return parsed;
-      }
+  const saved = getProductItem(TINT_HUE_KEY);
+  if (saved !== null) {
+    const parsed = Number(saved);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 360) {
+      return parsed;
     }
-  } catch {}
+  }
   return DEFAULT_TINT_HUE;
 }
 
 function loadInitialTintAmount(): number {
-  try {
-    const saved = localStorage.getItem("snipnote-theme-tint-amount");
-    if (saved !== null) {
-      const parsed = Number(saved);
-      if (!isNaN(parsed) && parsed >= 0 && parsed <= 40) {
-        return parsed;
-      }
+  const saved = getProductItem(TINT_AMOUNT_KEY);
+  if (saved !== null) {
+    const parsed = Number(saved);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 40) {
+      return parsed;
     }
-  } catch {}
+  }
   return DEFAULT_TINT_AMOUNT;
 }
 
@@ -127,18 +125,14 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   tintAmount: loadInitialTintAmount(),
   setTheme: (t) =>
     set(() => {
-      try {
-        localStorage.setItem("snipnote-theme", t);
-      } catch {}
+      setProductItem(THEME_KEY, t);
       const effective = computeEffective(t);
       applyThemeToDom(effective);
       syncNativeWindowTheme(t);
       return { theme: t, effectiveTheme: effective };
     }),
   setBgOpacity: (opacity) => {
-    try {
-      localStorage.setItem("snipnote-bg-opacity", String(opacity));
-    } catch {}
+    setProductItem(BG_OPACITY_KEY, String(opacity));
     applyEffectiveBgOpacity(opacity, get().isFullscreen);
     set({ bgOpacity: opacity });
   },
@@ -150,18 +144,14 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
   setTintHue: (hue) => {
     const clamped = Math.min(360, Math.max(0, Math.round(hue)));
-    try {
-      localStorage.setItem("snipnote-theme-tint-hue", String(clamped));
-    } catch {}
+    setProductItem(TINT_HUE_KEY, String(clamped));
     const { tintAmount } = useThemeStore.getState();
     applyTintToDom(clamped, tintAmount);
     set({ tintHue: clamped });
   },
   setTintAmount: (amount) => {
     const clamped = Math.min(40, Math.max(0, Math.round(amount)));
-    try {
-      localStorage.setItem("snipnote-theme-tint-amount", String(clamped));
-    } catch {}
+    setProductItem(TINT_AMOUNT_KEY, String(clamped));
     const { tintHue } = useThemeStore.getState();
     applyTintToDom(tintHue, clamped);
     set({ tintAmount: clamped });

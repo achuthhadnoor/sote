@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getProductItem, setProductItem } from "./productStorage";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -6,6 +7,9 @@ const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, erro
 
 const MAX_BUFFER = 500;
 const MAX_MESSAGE = 2000;
+
+const LOG_LEVEL_KEY = "sote-log-level";
+const STREAM_LOGS_KEY = "sote-stream-logs";
 
 export interface LogEntry {
   ts: string;
@@ -18,17 +22,13 @@ const buffer: LogEntry[] = [];
 let backendAvailable: boolean | null = null;
 
 function minLevel(): LogLevel {
-  try {
-    const stored = localStorage.getItem("snipnote-log-level") as LogLevel | null;
-    if (stored && stored in LEVEL_ORDER) return stored;
-  } catch {}
+  const stored = getProductItem(LOG_LEVEL_KEY) as LogLevel | null;
+  if (stored && stored in LEVEL_ORDER) return stored;
   return import.meta.env.DEV ? "debug" : "info";
 }
 
 export function setLogLevel(level: LogLevel) {
-  try {
-    localStorage.setItem("snipnote-log-level", level);
-  } catch {}
+  setProductItem(LOG_LEVEL_KEY, level);
 }
 
 export function getLogLevel(): LogLevel {
@@ -41,18 +41,14 @@ export function getLogLevel(): LogLevel {
  * Toggleable from Settings → Diagnostics.
  */
 export function isStreamLogs(): boolean {
-  try {
-    const v = localStorage.getItem("snipnote-stream-logs");
-    if (v === "1") return true;
-    if (v === "0") return false;
-  } catch {}
+  const v = getProductItem(STREAM_LOGS_KEY);
+  if (v === "1") return true;
+  if (v === "0") return false;
   return import.meta.env.DEV;
 }
 
 export function setStreamLogs(enabled: boolean) {
-  try {
-    localStorage.setItem("snipnote-stream-logs", enabled ? "1" : "0");
-  } catch {}
+  setProductItem(STREAM_LOGS_KEY, enabled ? "1" : "0");
 }
 
 /**
@@ -123,7 +119,7 @@ export interface StartupSample {
   restoreMs: number;
 }
 
-const STARTUP_HISTORY_KEY = "snipnote-startup-history";
+const STARTUP_HISTORY_KEY = "sote-startup-history";
 const MAX_STARTUP_SAMPLES = 10;
 
 /**
@@ -137,7 +133,7 @@ export function recordStartupSample(
   restoreMs: number
 ): { samples: StartupSample[]; avgNavToJsMs: number } {
   try {
-    const raw = localStorage.getItem(STARTUP_HISTORY_KEY);
+    const raw = getProductItem(STARTUP_HISTORY_KEY);
     const samples: StartupSample[] = raw ? JSON.parse(raw) : [];
     samples.push({
       ts: Date.now(),
@@ -147,7 +143,7 @@ export function recordStartupSample(
       restoreMs: Math.round(restoreMs),
     });
     while (samples.length > MAX_STARTUP_SAMPLES) samples.shift();
-    localStorage.setItem(STARTUP_HISTORY_KEY, JSON.stringify(samples));
+    setProductItem(STARTUP_HISTORY_KEY, JSON.stringify(samples));
     const navs = samples.map((s) => s.navToJsMs).filter((n) => n >= 0);
     const avg = navs.length
       ? Math.round(navs.reduce((a, b) => a + b, 0) / navs.length)
@@ -280,7 +276,7 @@ export async function loggedInvoke<T>(scope: string, command: string, args?: Rec
   }
 }
 
-/** Resolve the Rust log file path (app_data_dir/snipnote.log). Null in browser mode. */
+/** Resolve the Rust log file path (app_data_dir/sote.log). Null in browser mode. */
 export async function getBackendLogPath(): Promise<string | null> {
   try {
     return await invoke<string>("get_log_path");

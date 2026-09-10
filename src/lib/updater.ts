@@ -1,10 +1,11 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { createLogger } from "./logger";
+import { getProductItem, setProductItem } from "./productStorage";
 
 const log = createLogger("updater");
 
-const AUTO_CHECK_KEY = "snipnote-auto-update-check";
-const LAST_CHECK_KEY = "snipnote-auto-update-last-check";
+const AUTO_CHECK_KEY = "sote-auto-update-check";
+const LAST_CHECK_KEY = "sote-auto-update-last-check";
 /** Minimum gap between silent startup checks (ms). Manual Check ignores this. */
 const AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12h
 
@@ -16,36 +17,24 @@ export type UpdateInstallResult =
   | { status: "error"; message: string };
 
 export function isAutoUpdateCheckEnabled(): boolean {
-  try {
-    const raw = localStorage.getItem(AUTO_CHECK_KEY);
-    if (raw == null) return true; // default on
-    return raw === "1" || raw === "true";
-  } catch {
-    return true;
-  }
+  const raw = getProductItem(AUTO_CHECK_KEY);
+  if (raw == null) return true; // default on
+  return raw === "1" || raw === "true";
 }
 
 export function setAutoUpdateCheckEnabled(enabled: boolean): void {
-  try {
-    localStorage.setItem(AUTO_CHECK_KEY, enabled ? "1" : "0");
-  } catch {}
+  setProductItem(AUTO_CHECK_KEY, enabled ? "1" : "0");
 }
 
 function shouldRunStartupCheck(): boolean {
   if (!isAutoUpdateCheckEnabled()) return false;
-  try {
-    const last = Number(localStorage.getItem(LAST_CHECK_KEY) || "0");
-    if (!Number.isFinite(last) || last <= 0) return true;
-    return Date.now() - last >= AUTO_CHECK_INTERVAL_MS;
-  } catch {
-    return true;
-  }
+  const last = Number(getProductItem(LAST_CHECK_KEY) || "0");
+  if (!Number.isFinite(last) || last <= 0) return true;
+  return Date.now() - last >= AUTO_CHECK_INTERVAL_MS;
 }
 
 function markCheckedNow(): void {
-  try {
-    localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
-  } catch {}
+  setProductItem(LAST_CHECK_KEY, String(Date.now()));
 }
 
 /** Prompt, download, install, relaunch. Returns without throwing. */

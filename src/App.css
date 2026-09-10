@@ -915,17 +915,17 @@ html, body, #root {
 
 /* Custom table block — translucent, matches code-block density.
    Wide tables scroll horizontally instead of crushing columns. */
-.snipnote-table-wrapper {
+.sote-table-wrapper {
   margin: 0.75em 0;
   max-width: 100%;
   min-width: 0;
 }
-.snipnote-table-container {
+.sote-table-container {
   overflow-x: auto;
   max-width: 100%;
   overscroll-behavior-x: contain;
 }
-.snipnote-table-container table {
+.sote-table-container table {
   width: max-content;
   min-width: 100%;
   border-collapse: separate;
@@ -934,7 +934,7 @@ html, body, #root {
   font-size: 13px;
   font-family: var(--font-sans);
 }
-.snipnote-table-container th {
+.sote-table-container th {
   background: var(--muted-translucent);
   font-weight: 600;
   text-align: left;
@@ -946,17 +946,17 @@ html, body, #root {
   font-family: var(--font-sans);
   white-space: nowrap;
 }
-.snipnote-table-container th:last-child { border-right: none; }
-.snipnote-table-container td {
+.sote-table-container th:last-child { border-right: none; }
+.sote-table-container td {
   padding: 7px 12px;
   border-bottom: 1px solid var(--border-translucent);
   border-right: 1px solid var(--border-translucent);
   vertical-align: top;
   white-space: nowrap;
 }
-.snipnote-table-container td:last-child { border-right: none; }
-.snipnote-table-container tr:last-child td { border-bottom: none; }
-.snipnote-table-container tr:hover td { background: var(--muted-translucent); }
+.sote-table-container td:last-child { border-right: none; }
+.sote-table-container tr:last-child td { border-bottom: none; }
+.sote-table-container tr:hover td { background: var(--muted-translucent); }
 
 /* Mermaid diagram NodeView — layout + theme-aware SVG chrome.
    Dual light/dark SVGs are swapped in MermaidNodeView; these rules keep
@@ -1163,7 +1163,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Floating selection toolbar / Bubble menu */
-.snipnote-bubble-menu {
+.sote-bubble-menu {
   background: var(--bg-translucent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -1176,7 +1176,7 @@ input[type="range"]::-moz-range-thumb {
   max-width: min(calc(100vw - 1.5rem), 28rem);
 }
 
-[data-theme="dark"] .snipnote-bubble-menu {
+[data-theme="dark"] .sote-bubble-menu {
   box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.45), 0 4px 14px -2px rgba(0, 0, 0, 0.35);
 }
 

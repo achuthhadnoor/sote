@@ -25,8 +25,9 @@ import { createWindowChromeDragHandler } from "../../utils/windowChromeDrag";
 import { cn } from "@/lib/utils";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 import { narrowChromeOptions, useNarrowWindowStore } from "../../stores/useNarrowWindowStore";
+import { getProductItem, setProductItem } from "../../lib/productStorage";
 
-const ALWAYS_ON_TOP_KEY = "snipnote-always-on-top";
+const ALWAYS_ON_TOP_KEY = "sote-always-on-top";
 /** Inner size that lands under the narrow-layout media query (max-width 720). */
 const NARROW_WINDOW_WIDTH = 420;
 const NARROW_WINDOW_HEIGHT = 700;
@@ -134,7 +135,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     let cancelled = false;
     void (async () => {
       try {
-        const saved = localStorage.getItem(ALWAYS_ON_TOP_KEY) === "1";
+        const saved = getProductItem(ALWAYS_ON_TOP_KEY) === "1";
         const win = getCurrentWindow();
         if (saved) await win.setAlwaysOnTop(true);
         const actual = await win.isAlwaysOnTop();
@@ -250,7 +251,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     try {
       await getCurrentWindow().setAlwaysOnTop(next);
       try {
-        localStorage.setItem(ALWAYS_ON_TOP_KEY, next ? "1" : "0");
+        setProductItem(ALWAYS_ON_TOP_KEY, next ? "1" : "0");
       } catch {}
       setPinned(next);
     } catch {}

@@ -877,7 +877,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
     const label = getLanguageLabel(language);
 
     return (
-      <NodeViewWrapper as="div" className="not-prose snipnote-code-block my-[0.75em]">
+      <NodeViewWrapper as="div" className="not-prose sote-code-block my-[0.75em]">
         <Card className="code-block-card group relative overflow-hidden border bg-transparent shadow-none">
           {/* Floating actions */}
           <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border border-border-translucent bg-background/80 p-0.5 shadow-none backdrop-blur transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
@@ -915,7 +915,7 @@ export const MermaidNodeView: React.FC<NodeViewProps> = ({ node }) => {
     : null;
 
   return (
-    <NodeViewWrapper as="div" className="not-prose snipnote-code-block my-[0.75em]">
+    <NodeViewWrapper as="div" className="not-prose sote-code-block my-[0.75em]">
       <div ref={rootRef}>
         <Card className="code-block-card group relative overflow-hidden border bg-transparent shadow-none">
           {/* Floating actions */}

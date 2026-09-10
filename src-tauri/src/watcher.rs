@@ -79,7 +79,7 @@ impl Default for VaultWatcherState {
     }
 }
 
-/// Filter determining whether a filesystem path change should be surfaced to Snipnote.
+/// Filter determining whether a filesystem path change should be surfaced to sote.
 pub fn should_emit_change(path: &Path) -> bool {
     let path_str = path.to_string_lossy();
 

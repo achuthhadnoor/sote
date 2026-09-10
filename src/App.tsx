@@ -373,7 +373,7 @@ function App() {
       // single-instance second launch with file/vault path
       await addListener("single-instance:open", (e) => void openLinkedNote(e.payload));
       await addListener("single-instance:open-vault", (e) => useVaultStore.getState().loadVault(e.payload));
-      // deep link snipnote://open?path=... or vault=...
+      // deep link sote://open?path=... or vault=...
       await addListener("deep-link:open", (e) => void openLinkedNote(e.payload));
       await addListener("deep-link:open-vault", (e) => useVaultStore.getState().loadVault(e.payload));
     };

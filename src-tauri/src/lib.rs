@@ -138,7 +138,7 @@ fn build_and_set_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
         ],
     )?;
 
-    let about = MenuItem::with_id(app, "about_snipnote", "About snipnote", true, None::<&str>)?;
+    let about = MenuItem::with_id(app, "about_sote", "About sote", true, None::<&str>)?;
     let help_menu = Submenu::with_items(app, "Help", true, &[&about])?;
 
     let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &window_menu, &help_menu])?;
@@ -224,7 +224,7 @@ fn path_is_directory(path: String) -> bool {
     std::path::Path::new(&path).is_dir()
 }
 
-const NARROW_TRAY_ID: &str = "snipnote-narrow";
+const NARROW_TRAY_ID: &str = "sote-narrow";
 
 fn ensure_narrow_tray(app: &AppHandle) -> Result<(), String> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -240,17 +240,17 @@ fn ensure_narrow_tray(app: &AppHandle) -> Result<(), String> {
         .ok_or_else(|| "No default window icon for tray".to_string())?
         .clone();
 
-    let show = MenuItem::with_id(app, "tray_show", "Show snipnote", true, None::<&str>)
+    let show = MenuItem::with_id(app, "tray_show", "Show sote", true, None::<&str>)
         .map_err(|e| e.to_string())?;
     let expand = MenuItem::with_id(app, "tray_expand", "Expand window", true, None::<&str>)
         .map_err(|e| e.to_string())?;
     let sep = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
-    let quit = PredefinedMenuItem::quit(app, Some("Quit snipnote")).map_err(|e| e.to_string())?;
+    let quit = PredefinedMenuItem::quit(app, Some("Quit sote")).map_err(|e| e.to_string())?;
     let menu = Menu::with_items(app, &[&show, &expand, &sep, &quit]).map_err(|e| e.to_string())?;
 
     let mut builder = TrayIconBuilder::with_id(NARROW_TRAY_ID)
         .icon(icon)
-        .tooltip("snipnote")
+        .tooltip("sote")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -442,7 +442,7 @@ pub fn run() {
                         let _ = window.set_fullscreen(!is_full);
                     }
                 }
-                "about_snipnote" => {
+                "about_sote" => {
                     let _ = app.emit("menu:about", ());
                 }
                 s if s.starts_with("recent_") => {
@@ -492,13 +492,13 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             {
                 window_builder = window_builder
-                    .title("snipnote")
+                    .title("sote")
                     .decorations(false)
                     .shadow(true);
             }
             #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
             {
-                window_builder = window_builder.title("snipnote");
+                window_builder = window_builder.title("sote");
             }
 
             let window = window_builder.build()?;
@@ -528,7 +528,7 @@ pub fn run() {
                             {
                                 let _ = handle.emit("deep-link:open-vault", vault);
                             } else if parsed.host_str() == Some("open") {
-                                // snipnote://open/<path> — URL path is slash-separated.
+                                // sote://open/<path> — URL path is slash-separated.
                                 // Restore Windows drive letters (C:/…) instead of
                                 // forcing a Unix leading slash.
                                 let raw = parsed.path().trim_start_matches('/');
