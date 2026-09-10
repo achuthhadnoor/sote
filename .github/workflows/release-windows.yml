@@ -8,7 +8,8 @@ on:
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  # Omit PASSWORD: an empty secret expands to "" and minisign treats that as a
+  # wrong password for unencrypted keys. Set the secret only if the key has one.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
