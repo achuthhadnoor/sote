@@ -35,4 +35,10 @@ dist-ssr
 .env.*
 !.env.example
 
-/website/*
+# Website / Next.js — keep source trackable; never commit install/build output
+website/node_modules/
+website/.next/
+website/out/
+website/.vercel/
+.next/
+out/
