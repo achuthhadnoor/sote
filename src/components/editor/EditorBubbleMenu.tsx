@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import type { Editor } from "@tiptap/react";
+import { useEditorState, type Editor } from "@tiptap/react";
 import {
   Bold,
   Italic,
@@ -27,6 +27,40 @@ interface EditorBubbleMenuProps {
   isRawMode?: boolean;
 }
 
+function readToolbarActive(editor: Editor) {
+  return {
+    paragraph: editor.isActive("paragraph") && !editor.isActive("heading"),
+    h1: editor.isActive("heading", { level: 1 }),
+    h2: editor.isActive("heading", { level: 2 }),
+    h3: editor.isActive("heading", { level: 3 }),
+    bold: editor.isActive("bold"),
+    italic: editor.isActive("italic"),
+    strike: editor.isActive("strike"),
+    code: editor.isActive("code"),
+    link: editor.isActive("link"),
+    bulletList: editor.isActive("bulletList"),
+    orderedList: editor.isActive("orderedList"),
+    taskList: editor.isActive("taskList"),
+    blockquote: editor.isActive("blockquote"),
+  };
+}
+
+const INACTIVE_TOOLBAR = {
+  paragraph: false,
+  h1: false,
+  h2: false,
+  h3: false,
+  bold: false,
+  italic: false,
+  strike: false,
+  code: false,
+  link: false,
+  bulletList: false,
+  orderedList: false,
+  taskList: false,
+  blockquote: false,
+};
+
 export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
   editor,
   isRawMode = false,
@@ -34,6 +68,13 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
   const [isLinkMode, setIsLinkMode] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const linkInputRef = useRef<HTMLInputElement>(null);
+
+  // EditorSurface disables shouldRerenderOnTransaction — subscribe here so
+  // active button highlights track the selection.
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: ed }) => (ed ? readToolbarActive(ed) : INACTIVE_TOOLBAR),
+  }) ?? INACTIVE_TOOLBAR;
 
   // Focus link input when entering link mode
   useEffect(() => {
@@ -138,16 +179,14 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
     }
   };
 
-  const isLinkActive = editor.isActive("link");
-
   const preventMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
   };
 
-  const itemClass = (active: boolean) =>
+  const itemClass = (isActive: boolean) =>
     cn(
       "relative flex items-center justify-center h-7 min-w-7 px-1.5 rounded-md type-label font-medium transition-all duration-150 cursor-pointer select-none",
-      active
+      isActive
         ? "bg-primary text-primary-foreground font-semibold shadow-xs"
         : "text-muted-foreground hover:text-foreground hover:bg-muted-translucent"
     );
@@ -180,7 +219,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             <Check className="w-3 h-3" />
             <span>Apply</span>
           </button>
-          {isLinkActive && (
+          {active.link && (
             <button
               type="button"
               onClick={handleRemoveLink}
@@ -206,7 +245,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().setParagraph().run()}
-            className={itemClass(editor.isActive("paragraph") && !editor.isActive("heading"))}
+            className={itemClass(active.paragraph)}
             title="Paragraph"
           >
             <Type className="w-3.5 h-3.5" />
@@ -215,7 +254,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={itemClass(editor.isActive("heading", { level: 1 }))}
+            className={itemClass(active.h1)}
             title="Heading 1"
           >
             <Heading1 className="w-3.5 h-3.5" />
@@ -224,7 +263,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={itemClass(editor.isActive("heading", { level: 2 }))}
+            className={itemClass(active.h2)}
             title="Heading 2"
           >
             <Heading2 className="w-3.5 h-3.5" />
@@ -233,7 +272,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={itemClass(editor.isActive("heading", { level: 3 }))}
+            className={itemClass(active.h3)}
             title="Heading 3"
           >
             <Heading3 className="w-3.5 h-3.5" />
@@ -247,7 +286,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={itemClass(editor.isActive("bold"))}
+            className={itemClass(active.bold)}
             title={`Bold (${modShortcut("B")})`}
           >
             <Bold className="w-3.5 h-3.5" />
@@ -256,7 +295,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={itemClass(editor.isActive("italic"))}
+            className={itemClass(active.italic)}
             title={`Italic (${modShortcut("I")})`}
           >
             <Italic className="w-3.5 h-3.5" />
@@ -265,7 +304,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={itemClass(editor.isActive("strike"))}
+            className={itemClass(active.strike)}
             title="Strikethrough"
           >
             <Strikethrough className="w-3.5 h-3.5" />
@@ -274,7 +313,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={itemClass(editor.isActive("code"))}
+            className={itemClass(active.code)}
             title="Inline Code"
           >
             <Code className="w-3.5 h-3.5" />
@@ -292,7 +331,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
               setLinkUrl(currentHref);
               setIsLinkMode(true);
             }}
-            className={itemClass(isLinkActive)}
+            className={itemClass(active.link)}
             title={`Link (${modShortcut("K")})`}
           >
             <LinkIcon className="w-3.5 h-3.5" />
@@ -306,7 +345,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={itemClass(editor.isActive("bulletList"))}
+            className={itemClass(active.bulletList)}
             title="Bullet List"
           >
             <List className="w-3.5 h-3.5" />
@@ -315,7 +354,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={itemClass(editor.isActive("orderedList"))}
+            className={itemClass(active.orderedList)}
             title="Numbered List"
           >
             <ListOrdered className="w-3.5 h-3.5" />
@@ -324,7 +363,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleTaskList().run()}
-            className={itemClass(editor.isActive("taskList"))}
+            className={itemClass(active.taskList)}
             title="Task List"
           >
             <ListTodo className="w-3.5 h-3.5" />
@@ -333,7 +372,7 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
             type="button"
             onMouseDown={preventMouseDown}
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={itemClass(editor.isActive("blockquote"))}
+            className={itemClass(active.blockquote)}
             title="Quote"
           >
             <Quote className="w-3.5 h-3.5" />
