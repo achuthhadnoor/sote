@@ -130,6 +130,8 @@ export const SettingsView: React.FC = () => {
   const [checking, setChecking] = useState(false);
   const [autoUpdateCheck, setAutoUpdateCheck] = useState(true);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [autostartStatus, setAutostartStatus] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const [logPath, setLogPath] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
   const [streamToTerminal, setStreamToTerminal] = useState(isStreamLogs());
@@ -149,7 +151,18 @@ export const SettingsView: React.FC = () => {
       try {
         const { isEnabled } = await import("@tauri-apps/plugin-autostart");
         setAutostartEnabled(await isEnabled());
-      } catch {}
+        setAutostartStatus(null);
+      } catch {
+        setAutostartStatus("Unavailable");
+      }
+    })();
+    (async () => {
+      try {
+        const { getVersion } = await import("@tauri-apps/api/app");
+        setAppVersion(await getVersion());
+      } catch {
+        /* non-Tauri / unavailable */
+      }
     })();
     (async () => {
       const p = await getBackendLogPath();
@@ -194,7 +207,11 @@ export const SettingsView: React.FC = () => {
       if (next) await enable();
       else await disable();
       setAutostartEnabled(await isEnabled());
-    } catch {}
+      setAutostartStatus(null);
+    } catch {
+      setAutostartStatus("Couldn't update");
+      setTimeout(() => setAutostartStatus(null), 4000);
+    }
   };
 
   return (
@@ -314,13 +331,23 @@ export const SettingsView: React.FC = () => {
         <SettingsSection title="System">
           <SettingsRow
             title="Launch at Login"
-            description="Open snipnote when you sign in"
+            description={
+              autostartStatus === "Unavailable"
+                ? "Launch at login unavailable"
+                : "Open snipnote when you sign in"
+            }
             control={
-              <Switch
-                checked={autostartEnabled}
-                onCheckedChange={(checked) => void toggleAutostart(checked)}
-                aria-label="Launch at login"
-              />
+              <div className="flex items-center gap-2">
+                {autostartStatus && autostartStatus !== "Unavailable" ? (
+                  <span className="text-[11px] text-muted-foreground">{autostartStatus}</span>
+                ) : null}
+                <Switch
+                  checked={autostartEnabled}
+                  onCheckedChange={(checked) => void toggleAutostart(checked)}
+                  disabled={autostartStatus === "Unavailable"}
+                  aria-label="Launch at login"
+                />
+              </div>
             }
           />
           <SettingsRow
@@ -417,8 +444,8 @@ export const SettingsView: React.FC = () => {
           />
         </SettingsSection>
 
-        <p className="px-0.5 text-[12px] text-muted-foreground leading-relaxed">
-          snipnote · local-first markdown notes. Theme and tint preferences save automatically.
+        <p className="px-0.5 text-[12px] text-muted-foreground">
+          {appVersion ? `snipnote ${appVersion}` : "snipnote"}
         </p>
       </div>
     </section>

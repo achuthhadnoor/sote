@@ -18,7 +18,7 @@ Audit by [AI slop code audit](ea5a11d6-9284-4246-abb3-5aaf8bb1cb77) (2026-09-10)
 ## Low
 
 - [x] **`macos_hover` tracking OnceLock** — Replaced with `AtomicUsize` view identity; debug-log failed main-thread hops.
-- [ ] **Settings footer** — Trim “local-first markdown notes” fluff; surface autostart failures instead of silent `catch {}`.
+- [x] **Settings footer** — Trim “local-first markdown notes” fluff; surface autostart failures instead of silent `catch {}`.
 - [ ] **`isHostAbsolutePath`** — Drop brittle `/Users/`/`/home/` prefix allowlist; use real absolute-path rules.
 
 ## Out of scope / already clean
