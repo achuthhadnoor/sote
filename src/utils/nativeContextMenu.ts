@@ -9,6 +9,7 @@ import { useFileTreeExpandStore } from "../stores/useFileTreeExpandStore";
 import type { VaultNode } from "../types/vault";
 import { createLogger } from "../lib/logger";
 import { isMac } from "./platform";
+import { pathBasename } from "./paths";
 
 const log = createLogger("context-menu");
 
@@ -42,7 +43,7 @@ function retargetTabsAfterRename(oldPath: string, newPath: string, isDirectory: 
   tabs.forEach((t) => {
     if (t.path === oldPath || t.path.startsWith(oldPath + "/")) {
       const newTabPath = t.path.replace(oldPath, newPath);
-      const title = newTabPath.split("/").pop() || t.title;
+      const title = pathBasename(newTabPath) || t.title;
       useTabStore.getState().closeTab(t.path);
       useTabStore.getState().selectNote(newTabPath, title);
     }
@@ -57,7 +58,7 @@ export async function commitRename(oldPath: string, newName: string, isDirectory
     return;
   }
   const trimmed = newName.trim();
-  if (!trimmed || trimmed === oldPath.split("/").pop()) {
+  if (!trimmed || trimmed === pathBasename(oldPath)) {
     useSidebarActionsStore.getState().clear();
     return;
   }
@@ -91,7 +92,7 @@ export async function commitCreate(dirPath: string, kind: "file" | "folder", nam
     });
     await refreshVault();
     useFileTreeExpandStore.getState().setExpanded(vaultPath, dirPath, true);
-    const title = newPath.split("/").pop() || trimmed;
+    const title = pathBasename(newPath) || trimmed;
     useTabStore.getState().selectNote(newPath, title);
   } else {
     const newPath = await invoke<string>("create_folder_at_path", {
