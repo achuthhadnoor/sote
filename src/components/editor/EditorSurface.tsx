@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
@@ -155,7 +155,9 @@ function resolveMarkdownLink(href: string, activePath: string | null, vaultPath:
   // 5. URL decode (e.g. %20 -> space)
   try {
     clean = decodeURIComponent(clean);
-  } catch {}
+  } catch {
+    /* keep raw */
+  }
 
   // 6. Check extension - skip known non-markdown files
   const lower = clean.toLowerCase();
@@ -286,6 +288,17 @@ function handleEditorLinkClick(e: MouseEvent, dom: HTMLElement | null): boolean 
   return true;
 }
 
+/** Load markdown into the TipTap editor (prefer extension parse, else contentType). */
+function setEditorMarkdown(editor: Editor, body: string): void {
+  const cleanBody = prepareMarkdownForEditor(body);
+  const ed = editor as any;
+  if (ed.markdown?.parse) {
+    const parsedDoc = ed.markdown.parse(cleanBody);
+    editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
+  } else {
+    (editor.commands as any).setContent(cleanBody, { contentType: "markdown", emitUpdate: false });
+  }
+}
 
 export const EditorSurface: React.FC = () => {
   const vaultPath = useVaultStore((state) => state.vaultPath);
@@ -702,14 +715,7 @@ export const EditorSurface: React.FC = () => {
         if (cancelled || !editor) return;
         isProgrammaticUpdateRef.current = true;
         try {
-          const cleanBody = prepareMarkdownForEditor(body);
-          const ed = editor as any;
-          if (ed.markdown?.parse) {
-            const parsedDoc = ed.markdown.parse(cleanBody);
-            editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
-          } else {
-            (editor.commands as any).setContent(cleanBody, { contentType: "markdown", emitUpdate: false });
-          }
+          setEditorMarkdown(editor, body);
         } finally {
           setTimeout(() => {
             isProgrammaticUpdateRef.current = false;
@@ -734,17 +740,11 @@ export const EditorSurface: React.FC = () => {
     prevRawRef.current = isRawMode;
     if (wasRaw && !isRawMode && editor) {
       isProgrammaticUpdateRef.current = true;
-      const ed = editor as any;
       try {
-        const cleanBody = prepareMarkdownForEditor(body || "");
-        if (ed.markdown?.parse) {
-          const parsedDoc = ed.markdown.parse(cleanBody);
-          editor.commands.setContent(parsedDoc, { emitUpdate: false } as any);
-        } else {
-          (editor.commands as any).setContent(cleanBody, { contentType: "markdown", emitUpdate: false });
-        }
-      } catch {}
-      finally {
+        setEditorMarkdown(editor, body || "");
+      } catch (err) {
+        log.warn("Failed to sync editor from raw body:", err);
+      } finally {
         setTimeout(() => {
           isProgrammaticUpdateRef.current = false;
         }, 50);
