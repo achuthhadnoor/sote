@@ -65,19 +65,9 @@ function App() {
   const welcomeMode = !vaultPath && !isSettingsTab(activePath);
   const hideSidebar = !vaultPath || sidebarCollapsed;
 
-  const triggerHaptic = () => {
-    try {
-      (navigator as any).vibrate?.(10);
-    } catch {}
-    try {
-      invoke("haptic_feedback", { kind: "alignment" }).catch(() => {});
-    } catch {}
-  };
-
   const openSettingsTab = useCallback(async () => {
     if (!(await flushActiveNote())) return;
     useTabStore.getState().selectNote(SETTINGS_TAB_PATH, SETTINGS_TAB_TITLE);
-    triggerHaptic();
   }, []);
 
   const toggleSettingsTab = useCallback(async () => {
@@ -88,15 +78,6 @@ function App() {
     }
     await openSettingsTab();
   }, [openSettingsTab]);
-
-  // Haptics on sidebar toggles
-  const prevSidebarRef = useRef(sidebarCollapsed);
-  useEffect(() => {
-    if (prevSidebarRef.current !== sidebarCollapsed) {
-      prevSidebarRef.current = sidebarCollapsed;
-      triggerHaptic();
-    }
-  }, [sidebarCollapsed]);
 
   // Restore session on mount — restores vault + open tabs
   useEffect(() => {
